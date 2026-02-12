@@ -1,0 +1,110 @@
+{
+  "fertilizer": {
+    "id": "fertilizer",
+    "name": "Magic Dust",
+    "type": "CONSUMABLE",
+    "price": 5,
+    "currency": "gems",
+    "color": "0xff00ff",
+    "width": 1,
+    "height": 1,
+    "sprite": null,
+    "description": "Instantly grow a plant!"
+  },
+  "planter_basic": {
+    "id": "planter_basic",
+    "name": "Wooden Planter",
+    "type": "PLANTER",
+    "price": 50,
+    "currency": "coins",
+    "color": "0x8b5a2b",
+    "width": 1,
+    "height": 1,
+    "sprite": null,
+    "description": "Grow your own herbs!"
+  },
+  "incubator_basic": {
+    "id": "incubator_basic",
+    "name": "Basic Incubator",
+    "type": "INCUBATOR",
+    "price": 200,
+    "currency": "coins",
+    "color": "0xdddddd",
+    "width": 1,
+    "height": 1,
+    "sprite": null,
+    "description": "Hatch pets from eggs."
+  },
+  "egg_common": {
+    "id": "egg_common",
+    "name": "Spotted Egg",
+    "type": "EGG",
+    "price": 100,
+    "currency": "coins",
+    "color": "0xffeebb",
+    "width": 1,
+    "height": 1,
+    "sprite": null,
+    "description": "What's inside?"
+  },
+  "chair_wood": {
+    "id": "chair_wood",
+    "name": "Wooden Chair",
+    "type": "FURNITURE",
+    "price": 150,
+    "currency": "coins",
+    "color": "0x8b4513",
+    "width": 1,
+    "height": 1,
+    "sprite": null,
+    "description": "Basic comfort."
+  },
+  "table_round": {
+    "id": "table_round",
+    "name": "Round Table",
+    "type": "FURNITURE",
+    "price": 300,
+    "currency": "coins",
+    "color": "0xd2691e",
+    "width": 2,
+    "height": 2,
+    "sprite": null,
+    "description": "Perfect for tea."
+  },
+  "lamp_floor": {
+    "id": "lamp_floor",
+    "name": "Floor Lamp",
+    "type": "DECORATION",
+    "price": 200,
+    "currency": "coins",
+    "color": "0xffff99",
+    "width": 1,
+    "height": 1,
+    "sprite": null,
+    "description": "Brightens the corner."
+  },
+  "rug_blue": {
+    "id": "rug_blue",
+    "name": "Blue Rug",
+    "type": "DECORATION",
+    "price": 100,
+    "currency": "coins",
+    "color": "0x4682b4",
+    "width": 2,
+    "height": 2,
+    "sprite": null,
+    "description": "Soft on the feet."
+  },
+  "fence_white": {
+    "id": "fence_white",
+    "name": "White Fence",
+    "type": "DECORATION",
+    "price": 40,
+    "currency": "coins",
+    "color": "0xffffff",
+    "width": 1,
+    "height": 1,
+    "sprite": null,
+    "description": "A classic garden border."
+  }
+}

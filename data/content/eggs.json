@@ -1,0 +1,10 @@
+{
+  "egg_common": {
+    "id": "egg_common",
+    "hatchTime": 20,
+    "pool": [
+      { "petId": "slime_green", "weight": 80 },
+      { "petId": "cat_lucky", "weight": 20 }
+    ]
+  }
+}

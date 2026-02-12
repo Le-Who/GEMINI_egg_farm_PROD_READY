@@ -1,0 +1,18 @@
+{
+  "slime_green": {
+    "id": "slime_green",
+    "name": "Garden Slime",
+    "rarity": "common",
+    "color": "0x77dd77",
+    "bonusDescription": "+5% Growth Speed",
+    "sprite": null
+  },
+  "cat_lucky": {
+    "id": "cat_lucky",
+    "name": "Lucky Cat",
+    "rarity": "rare",
+    "color": "0xffaa00",
+    "bonusDescription": "+10% Coin Reward",
+    "sprite": null
+  }
+}

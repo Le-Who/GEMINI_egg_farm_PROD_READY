@@ -1,0 +1,34 @@
+[
+  {
+    "id": 0,
+    "text": "Welcome! Open the Shop to start your gardening journey.",
+    "trigger": "OPEN_SHOP"
+  },
+  {
+    "id": 1,
+    "text": "Buy a Wooden Planter.",
+    "trigger": "BUY_ITEM",
+    "targetId": "planter_basic"
+  },
+  {
+    "id": 2,
+    "text": "Close Shop. Open Edit Mode (Home icon) and place the Planter.",
+    "trigger": "PLACE_ITEM",
+    "targetId": "planter_basic"
+  },
+  {
+    "id": 3,
+    "text": "Click the Planter to open the Seed Bag and plant Mint.",
+    "trigger": "PLANT_SEED"
+  },
+  {
+    "id": 4,
+    "text": "Wait for the Mint to grow, then click to harvest!",
+    "trigger": "HARVEST"
+  },
+  {
+    "id": 5,
+    "text": "Great job! You're a natural. (Click to finish)",
+    "trigger": "COMPLETE"
+  }
+]

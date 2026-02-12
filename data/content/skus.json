@@ -1,0 +1,23 @@
+[
+  {
+    "id": "sku_gems_100",
+    "name": "Pouch of Gems",
+    "price": "$1.99",
+    "amount": 100,
+    "icon": "gem_small"
+  },
+  {
+    "id": "sku_gems_550",
+    "name": "Bucket of Gems",
+    "price": "$4.99",
+    "amount": 550,
+    "icon": "gem_bucket"
+  },
+  {
+    "id": "sku_starter",
+    "name": "Starter Pack",
+    "price": "$2.99",
+    "amount": 200,
+    "icon": "starter"
+  }
+]

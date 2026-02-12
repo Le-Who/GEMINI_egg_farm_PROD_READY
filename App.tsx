@@ -11,7 +11,7 @@ import { ConfirmationModal } from "./components/ui/ConfirmationModal";
 import { MockBackend } from "./services/mockBackend";
 import { discordService } from "./services/discord"; // REAL Service
 import { UserState, ItemType, RoomType } from "./types";
-import { ITEMS, CROPS } from "./constants";
+import { ITEMS, CROPS, loadContent, refreshArrayRefs } from "./constants";
 import { Loader2, ArrowLeft } from "lucide-react";
 import Phaser from "phaser";
 
@@ -55,6 +55,8 @@ const App: React.FC = () => {
   useEffect(() => {
     const initGame = async () => {
       try {
+        await loadContent(); // Load dynamic content from API
+        refreshArrayRefs(); // Update array-based constants
         await discordService.init(); // Wait for Discord SDK
         const u = await MockBackend.getUser();
         setCurrentUser(u);
