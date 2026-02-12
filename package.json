@@ -5,7 +5,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "build": "vite build"
+    "build": "vite build",
+    "gcp-build": "npm run build"
   },
   "dependencies": {
     "@discord/embedded-app-sdk": "^1.0.0",
