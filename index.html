@@ -1,5 +1,4 @@
-
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -7,28 +6,34 @@
     <title>Discord Garden & Home</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-      body { margin: 0; padding: 0; overflow: hidden; background-color: #2f3136; color: #dcddde; }
-      #root { width: 100vw; height: 100vh; }
-      canvas { display: block; }
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background-color: #2f3136;
+        color: #dcddde;
+      }
+      #root {
+        width: 100vw;
+        height: 100vh;
+      }
+      canvas {
+        display: block;
+      }
     </style>
-  <script type="importmap">
-{
-  "imports": {
-    "react/": "https://esm.sh/react@^19.2.4/",
-    "react": "https://esm.sh/react@^19.2.4",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
-    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
-    "phaser": "https://esm.sh/phaser@^3.90.0",
-    "@discord/embedded-app-sdk": "https://esm.sh/@discord/embedded-app-sdk@1.0.0",
-    "express": "https://esm.sh/express@^5.2.1",
-    "url": "https://esm.sh/url@^0.11.4",
-    "dotenv": "https://esm.sh/dotenv@^17.2.4",
-    "node-fetch": "https://esm.sh/node-fetch@^3.3.2",
-    "path": "https://esm.sh/path@^0.12.7"
-  }
-}
-</script>
-</head>
+    <script type="importmap">
+      {
+        "imports": {
+          "react/": "https://esm.sh/react@^19.2.4/",
+          "react": "https://esm.sh/react@^19.2.4",
+          "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+          "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
+          "phaser": "https://esm.sh/phaser@^3.90.0",
+          "@discord/embedded-app-sdk": "https://esm.sh/@discord/embedded-app-sdk@1.0.0"
+        }
+      }
+    </script>
+  </head>
   <body>
     <div id="root"></div>
   </body>

@@ -1,47 +1,51 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { GameCanvas } from './components/GameCanvas';
-import { HUD } from './components/ui/HUD';
-import { ShopModal } from './components/ui/ShopModal';
-import { EditorBar } from './components/ui/EditorBar';
-import { SeedBagModal } from './components/ui/SeedBagModal';
-import { NeighborsPanel } from './components/ui/NeighborsPanel';
-import { PetsModal } from './components/ui/PetsModal';
-import { TutorialOverlay } from './components/ui/TutorialOverlay';
-import { ConfirmationModal } from './components/ui/ConfirmationModal';
-import { MockBackend } from './services/mockBackend';
-import { discordService } from './services/discord'; // REAL Service
-import { UserState, ItemType, RoomType } from './types';
-import { ITEMS, CROPS } from './constants';
-import { Loader2, ArrowLeft } from 'lucide-react';
-import Phaser from 'phaser';
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { GameCanvas } from "./components/GameCanvas";
+import { HUD } from "./components/ui/HUD";
+import { ShopModal } from "./components/ui/ShopModal";
+import { EditorBar } from "./components/ui/EditorBar";
+import { SeedBagModal } from "./components/ui/SeedBagModal";
+import { NeighborsPanel } from "./components/ui/NeighborsPanel";
+import { PetsModal } from "./components/ui/PetsModal";
+import { TutorialOverlay } from "./components/ui/TutorialOverlay";
+import { ConfirmationModal } from "./components/ui/ConfirmationModal";
+import { MockBackend } from "./services/mockBackend";
+import { discordService } from "./services/discord"; // REAL Service
+import { UserState, ItemType, RoomType } from "./types";
+import { ITEMS, CROPS } from "./constants";
+import { Loader2, ArrowLeft } from "lucide-react";
+import Phaser from "phaser";
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<UserState | null>(null); // Me
   const [displayUser, setDisplayUser] = useState<UserState | null>(null); // Who we are looking at
-  
+
   // Modals
   const [isShopOpen, setIsShopOpen] = useState(false);
   const [isSeedBagOpen, setIsSeedBagOpen] = useState(false);
   const [isNeighborsOpen, setIsNeighborsOpen] = useState(false);
   const [isPetsModalOpen, setIsPetsModalOpen] = useState(false);
-  
+
   // IAP Confirmation
   const [pendingSku, setPendingSku] = useState<string | null>(null);
-  
+
   // Editor / Interaction State
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [rotation, setRotation] = useState(0);
   const [targetPlanterId, setTargetPlanterId] = useState<string | null>(null);
   const [playerGridPos, setPlayerGridPos] = useState({ x: 7, y: 7 });
-  
+
   // Visiting State
   const [wateredPlants, setWateredPlants] = useState<Set<string>>(new Set());
 
   // Notification System
-  const [notification, setNotification] = useState<{msg: string, type: 'success' | 'error'} | null>(null);
+  const [notification, setNotification] = useState<{
+    msg: string;
+    type: "success" | "error";
+  } | null>(null);
   const notificationTimeoutRef = useRef<any>(null);
-  
+  const lastActionRef = useRef<number>(0);
+
   const prevLevelRef = useRef<number>(1);
 
   // Derived State
@@ -50,17 +54,17 @@ const App: React.FC = () => {
   // Initialize Discord & Fetch User
   useEffect(() => {
     const initGame = async () => {
-        try {
-            await discordService.init(); // Wait for Discord SDK
-            const u = await MockBackend.getUser();
-            setCurrentUser(u);
-            setDisplayUser(u);
-            
-            // Set Initial Activity
-            discordService.setActivity("Tending to the garden", "Lvl " + u.level);
-        } catch (e) {
-            console.error("Game Init Failed", e);
-        }
+      try {
+        await discordService.init(); // Wait for Discord SDK
+        const u = await MockBackend.getUser();
+        setCurrentUser(u);
+        setDisplayUser(u);
+
+        // Set Initial Activity
+        discordService.setActivity("Tending to the garden", "Lvl " + u.level);
+      } catch (e) {
+        console.error("Game Init Failed", e);
+      }
     };
     initGame();
   }, []);
@@ -68,64 +72,75 @@ const App: React.FC = () => {
   // Poll for Updates & Activity
   useEffect(() => {
     if (!currentUser) return;
-    
+
     // Level Up Notification
     if (currentUser.level > prevLevelRef.current) {
-        showNotification(`LEVEL UP! You are now level ${currentUser.level}`, 'success');
-        prevLevelRef.current = currentUser.level;
+      showNotification(
+        `LEVEL UP! You are now level ${currentUser.level}`,
+        "success",
+      );
+      prevLevelRef.current = currentUser.level;
     }
-    
-    // Update Discord Rich Presence
-    const petText = currentUser.pets.length > 0 
-        ? `w/ ${currentUser.pets.find(p => p.id === currentUser.equippedPetId)?.name || 'Pet'}` 
-        : "Solo";
-    
-    discordService.setActivity(`Lvl ${currentUser.level} Gardener`, petText);
 
+    // Update Discord Rich Presence
+    const petText =
+      currentUser.pets.length > 0
+        ? `w/ ${currentUser.pets.find((p) => p.id === currentUser.equippedPetId)?.name || "Pet"}`
+        : "Solo";
+
+    discordService.setActivity(`Lvl ${currentUser.level} Gardener`, petText);
   }, [currentUser]);
 
   // Polling loop for state sync (simulated backend sync)
   useEffect(() => {
-      const interval = setInterval(async () => {
-          if (!isEditMode && currentUser) {
-              const u = await MockBackend.getUser();
-              // Simple check to avoid overwriting optimistic updates in a real app, 
-              // but for this mock-backed structure, it refreshes state.
-              setCurrentUser(u); 
-              if (!isVisiting) setDisplayUser(u);
-          }
-      }, 5000); // Poll every 5s
-      return () => clearInterval(interval);
+    const interval = setInterval(async () => {
+      if (!isEditMode && currentUser) {
+        // Don't overwrite optimistic updates from recent actions
+        if (Date.now() - lastActionRef.current < 3000) return;
+        const u = await MockBackend.getUser();
+        setCurrentUser(u);
+        if (!isVisiting) setDisplayUser(u);
+      }
+    }, 5000); // Poll every 5s
+    return () => clearInterval(interval);
   }, [isEditMode, isVisiting, currentUser]);
 
-  const showNotification = useCallback((msg: string, type: 'success' | 'error') => {
-    if (notificationTimeoutRef.current) {
-      clearTimeout(notificationTimeoutRef.current);
-    }
-    setNotification({ msg, type });
-    notificationTimeoutRef.current = setTimeout(() => {
-      setNotification(null);
-      notificationTimeoutRef.current = null;
-    }, 3000);
-  }, []);
+  const showNotification = useCallback(
+    (msg: string, type: "success" | "error") => {
+      if (notificationTimeoutRef.current) {
+        clearTimeout(notificationTimeoutRef.current);
+      }
+      setNotification({ msg, type });
+      notificationTimeoutRef.current = setTimeout(() => {
+        setNotification(null);
+        notificationTimeoutRef.current = null;
+      }, 3000);
+    },
+    [],
+  );
 
   // Floating Text Helper - Finds the active scene
-  const triggerFloatingText = (x: number, y: number, text: string, color: string) => {
-     const game = (window as any).game; 
-     if (game) {
-         const scene = game.scene.getScene('MainScene');
-         if (scene && scene.showFloatingText) {
-             scene.showFloatingText(x, y, text, color);
-         }
-     }
+  const triggerFloatingText = (
+    x: number,
+    y: number,
+    text: string,
+    color: string,
+  ) => {
+    const game = (window as any).game;
+    if (game) {
+      const scene = game.scene.getScene("MainScene");
+      if (scene && scene.showFloatingText) {
+        scene.showFloatingText(x, y, text, color);
+      }
+    }
   };
 
   const handleOpenShop = async () => {
-      setIsShopOpen(true);
-      if (currentUser && !currentUser.completedTutorial) {
-          const updatedUser = await MockBackend.triggerTutorial("OPEN_SHOP");
-          setCurrentUser(updatedUser);
-      }
+    setIsShopOpen(true);
+    if (currentUser && !currentUser.completedTutorial) {
+      const updatedUser = await MockBackend.triggerTutorial("OPEN_SHOP");
+      setCurrentUser(updatedUser);
+    }
   };
 
   const handleBuy = async (itemId: string) => {
@@ -134,62 +149,64 @@ const App: React.FC = () => {
     if (result.success && result.newState) {
       setCurrentUser(result.newState);
       if (!isVisiting) setDisplayUser(result.newState);
-      showNotification("Item purchased!", 'success');
+      lastActionRef.current = Date.now();
+      showNotification("Item purchased!", "success");
     } else {
-      showNotification(result.message || "Failed to buy", 'error');
+      showNotification(result.message || "Failed to buy", "error");
     }
   };
 
   // IAP Flow
   const handleBuyGemRequest = (skuId: string) => {
-      setPendingSku(skuId);
+    setPendingSku(skuId);
   };
 
   const confirmBuyGem = async () => {
-      if (!pendingSku) return;
-      const result = await MockBackend.buyPremiumCurrency(pendingSku);
-      if (result.success && result.newState) {
-          setCurrentUser(result.newState);
-          showNotification(result.message || "Purchase successful!", 'success');
-      } else {
-          showNotification("Purchase failed", 'error');
-      }
-      setPendingSku(null);
+    if (!pendingSku) return;
+    const result = await MockBackend.buyPremiumCurrency(pendingSku);
+    if (result.success && result.newState) {
+      setCurrentUser(result.newState);
+      showNotification(result.message || "Purchase successful!", "success");
+    } else {
+      showNotification("Purchase failed", "error");
+    }
+    setPendingSku(null);
   };
 
   const handlePlant = async (cropId: string) => {
     if (!targetPlanterId) return;
     const result = await MockBackend.plantSeed(targetPlanterId, cropId);
     if (result.success && result.newState) {
-        setCurrentUser(result.newState);
-        if (!isVisiting) setDisplayUser(result.newState);
-        showNotification(result.message || "Planted!", 'success');
-        setIsSeedBagOpen(false);
-        setTargetPlanterId(null);
+      setCurrentUser(result.newState);
+      if (!isVisiting) setDisplayUser(result.newState);
+      lastActionRef.current = Date.now();
+      showNotification(result.message || "Planted!", "success");
+      setIsSeedBagOpen(false);
+      setTargetPlanterId(null);
     } else {
-        showNotification(result.message || "Could not plant", 'error');
+      showNotification(result.message || "Could not plant", "error");
     }
   };
 
   const handleVisit = async (neighborId: string) => {
-      setNotification({ msg: "Traveling...", type: 'success' });
-      const neighborState = await MockBackend.visitNeighbor(neighborId);
-      setDisplayUser(neighborState);
-      setIsNeighborsOpen(false);
-      setIsEditMode(false);
-      // setWateredPlants(new Set()); // Removed local clear to rely on backend
-      setPlayerGridPos({ x: 7, y: 7 }); // Reset spawn
-      showNotification(`Visiting ${neighborState.username}`, 'success');
-      
-      // Update Rich Presence
-      discordService.setActivity("Visiting a neighbor", "Helping out");
+    setNotification({ msg: "Traveling...", type: "success" });
+    const neighborState = await MockBackend.visitNeighbor(neighborId);
+    setDisplayUser(neighborState);
+    setIsNeighborsOpen(false);
+    setIsEditMode(false);
+    // setWateredPlants(new Set()); // Removed local clear to rely on backend
+    setPlayerGridPos({ x: 7, y: 7 }); // Reset spawn
+    showNotification(`Visiting ${neighborState.username}`, "success");
+
+    // Update Rich Presence
+    discordService.setActivity("Visiting a neighbor", "Helping out");
   };
 
   const handleReturnHome = () => {
-      setDisplayUser(currentUser);
-      // setWateredPlants(new Set()); // Removed local clear
-      setPlayerGridPos({ x: 7, y: 7 });
-      showNotification("Returned Home", 'success');
+    setDisplayUser(currentUser);
+    // setWateredPlants(new Set()); // Removed local clear
+    setPlayerGridPos({ x: 7, y: 7 });
+    showNotification("Returned Home", "success");
   };
 
   const handleEquipPet = async (petId: string) => {
@@ -197,145 +214,172 @@ const App: React.FC = () => {
     if (result.success && result.newState) {
       setCurrentUser(result.newState);
       if (!isVisiting) setDisplayUser(result.newState);
-      showNotification("Pet equipped!", 'success');
+      showNotification("Pet equipped!", "success");
     }
   };
 
   const handleSwitchRoom = async (type: RoomType) => {
-      const result = await MockBackend.switchRoom(type);
-      if (result.success && result.newState) {
-          setCurrentUser(result.newState);
-          setDisplayUser(result.newState); 
-          showNotification(`Entered ${type}`, 'success');
-      } else {
-          showNotification(result.message || "Locked", 'error');
-      }
+    const result = await MockBackend.switchRoom(type);
+    if (result.success && result.newState) {
+      setCurrentUser(result.newState);
+      setDisplayUser(result.newState);
+      showNotification(`Entered ${type}`, "success");
+    } else {
+      showNotification(result.message || "Locked", "error");
+    }
   };
 
-  const handleTileClick = useCallback(async (x: number, y: number) => {
-    if (!currentUser || !displayUser) return;
+  const handleTileClick = useCallback(
+    async (x: number, y: number) => {
+      if (!currentUser || !displayUser) return;
 
-    // Move Player
-    setPlayerGridPos({ x, y });
+      // Move Player
+      setPlayerGridPos({ x, y });
 
-    const currentRoomItems = displayUser.rooms[displayUser.currentRoom].items;
+      const currentRoomItems = displayUser.rooms[displayUser.currentRoom].items;
 
-    // --- VISITOR MODE ---
-    if (isVisiting) {
-        const item = currentRoomItems.find(i => i.gridX === x && i.gridY === y);
+      // --- VISITOR MODE ---
+      if (isVisiting) {
+        const item = currentRoomItems.find(
+          (i) => i.gridX === x && i.gridY === y,
+        );
         if (item && item.cropData) {
-            // Optimistic check
-            if (wateredPlants.has(item.id)) {
-                showNotification("Already watered this plant!", 'error');
-                return;
-            }
+          // Optimistic check
+          if (wateredPlants.has(item.id)) {
+            showNotification("Already watered this plant!", "error");
+            return;
+          }
 
-            const res = await MockBackend.waterNeighborPlant(displayUser.id, item.id);
-            if (res.success) {
-                showNotification(res.message, 'success');
-                setWateredPlants(prev => new Set(prev).add(item.id));
-                triggerFloatingText(x, y, "+5 Soc XP", "#ffff00");
-            } else {
-                 showNotification(res.message, 'error');
-            }
+          const res = await MockBackend.waterNeighborPlant(
+            displayUser.id,
+            item.id,
+          );
+          if (res.success) {
+            showNotification(res.message, "success");
+            setWateredPlants((prev) => new Set(prev).add(item.id));
+            triggerFloatingText(x, y, "+5 Soc XP", "#ffff00");
+          } else {
+            showNotification(res.message, "error");
+          }
         }
         return;
-    }
+      }
 
-    // --- OWNER MODE ---
+      // --- OWNER MODE ---
 
-    // 1. CONSUMABLE USAGE (New)
-    // If edit mode is open and an item is selected, check if it is consumable
-    if (isEditMode && selectedItemId) {
+      // 1. CONSUMABLE USAGE (New)
+      // If edit mode is open and an item is selected, check if it is consumable
+      if (isEditMode && selectedItemId) {
         const itemConfig = ITEMS[selectedItemId];
         if (itemConfig && itemConfig.type === ItemType.CONSUMABLE) {
-             const result = await MockBackend.useConsumable(selectedItemId, x, y);
-             if (result.success && result.newState) {
-                 setCurrentUser(result.newState);
-                 setDisplayUser(result.newState);
-                 triggerFloatingText(x, y, "MAGIC!", "#ff00ff");
-                 showNotification(result.message || "Item Used", 'success');
-             } else {
-                 showNotification(result.message || "Cannot use item here", 'error');
-             }
-             return; // Don't proceed to place logic
+          const result = await MockBackend.useConsumable(selectedItemId, x, y);
+          if (result.success && result.newState) {
+            setCurrentUser(result.newState);
+            setDisplayUser(result.newState);
+            triggerFloatingText(x, y, "MAGIC!", "#ff00ff");
+            showNotification(result.message || "Item Used", "success");
+          } else {
+            showNotification(result.message || "Cannot use item here", "error");
+          }
+          return; // Don't proceed to place logic
         }
-    }
-
-    // 2. PLACE MODE
-    if (isEditMode && selectedItemId) {
-      const result = await MockBackend.placeItem(selectedItemId, x, y, rotation);
-      if (result.success && result.newState) {
-        setCurrentUser(result.newState);
-        setDisplayUser(result.newState);
-      } else {
-        showNotification(result.message || "Cannot place here", 'error');
       }
-      return;
-    } 
-    
-    // 3. INTERACTION MODE
-    if (!isEditMode) {
-      const item = currentRoomItems.find(i => i.gridX === x && i.gridY === y);
-      if (!item) return;
-      
-      const config = ITEMS[item.itemId];
 
-      // INCUBATOR
-      if (config.type === ItemType.INCUBATOR) {
+      // 2. PLACE MODE
+      if (isEditMode && selectedItemId) {
+        const result = await MockBackend.placeItem(
+          selectedItemId,
+          x,
+          y,
+          rotation,
+        );
+        if (result.success && result.newState) {
+          setCurrentUser(result.newState);
+          setDisplayUser(result.newState);
+        } else {
+          showNotification(result.message || "Cannot place here", "error");
+        }
+        return;
+      }
+
+      // 3. INTERACTION MODE
+      if (!isEditMode) {
+        const item = currentRoomItems.find(
+          (i) => i.gridX === x && i.gridY === y,
+        );
+        if (!item) return;
+
+        const config = ITEMS[item.itemId];
+
+        // INCUBATOR
+        if (config.type === ItemType.INCUBATOR) {
           if (!item.meta?.eggId) {
-             const eggId = Object.keys(currentUser.inventory).find(
-               k => ITEMS[k]?.type === ItemType.EGG && currentUser.inventory[k] > 0
-             );
+            const eggId = Object.keys(currentUser.inventory).find(
+              (k) =>
+                ITEMS[k]?.type === ItemType.EGG && currentUser.inventory[k] > 0,
+            );
 
-             if (eggId) {
-                 const res = await MockBackend.placeEgg(item.id, eggId);
-                 if (res.success && res.newState) {
-                     setCurrentUser(res.newState);
-                     setDisplayUser(res.newState);
-                     showNotification("Egg placed!", 'success');
-                 } else {
-                     showNotification(res.message || "Failed to place egg", 'error');
-                 }
-             } else {
-                 showNotification("You don't have any eggs! Buy one at the shop.", 'error');
-             }
-             return;
-          }
-      }
-
-      // PLANTER
-      if (config.type === ItemType.PLANTER) {
-          if (!item.cropData) {
-              setTargetPlanterId(item.id);
-              setIsSeedBagOpen(true);
-              return;
-          }
-      }
-
-      // GENERIC INTERACT
-      const result = await MockBackend.harvestOrPickup(x, y);
-      if (result.success && result.newState) {
-        setCurrentUser(result.newState);
-        setDisplayUser(result.newState);
-        
-        if (result.action === 'harvest') {
-            if (result.reward) {
-                triggerFloatingText(x, y, `+${result.reward}G`, "#ffff00");
-                showNotification(`+${result.reward} Gold | +XP`, 'success');
+            if (eggId) {
+              const res = await MockBackend.placeEgg(item.id, eggId);
+              if (res.success && res.newState) {
+                setCurrentUser(res.newState);
+                setDisplayUser(res.newState);
+                showNotification("Egg placed!", "success");
+              } else {
+                showNotification(res.message || "Failed to place egg", "error");
+              }
+            } else {
+              showNotification(
+                "You don't have any eggs! Buy one at the shop.",
+                "error",
+              );
             }
-            else showNotification(result.message || "Harvested", 'success');
-        } else if (result.action === 'pickup') {
-            showNotification("Item put in inventory", 'success');
-        } else if (result.action === 'hatch') {
-            triggerFloatingText(x, y, "HATCHED!", "#ff00ff");
-            showNotification(result.message || "Hatched!", 'success');
+            return;
+          }
         }
-      } else {
-        // Silent fail or low priority message
+
+        // PLANTER
+        if (config.type === ItemType.PLANTER) {
+          if (!item.cropData) {
+            setTargetPlanterId(item.id);
+            setIsSeedBagOpen(true);
+            return;
+          }
+        }
+
+        // GENERIC INTERACT
+        const result = await MockBackend.harvestOrPickup(x, y);
+        if (result.success && result.newState) {
+          setCurrentUser(result.newState);
+          setDisplayUser(result.newState);
+
+          if (result.action === "harvest") {
+            if (result.reward) {
+              triggerFloatingText(x, y, `+${result.reward}G`, "#ffff00");
+              showNotification(`+${result.reward} Gold | +XP`, "success");
+            } else showNotification(result.message || "Harvested", "success");
+          } else if (result.action === "pickup") {
+            showNotification("Item put in inventory", "success");
+          } else if (result.action === "hatch") {
+            triggerFloatingText(x, y, "HATCHED!", "#ff00ff");
+            showNotification(result.message || "Hatched!", "success");
+          }
+        } else {
+          // Silent fail or low priority message
+        }
       }
-    }
-  }, [currentUser, displayUser, isVisiting, isEditMode, selectedItemId, rotation, wateredPlants, showNotification]);
+    },
+    [
+      currentUser,
+      displayUser,
+      isVisiting,
+      isEditMode,
+      selectedItemId,
+      rotation,
+      wateredPlants,
+      showNotification,
+    ],
+  );
 
   const toggleEditMode = () => {
     setIsEditMode(!isEditMode);
@@ -356,18 +400,20 @@ const App: React.FC = () => {
   // Determine current pet to display
   // Use currentUser's pet if available (My pet follows me)
   const myPetId = currentUser.equippedPetId;
-  const myPet = myPetId ? currentUser.pets.find(p => p.id === myPetId) : null;
-  
+  const myPet = myPetId ? currentUser.pets.find((p) => p.id === myPetId) : null;
+
   const currentRoomItems = displayUser.rooms[displayUser.currentRoom].items;
 
   return (
     <div className="relative w-full h-full overflow-hidden font-sans select-none">
-      <GameCanvas 
-        items={currentRoomItems} 
+      <GameCanvas
+        items={currentRoomItems}
         roomType={displayUser.currentRoom}
-        onTileClick={handleTileClick} 
-        ghostItem={isEditMode && selectedItemId ? { id: selectedItemId, rotation } : null}
-        currentPet={myPet || null} 
+        onTileClick={handleTileClick}
+        ghostItem={
+          isEditMode && selectedItemId ? { id: selectedItemId, rotation } : null
+        }
+        currentPet={myPet || null}
         isVisiting={isVisiting}
         wateredPlants={wateredPlants}
         playerGridPos={playerGridPos}
@@ -375,41 +421,40 @@ const App: React.FC = () => {
       />
 
       {isVisiting && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-blue-600 px-6 py-2 rounded-full shadow-lg z-50 flex items-center gap-4 animate-slide-down">
-              <span className="text-white font-bold">Visiting {displayUser.username}</span>
-              <button 
-                onClick={handleReturnHome}
-                className="bg-white text-blue-600 px-3 py-1 rounded-full text-sm font-bold hover:bg-gray-100 flex items-center gap-1 transition-colors"
-              >
-                  <ArrowLeft size={14} /> Return Home
-              </button>
-          </div>
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-blue-600 px-6 py-2 rounded-full shadow-lg z-50 flex items-center gap-4 animate-slide-down">
+          <span className="text-white font-bold">
+            Visiting {displayUser.username}
+          </span>
+          <button
+            onClick={handleReturnHome}
+            className="bg-white text-blue-600 px-3 py-1 rounded-full text-sm font-bold hover:bg-gray-100 flex items-center gap-1 transition-colors"
+          >
+            <ArrowLeft size={14} /> Return Home
+          </button>
+        </div>
       )}
 
-      <HUD 
-        user={currentUser} 
+      <HUD
+        user={currentUser}
         onOpenShop={handleOpenShop}
         onOpenPets={() => setIsPetsModalOpen(true)}
         onToggleEdit={toggleEditMode}
         onToggleNeighbors={() => setIsNeighborsOpen(!isNeighborsOpen)}
         onSwitchRoom={handleSwitchRoom}
-        isEditMode={isEditMode || isVisiting} // Hide HUD when visiting or editing
+        isEditMode={isEditMode}
         isNeighborsOpen={isNeighborsOpen}
       />
-      
-      <TutorialOverlay 
-        user={currentUser} 
-        onUpdateUser={setCurrentUser}
-      />
 
-      <NeighborsPanel 
+      <TutorialOverlay user={currentUser} onUpdateUser={setCurrentUser} />
+
+      <NeighborsPanel
         isOpen={isNeighborsOpen}
         onToggle={() => setIsNeighborsOpen(!isNeighborsOpen)}
         onVisit={handleVisit}
       />
 
       {isEditMode && (
-        <EditorBar 
+        <EditorBar
           user={currentUser}
           selectedItemId={selectedItemId}
           rotation={rotation}
@@ -419,30 +464,31 @@ const App: React.FC = () => {
         />
       )}
 
-      <ShopModal 
-        isOpen={isShopOpen} 
-        onClose={() => setIsShopOpen(false)} 
+      <ShopModal
+        isOpen={isShopOpen}
+        onClose={() => setIsShopOpen(false)}
         onBuy={handleBuy}
         onBuyGem={handleBuyGemRequest}
         userCoins={currentUser.coins}
+        userGems={currentUser.gems}
         tutorialStep={currentUser.tutorialStep}
       />
 
-      <SeedBagModal 
+      <SeedBagModal
         isOpen={isSeedBagOpen}
         onClose={() => setIsSeedBagOpen(false)}
         onPlant={handlePlant}
         user={currentUser}
       />
 
-      <PetsModal 
+      <PetsModal
         isOpen={isPetsModalOpen}
         onClose={() => setIsPetsModalOpen(false)}
         onEquip={handleEquipPet}
         user={currentUser}
       />
 
-      <ConfirmationModal 
+      <ConfirmationModal
         isOpen={!!pendingSku}
         title="Confirm Purchase"
         message="Do you want to buy this item? This is a simulation of the Discord IAP flow."
@@ -452,9 +498,11 @@ const App: React.FC = () => {
       />
 
       {notification && (
-        <div className={`absolute top-24 left-1/2 -translate-x-1/2 px-6 py-2 rounded-full shadow-xl z-50 text-white font-bold animate-bounce ${
-          notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'
-        }`}>
+        <div
+          className={`absolute top-24 left-1/2 -translate-x-1/2 px-6 py-2 rounded-full shadow-xl z-50 text-white font-bold animate-bounce ${
+            notification.type === "success" ? "bg-green-500" : "bg-red-500"
+          }`}
+        >
           {notification.msg}
         </div>
       )}
