@@ -7,7 +7,7 @@ import {
   LevelConfig,
   SkuConfig,
   TutorialStepConfig,
-} from "./types";
+} from "../types";
 
 // --- Content Store (loaded from server API) ---
 let _items: Record<string, ItemConfig> = {};
