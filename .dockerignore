@@ -5,9 +5,15 @@ node_modules
 .config
 .npm
 .vscode
-data
+data/db.json
 dist
 *.md
+*.log
 .env
 .env.*
+!.env.example
 .gcloudignore
+.bash*
+.profile
+.sudo_as_admin_successful
+README-cloudshell.txt
