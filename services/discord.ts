@@ -3,7 +3,7 @@ import { DiscordSDK, DiscordSDKMock } from "@discord/embedded-app-sdk";
 // Client ID injected by Vite at build time, or fallback for local dev
 const CLIENT_ID =
   (typeof process !== "undefined" && process.env?.DISCORD_CLIENT_ID) ||
-  "123456789012345678"; // Replace with your real CLIENT_ID
+  "1471622547983306833"; // Replace with your real CLIENT_ID
 
 const isEmbedded = window.location.search.includes("frame_id");
 
