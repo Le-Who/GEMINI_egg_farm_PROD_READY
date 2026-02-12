@@ -7,7 +7,7 @@
 .npm/
 .vscode/
 node_modules/
-data/
+data/db.json
 *.md
 *.log
 .env
