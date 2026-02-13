@@ -427,7 +427,11 @@ describe("GameEngine", () => {
       const res = await GameEngine.pickupItem(3, 3);
       expect(res.success).toBe(true);
       expect(res.action).toBe("pickup");
-      expect(res.newState?.rooms.interior.items.find((i) => i.gridX === 3 && i.gridY === 3)).toBeUndefined();
+      expect(
+        res.newState?.rooms.interior.items.find(
+          (i) => i.gridX === 3 && i.gridY === 3,
+        ),
+      ).toBeUndefined();
     });
   });
 
@@ -499,6 +503,9 @@ describe("GameEngine", () => {
 
       expect(user2).not.toBe(user1);
       expect(user2.coins).toBe(99999);
+    });
+  });
+
   describe("applyDye", () => {
     it("should apply dye to furniture", async () => {
       // 1. Place a chair

@@ -44,6 +44,8 @@ graph TB
         E --> I[Discord OAuth2]
         E --> E1[Billboard API]
         E --> E2[Neighbor Cache — 60s TTL]
+        G -.-> G1[server/contentManager.js]
+        H -.-> H1[server/storage.js]
     end
 
     subgraph Storage ["Persistence"]
@@ -65,7 +67,10 @@ graph TB
 
 ```
 egg-farm/
-├── server.js                 # Express backend — API, CMS, auth, storage
+├── server.js                 # Express backend — API routes, auth, orchestration
+├── server/
+│   ├── storage.js            # GCS + local filesystem helpers (read/write/list)
+│   └── contentManager.js     # CMS content CRUD, caching, versioning
 ├── App.tsx                   # React root — state orchestrator (558 lines)
 ├── index.tsx                 # React DOM entry point
 ├── index.html                # SPA shell with ESM importmap
@@ -74,8 +79,11 @@ egg-farm/
 ├── style.css                 # Tailwind directives + custom animations
 │
 ├── game/
-│   └── scenes/
-│       └── MainScene.ts      # Phaser isometric renderer (920+ lines, object pooling)
+│   ├── scenes/
+│   │   └── MainScene.ts      # Phaser isometric renderer (object pooling, Z-sorting)
+│   └── systems/
+│       ├── PetAI.ts          # Pet AI FSM (IDLE/WANDER/APPROACH), pathfinding, reactions
+│       └── ProceduralRenderer.ts # Isometric box drawing, texture gen, crop sprites
 │
 ├── components/
 │   ├── GameCanvas.tsx         # Phaser ↔ React bridge
@@ -110,6 +118,10 @@ egg-farm/
 │
 ├── admin/
 │   └── index.html             # CMS dashboard (750+ lines vanilla JS)
+│
+├── tests/
+│   ├── unit/                  # Vitest unit tests (gameEngine, eventBus, sanitizeUser)
+│   └── integration/           # API + GCS integration tests
 │
 ├── Dockerfile                 # Multi-stage build (Alpine Node 20)
 ├── vite.config.ts             # Vite 7 + React plugin
@@ -333,13 +345,14 @@ npm start
 
 ## 🧪 Testing
 
-The project employs a comprehensive testing strategy using **Vitest** for unit/integration and **Playwright** for end-to-end testing.
+The project employs a comprehensive testing strategy using **Vitest** for unit/integration/performance and **Playwright** for end-to-end testing.
 
 | Type            | Tool                | Target                    | Command             |
 | :-------------- | :------------------ | :------------------------ | :------------------ |
 | **All Tests**   | Vitest + Playwright | Full Suite                | `npm run test`      |
 | **Unit**        | Vitest              | `services/gameEngine.ts`  | `npm run test:unit` |
 | **Integration** | Vitest + Supertest  | `server.js` API endpoints | `npm run test:unit` |
+| **Performance** | Vitest              | AI, Renderer, API, I/O    | `npm run test:perf` |
 | **E2E**         | Playwright          | Full Browser Flow         | `npm run test:e2e`  |
 
 ### Key Test Features
@@ -348,6 +361,19 @@ The project employs a comprehensive testing strategy using **Vitest** for unit/i
 - **Optimistic UI Checks**: E2E tests verify canvas rendering and title correctness.
 - **Game Logic Validation**: Unit tests cover all core actions (buy, plant, harvest, hatch).
 - **Prerequisites**: E2E tests require the dev server to be running (`npm start`) if not using the automated `npm run test:e2e` script which handles it (via Playwright webServer).
+
+### Performance Tests (`npm run test:perf`)
+
+23 tests with **statistical p95 budget assertions** — tests fail automatically if performance degrades beyond the threshold:
+
+| Suite                   | Tests | Key Metrics                                                                                     |
+| :---------------------- | ----: | :---------------------------------------------------------------------------------------------- |
+| **Pet AI Stress**       |     8 | `updatePetAI()` at 10→500 items, full grid, state transitions (budget: 1μs–1ms)                 |
+| **Renderer Benchmarks** |     6 | `getCropSprite()` with 0→20 growth stages, batch sweep (budget: 5–50μs)                         |
+| **API Latency**         |     4 | Health, content, version, state endpoints via supertest (budget: 20–150ms)                      |
+| **Content Load**        |     5 | Cold/warm `loadContent()`, single/all `saveContent()`, missing file fallback (budget: 50–200ms) |
+
+Each test runs N iterations with warmup, measures `p50`/`p95`/`max`/`avg` in μs, and asserts `p95 < budget`.
 
 ---
 

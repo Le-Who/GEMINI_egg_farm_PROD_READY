@@ -17,6 +17,18 @@ import {
   RoomType,
   CropConfig,
 } from "../../types";
+import {
+  PetAIState,
+  createPetAIState,
+  resetPetAI,
+  updatePetAI as updatePetAISystem,
+  triggerPetReaction as triggerPetReactionSystem,
+} from "../systems/PetAI";
+import {
+  drawProceduralItemFallback as drawProceduralFallback,
+  generateProceduralTexture as generateProcTexture,
+  getCropSprite as getCropSpriteUtil,
+} from "../systems/ProceduralRenderer";
 
 // Union type for anything that needs to be sorted and drawn on the grid
 type RenderEntity =
@@ -62,18 +74,8 @@ export class MainScene extends Phaser.Scene {
     timestamp: number;
   } | null = null;
 
-  // Free-roaming pet AI state
-  private petAI = {
-    x: 6,
-    y: 7, // Current grid position
-    targetX: 6,
-    targetY: 7, // Movement target
-    moveProgress: 1, // 0→1 interpolation (1 = arrived)
-    state: "IDLE" as "IDLE" | "WANDER" | "APPROACH",
-    stateTimer: 0, // ms remaining in current state
-    approachCooldown: 0, // ms until next approach check
-    lastPetTime: 0, // Last time pet was petted (for cooldown)
-  };
+  // Free-roaming pet AI state (delegated to game/systems/PetAI)
+  private petAI: PetAIState = createPetAIState();
   private petReactionEmojis = ["❤️", "⭐", "✨", "🐾", "💕"];
 
   // Editor State
@@ -181,18 +183,7 @@ export class MainScene extends Phaser.Scene {
     const prevPetId = this.currentPet?.id;
     this.currentPet = currentPet;
     if (currentPet && currentPet.id !== prevPetId) {
-      // Place pet near player
-      this.petAI.x = Math.max(
-        0,
-        Math.min(GRID_SIZE - 1, this.playerGridPos.x - 1),
-      );
-      this.petAI.y = Math.max(0, Math.min(GRID_SIZE - 1, this.playerGridPos.y));
-      this.petAI.targetX = this.petAI.x;
-      this.petAI.targetY = this.petAI.y;
-      this.petAI.moveProgress = 1;
-      this.petAI.state = "IDLE";
-      this.petAI.stateTimer = 2000;
-      this.petAI.approachCooldown = 15000;
+      resetPetAI(this.petAI, this.playerGridPos.x, this.playerGridPos.y);
     }
 
     this.isVisiting = isVisiting;
@@ -217,148 +208,32 @@ export class MainScene extends Phaser.Scene {
     this.playerGridPos = { x, y };
   }
 
-  // ─── Free-Roaming Pet AI ───────────────────────────────────────────
+  // ─── Free-Roaming Pet AI (delegated to game/systems/PetAI) ─────────
 
   private updatePetAI(delta: number) {
-    if (!this.currentPet) return;
-
-    const ai = this.petAI;
-    ai.approachCooldown = Math.max(0, ai.approachCooldown - delta);
-
-    switch (ai.state) {
-      case "IDLE": {
-        ai.stateTimer -= delta;
-        if (ai.stateTimer <= 0) {
-          // Should we approach the player?
-          const distToPlayer =
-            Math.abs(ai.x - this.playerGridPos.x) +
-            Math.abs(ai.y - this.playerGridPos.y);
-
-          if (distToPlayer > 3 && ai.approachCooldown <= 0) {
-            ai.state = "APPROACH";
-            ai.approachCooldown = 15000; // 15s cooldown
-          } else {
-            ai.state = "WANDER";
-          }
-          this.pickPetTarget();
-        }
-        break;
-      }
-
-      case "WANDER":
-      case "APPROACH": {
-        // Advance movement interpolation (move at ~1.5 tiles per second)
-        ai.moveProgress += delta / 650;
-        if (ai.moveProgress >= 1) {
-          ai.moveProgress = 1;
-          ai.x = ai.targetX;
-          ai.y = ai.targetY;
-          ai.state = "IDLE";
-          // Random idle time: 2-5 seconds
-          ai.stateTimer = 2000 + Math.random() * 3000;
-        }
-        break;
-      }
-    }
-  }
-
-  private pickPetTarget() {
-    const ai = this.petAI;
-
-    if (ai.state === "APPROACH") {
-      // Move one step toward player
-      const dx = this.playerGridPos.x - ai.x;
-      const dy = this.playerGridPos.y - ai.y;
-
-      if (Math.abs(dx) >= Math.abs(dy)) {
-        ai.targetX = ai.x + Math.sign(dx);
-        ai.targetY = ai.y;
-      } else {
-        ai.targetX = ai.x;
-        ai.targetY = ai.y + Math.sign(dy);
-      }
-    } else {
-      // WANDER: pick random adjacent tile
-      const dirs = [
-        { dx: 1, dy: 0 },
-        { dx: -1, dy: 0 },
-        { dx: 0, dy: 1 },
-        { dx: 0, dy: -1 },
-      ];
-      // Shuffle
-      for (let i = dirs.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [dirs[i], dirs[j]] = [dirs[j], dirs[i]];
-      }
-
-      let picked = false;
-      for (const d of dirs) {
-        const nx = ai.x + d.dx;
-        const ny = ai.y + d.dy;
-        if (this.isValidGrid(nx, ny) && !this.isTileOccupied(nx, ny)) {
-          ai.targetX = nx;
-          ai.targetY = ny;
-          picked = true;
-          break;
-        }
-      }
-      if (!picked) {
-        // Nowhere to go, stay put
-        ai.targetX = ai.x;
-        ai.targetY = ai.y;
-      }
-    }
-
-    // Clamp
-    ai.targetX = Math.max(0, Math.min(GRID_SIZE - 1, ai.targetX));
-    ai.targetY = Math.max(0, Math.min(GRID_SIZE - 1, ai.targetY));
-    ai.moveProgress = 0;
+    updatePetAISystem(
+      this.petAI,
+      delta,
+      !!this.currentPet,
+      this.playerGridPos.x,
+      this.playerGridPos.y,
+      this.placedItems,
+    );
   }
 
   private isTileOccupied(x: number, y: number): boolean {
-    // Check if a placed item occupies this tile
     return this.placedItems.some(
       (item) => item.gridX === x && item.gridY === y,
     );
   }
 
   public triggerPetReaction() {
-    const ai = this.petAI;
-    const now = Date.now();
-
-    // 5s cooldown
-    if (now - ai.lastPetTime < 5000) return;
-    ai.lastPetTime = now;
-
-    // Random emoji
-    const emoji =
-      this.petReactionEmojis[
-        Math.floor(Math.random() * this.petReactionEmojis.length)
-      ];
-
-    // Get screen position of pet
-    const lerpX = Phaser.Math.Linear(ai.x, ai.targetX, ai.moveProgress);
-    const lerpY = Phaser.Math.Linear(ai.y, ai.targetY, ai.moveProgress);
-    const screen = this.getScreenFromIso(lerpX, lerpY);
-
-    // Happy bounce effect — temporarily speed up bounce
-    // Create floating emoji
-    const text = this.add
-      .text(screen.x, screen.y - 30, emoji, {
-        fontSize: "24px",
-      })
-      .setOrigin(0.5)
-      .setDepth(10000);
-
-    // Float up + fade out
-    this.tweens.add({
-      targets: text,
-      y: text.y - 40,
-      alpha: 0,
-      duration: 1200,
-      ease: "Cubic.easeOut",
-      onComplete: () => text.destroy(),
-    });
+    triggerPetReactionSystem(
+      this.petAI,
+      this,
+      (x, y) => this.getScreenFromIso(x, y),
+      this.petReactionEmojis,
+    );
   }
 
   public showFloatingText(
@@ -527,7 +402,8 @@ export class MainScene extends Phaser.Scene {
     );
   }
 
-  /** Fallback rendering path for procedural items when sprite pool is saturated. */
+  // ─── Procedural Rendering (delegated to game/systems/ProceduralRenderer) ───
+
   private drawProceduralItemFallback(
     config: (typeof ITEMS)[string],
     screenX: number,
@@ -535,240 +411,25 @@ export class MainScene extends Phaser.Scene {
     alpha: number,
     tint?: number | null,
   ) {
-    const g = this.itemsGraphics;
-
-    let itemHeight = 20;
-    if (config.type === ItemType.PLANTER) itemHeight = 15;
-    if (config.type === ItemType.INCUBATOR) itemHeight = 15;
-
-    const baseColor = Phaser.Display.Color.IntegerToColor(config.color);
-    let red = baseColor.red;
-    let green = baseColor.green;
-    let blue = baseColor.blue;
-    if (tint != null) {
-      const tintObj = Phaser.Display.Color.IntegerToColor(tint);
-      red = Math.floor((red * tintObj.red) / 255);
-      green = Math.floor((green * tintObj.green) / 255);
-      blue = Math.floor((blue * tintObj.blue) / 255);
-    }
-
-    const color = Phaser.Display.Color.GetColor(red, green, blue);
-
-    // Top Face
-    g.fillStyle(color, alpha);
-    g.fillPoints(
-      [
-        new Phaser.Geom.Point(screenX, screenY - itemHeight),
-        new Phaser.Geom.Point(
-          screenX + TILE_WIDTH / 2,
-          screenY - TILE_HEIGHT / 2 - itemHeight,
-        ),
-        new Phaser.Geom.Point(screenX, screenY - TILE_HEIGHT - itemHeight),
-        new Phaser.Geom.Point(
-          screenX - TILE_WIDTH / 2,
-          screenY - TILE_HEIGHT / 2 - itemHeight,
-        ),
-      ],
-      true,
-    );
-
-    // Right/left sides
-    g.fillStyle(
-      Phaser.Display.Color.GetColor(
-        Math.floor(red * 0.8),
-        Math.floor(green * 0.8),
-        Math.floor(blue * 0.8),
-      ),
+    drawProceduralFallback(
+      this.itemsGraphics,
+      config,
+      screenX,
+      screenY,
       alpha,
+      tint,
     );
-    g.fillPoints(
-      [
-        new Phaser.Geom.Point(screenX + TILE_WIDTH / 2, screenY - TILE_HEIGHT / 2 - itemHeight),
-        new Phaser.Geom.Point(screenX, screenY - itemHeight),
-        new Phaser.Geom.Point(screenX, screenY - TILE_HEIGHT),
-        new Phaser.Geom.Point(screenX + TILE_WIDTH / 2, screenY - TILE_HEIGHT / 2),
-      ],
-      true,
-    );
-
-    g.fillStyle(
-      Phaser.Display.Color.GetColor(
-        Math.floor(red * 0.6),
-        Math.floor(green * 0.6),
-        Math.floor(blue * 0.6),
-      ),
-      alpha,
-    );
-    g.fillPoints(
-      [
-        new Phaser.Geom.Point(screenX - TILE_WIDTH / 2, screenY - TILE_HEIGHT / 2 - itemHeight),
-        new Phaser.Geom.Point(screenX, screenY - itemHeight),
-        new Phaser.Geom.Point(screenX, screenY - TILE_HEIGHT),
-        new Phaser.Geom.Point(screenX - TILE_WIDTH / 2, screenY - TILE_HEIGHT / 2),
-      ],
-      true,
-    );
-
-    if (config.type === ItemType.PLANTER) {
-      g.fillStyle(0x3d2817, alpha);
-      g.fillPoints(
-        [
-          new Phaser.Geom.Point(screenX, screenY - itemHeight + 2),
-          new Phaser.Geom.Point(
-            screenX + TILE_WIDTH / 2 - 4,
-            screenY - TILE_HEIGHT / 2 - itemHeight + 2,
-          ),
-          new Phaser.Geom.Point(screenX, screenY - TILE_HEIGHT - itemHeight + 4),
-          new Phaser.Geom.Point(
-            screenX - TILE_WIDTH / 2 + 4,
-            screenY - TILE_HEIGHT / 2 - itemHeight + 2,
-          ),
-        ],
-        true,
-      );
-    }
   }
 
-  /** Generate and cache an isometric box texture for procedural items */
   private generateProceduralTexture(itemId: string) {
-    const key = `proc_${itemId}`;
-    if (this.textures.exists(key)) return;
-
-    const config = ITEMS[itemId];
-    if (!config) return;
-
-    let itemHeight = 20;
-    if (config.type === ItemType.PLANTER) itemHeight = 15;
-    if (config.type === ItemType.INCUBATOR) itemHeight = 15;
-
-    // Total texture size: TILE_WIDTH x (TILE_HEIGHT + itemHeight)
-    const texWidth = TILE_WIDTH;
-    const texHeight = TILE_HEIGHT + itemHeight;
-
-    // Create temporary graphics
-    const g = this.make.graphics({ x: 0, y: 0, add: false });
-
-    // Base point for drawing (bottom center of the texture)
-    const baseX = texWidth / 2;
-    const baseY = texHeight;
-
-    const color = config.color;
-
-    // Top Face
-    g.fillStyle(color, 1);
-    g.fillPoints(
-      [
-        new Phaser.Geom.Point(baseX, baseY - itemHeight),
-        new Phaser.Geom.Point(
-          baseX + TILE_WIDTH / 2,
-          baseY - TILE_HEIGHT / 2 - itemHeight,
-        ),
-        new Phaser.Geom.Point(baseX, baseY - TILE_HEIGHT - itemHeight),
-        new Phaser.Geom.Point(
-          baseX - TILE_WIDTH / 2,
-          baseY - TILE_HEIGHT / 2 - itemHeight,
-        ),
-      ],
-      true,
-    );
-
-    // Right Side (Darker)
-    g.fillStyle(
-      Phaser.Display.Color.GetColor(
-        (color >> 16) & (255 * 0.8),
-        (color >> 8) & (255 * 0.8),
-        color & (255 * 0.8),
-      ),
-      1,
-    );
-    g.fillPoints(
-      [
-        new Phaser.Geom.Point(baseX, baseY - itemHeight),
-        new Phaser.Geom.Point(
-          baseX + TILE_WIDTH / 2,
-          baseY - TILE_HEIGHT / 2 - itemHeight,
-        ),
-        new Phaser.Geom.Point(
-          baseX + TILE_WIDTH / 2,
-          baseY - TILE_HEIGHT / 2,
-        ),
-        new Phaser.Geom.Point(baseX, baseY),
-      ],
-      true,
-    );
-
-    // Left Side (Even Darker)
-    g.fillStyle(
-      Phaser.Display.Color.GetColor(
-        (color >> 16) & (255 * 0.6),
-        (color >> 8) & (255 * 0.6),
-        color & (255 * 0.6),
-      ),
-      1,
-    );
-    g.fillPoints(
-      [
-        new Phaser.Geom.Point(baseX, baseY - itemHeight),
-        new Phaser.Geom.Point(
-          baseX - TILE_WIDTH / 2,
-          baseY - TILE_HEIGHT / 2 - itemHeight,
-        ),
-        new Phaser.Geom.Point(
-          baseX - TILE_WIDTH / 2,
-          baseY - TILE_HEIGHT / 2,
-        ),
-        new Phaser.Geom.Point(baseX, baseY),
-      ],
-      true,
-    );
-
-    // Planter Soil
-    if (config.type === ItemType.PLANTER) {
-      g.fillStyle(0x3d2817, 1); // Soil
-      g.fillPoints(
-        [
-          new Phaser.Geom.Point(baseX, baseY - itemHeight + 2),
-          new Phaser.Geom.Point(
-            baseX + TILE_WIDTH / 2 - 4,
-            baseY - TILE_HEIGHT / 2 - itemHeight + 2,
-          ),
-          new Phaser.Geom.Point(
-            baseX,
-            baseY - TILE_HEIGHT - itemHeight + 2 + 2,
-          ),
-          new Phaser.Geom.Point(
-            baseX - TILE_WIDTH / 2 + 4,
-            baseY - TILE_HEIGHT / 2 - itemHeight + 2,
-          ),
-        ],
-        true,
-      );
-    }
-
-    g.generateTexture(key, texWidth, texHeight);
-    g.destroy();
+    generateProcTexture(this, itemId);
   }
 
-  /** Get the appropriate crop sprite for current growth progress */
   private getCropSprite(
     cropConfig: CropConfig,
     progress: number,
   ): string | null {
-    // Multi-stage growth sprites (preferred)
-    if (cropConfig.growthSprites && cropConfig.growthSprites.length > 0) {
-      const pct = Math.floor(progress * 100);
-      // Sort stages descending, find first where stage <= current progress
-      const sorted = [...cropConfig.growthSprites].sort(
-        (a, b) => b.stage - a.stage,
-      );
-      for (const gs of sorted) {
-        if (pct >= gs.stage) return gs.sprite;
-      }
-      return sorted[sorted.length - 1].sprite; // Fallback to lowest stage
-    }
-    // Single sprite (only when fully grown)
-    if (progress >= 1 && cropConfig.sprite) return cropConfig.sprite;
-    return null;
+    return getCropSpriteUtil(cropConfig, progress);
   }
 
   private drawScene() {
@@ -1112,7 +773,13 @@ export class MainScene extends Phaser.Scene {
       item.tint,
     );
     if (!drewTexture) {
-      this.drawProceduralItemFallback(config, screen.x, screen.y, alpha, item.tint);
+      this.drawProceduralItemFallback(
+        config,
+        screen.x,
+        screen.y,
+        alpha,
+        item.tint,
+      );
     }
 
     // Crop rendering

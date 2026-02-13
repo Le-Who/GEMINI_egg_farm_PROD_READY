@@ -71,10 +71,10 @@ describe("GCS Refactor Verification", () => {
     startServer = mod.startServer;
 
     // Mock app.listen to prevent actual binding
-    vi.spyOn(app, 'listen').mockImplementation((port, cb) => {
+    vi.spyOn(app, "listen").mockImplementation(((port: any, cb: any) => {
       if (cb) cb();
       return { close: vi.fn() };
-    });
+    }) as any);
 
     await startServer();
   });
@@ -82,9 +82,9 @@ describe("GCS Refactor Verification", () => {
   afterAll(() => {
     vi.restoreAllMocks();
     if (tmpDir) {
-        try {
-            fs.rmSync(tmpDir, { recursive: true, force: true });
-        } catch(e) {}
+      try {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      } catch (e) {}
     }
   });
 
@@ -107,7 +107,7 @@ describe("GCS Refactor Verification", () => {
       expect.objectContaining({
         contentType: "image/png",
         resumable: false,
-      })
+      }),
     );
   });
 
@@ -127,7 +127,7 @@ describe("GCS Refactor Verification", () => {
       expect.objectContaining({
         contentType: "application/json",
         resumable: false,
-      })
+      }),
     );
   });
 });
