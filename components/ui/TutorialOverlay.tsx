@@ -10,6 +10,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { GameEngine } from "../../services/gameEngine";
+import { useLanguage } from "../../components/LanguageContext";
 
 interface TutorialOverlayProps {
   user: UserState;
@@ -20,6 +21,7 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
   user,
   onUpdateUser,
 }) => {
+  const { t, tContent } = useLanguage();
   const [isHidden, setIsHidden] = useState(false);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
 
@@ -90,7 +92,7 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
           {/* Floating Finger/Arrow */}
           <div className="absolute -translate-x-1/2 -translate-y-1/2 -ml-12 -mt-12 animate-bounce">
             <div className="bg-white text-black font-bold px-3 py-1 rounded-full shadow-xl border-2 border-yellow-400 whitespace-nowrap flex items-center gap-1">
-              TAP HERE! <ArrowDown size={16} />
+              {t("tutorial.tapHere")} <ArrowDown size={16} />
             </div>
           </div>
         </div>
@@ -122,14 +124,14 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
 
           <div className="flex-1 pr-4">
             <h3 className="font-bold text-orange-900 text-sm uppercase tracking-wider mb-1">
-              Grandma Rose
+              {t("tutorial.grandmaRose")}
             </h3>
             <p className="text-orange-900 font-medium leading-tight">
-              {step.text}
+              {tContent(step, "text")}
             </p>
             {isLastStep && (
               <div className="mt-2 flex items-center gap-1 text-xs font-bold text-orange-600 animate-pulse">
-                <Check size={12} /> Click to finish
+                <Check size={12} /> {t("tutorial.clickToFinish")}
               </div>
             )}
           </div>

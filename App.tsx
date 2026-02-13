@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { LanguageProvider } from "./components/LanguageContext";
 import { GameCanvas } from "./components/GameCanvas";
 import { HUD } from "./components/ui/HUD";
 import { ShopModal } from "./components/ui/ShopModal";
@@ -24,7 +25,7 @@ import { Loader2, ArrowLeft } from "lucide-react";
 import Phaser from "phaser";
 import { gameBus } from "./services/eventBus";
 
-const App: React.FC = () => {
+const GameContent: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<UserState | null>(null); // Me
   const [displayUser, setDisplayUser] = useState<UserState | null>(null); // Who we are looking at
 
@@ -736,6 +737,14 @@ const App: React.FC = () => {
         </div>
       )}
     </div>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <LanguageProvider>
+      <GameContent />
+    </LanguageProvider>
   );
 };
 

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { StickerType, BillboardEntry } from "../../types";
 import { X } from "lucide-react";
+import { useLanguage } from "../../components/LanguageContext";
 
 interface StickerPickerProps {
   isOpen: boolean;
@@ -35,6 +36,7 @@ export const StickerPicker: React.FC<StickerPickerProps> = ({
   billboard = [],
   ownerName,
 }) => {
+  const { t } = useLanguage();
   const [sending, setSending] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -62,7 +64,7 @@ export const StickerPicker: React.FC<StickerPickerProps> = ({
         {/* Header */}
         <div className="flex justify-between items-center p-3 border-b border-gray-700 bg-gray-900/60">
           <span className="text-white font-bold text-sm">
-            📋 {ownerName}'s Billboard
+            📋 {t("sticker.title", { name: ownerName })}
           </span>
           <button
             onClick={onClose}
@@ -75,7 +77,9 @@ export const StickerPicker: React.FC<StickerPickerProps> = ({
         {/* Sticker Buttons */}
         <div className="p-3 border-b border-gray-700 space-y-3">
           <div>
-            <p className="text-xs text-gray-400 mb-2">Leave a sticker:</p>
+            <p className="text-xs text-gray-400 mb-2">
+              {t("sticker.leaveSticker")}
+            </p>
             <div className="grid grid-cols-3 gap-2">
               {STICKERS.map((s) => (
                 <button
@@ -85,7 +89,9 @@ export const StickerPicker: React.FC<StickerPickerProps> = ({
                   className="flex flex-col items-center gap-1 p-2 rounded-xl bg-gray-700/60 hover:bg-gray-600 border border-gray-600 hover:border-gray-500 transition-all active:scale-95 disabled:opacity-50"
                 >
                   <span className="text-2xl">{s.emoji}</span>
-                  <span className="text-[10px] text-gray-400">{s.label}</span>
+                  <span className="text-[10px] text-gray-400">
+                    {t(`sticker.label.${s.type}`)}
+                  </span>
                 </button>
               ))}
             </div>
@@ -95,7 +101,7 @@ export const StickerPicker: React.FC<StickerPickerProps> = ({
             <input
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="Add a message... (optional)"
+              placeholder={t("sticker.placeholder")}
               maxLength={64}
               className="w-full bg-gray-900/50 border border-gray-600 rounded-lg px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-green-500 transition-colors"
             />
@@ -106,7 +112,7 @@ export const StickerPicker: React.FC<StickerPickerProps> = ({
         <div className="flex-1 overflow-y-auto p-3 min-h-0">
           {recentStickers.length === 0 ? (
             <p className="text-gray-500 text-xs text-center italic py-4">
-              No stickers yet — be the first! 🎉
+              {t("sticker.noStickers")}
             </p>
           ) : (
             <div className="flex flex-col gap-1.5">

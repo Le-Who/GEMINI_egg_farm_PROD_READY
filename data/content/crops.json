@@ -2,6 +2,7 @@
   "mint": {
     "id": "mint",
     "name": "Fresh Mint",
+    "name_ru": "Свежая мята",
     "seedPrice": 10,
     "sellPrice": 14,
     "growthTime": 5,
@@ -14,6 +15,7 @@
   "wheat": {
     "id": "wheat",
     "name": "Golden Wheat",
+    "name_ru": "Золотая пшеница",
     "seedPrice": 25,
     "sellPrice": 35,
     "growthTime": 30,
@@ -26,6 +28,7 @@
   "basil": {
     "id": "basil",
     "name": "Spicy Basil",
+    "name_ru": "Пряный базилик",
     "seedPrice": 60,
     "sellPrice": 90,
     "growthTime": 60,

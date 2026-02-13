@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { BillboardEntry, StickerType } from "../../types";
 import { X, Send, MessageSquare } from "lucide-react";
+import { useLanguage } from "../../components/LanguageContext";
 
 interface GuestbookModalProps {
   isOpen: boolean;
@@ -26,6 +27,7 @@ export const GuestbookModal: React.FC<GuestbookModalProps> = ({
   billboard = [],
   ownerName,
 }) => {
+  const { t } = useLanguage();
   const [selectedSticker, setSelectedSticker] = useState<StickerType | null>(
     null,
   );
@@ -46,7 +48,7 @@ export const GuestbookModal: React.FC<GuestbookModalProps> = ({
         {/* Header Board */}
         <div className="bg-[#8b5a2b] p-3 text-center border-b-4 border-[#5d3a1a]">
           <h2 className="text-white font-bold text-xl uppercase tracking-wider drop-shadow-md">
-            {ownerName}'s Guestbook
+            {t("guestbook.title", { name: ownerName })}
           </h2>
           <button
             onClick={onClose}
@@ -60,7 +62,7 @@ export const GuestbookModal: React.FC<GuestbookModalProps> = ({
         <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[url('/assets/paper-texture.png')] bg-repeat">
           {billboard.length === 0 ? (
             <div className="text-center text-[#8b5a2b]/60 italic py-8">
-              No signatures yet. Be the first to sign!
+              {t("guestbook.noSignatures")}
             </div>
           ) : (
             <div className="flex flex-col gap-3">
@@ -114,7 +116,7 @@ export const GuestbookModal: React.FC<GuestbookModalProps> = ({
             <div className="relative">
               <input
                 type="text"
-                placeholder="Write a message (optional)..."
+                placeholder={t("guestbook.placeholder")}
                 value={message}
                 onChange={(e) =>
                   setMessage(
@@ -140,7 +142,7 @@ export const GuestbookModal: React.FC<GuestbookModalProps> = ({
                   : "bg-gray-400 cursor-not-allowed"
               }`}
             >
-              <Send size={16} /> Sign Guestbook
+              <Send size={16} /> {t("guestbook.sign")}
             </button>
           </div>
         </div>

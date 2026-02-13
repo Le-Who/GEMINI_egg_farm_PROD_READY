@@ -2,7 +2,9 @@
   "quest_first_plant": {
     "id": "quest_first_plant",
     "title": "Green Thumb",
+    "title_ru": "Зелёный палец",
     "description": "Plant your first seed",
+    "description_ru": "Посади своё первое растение",
     "condition": { "type": "PLANT_SEED", "count": 1 },
     "requirements": { "minLevel": 1 },
     "rewards": { "coins": 50, "xp": 10 },
@@ -11,7 +13,9 @@
   "quest_first_harvest": {
     "id": "quest_first_harvest",
     "title": "Reap What You Sow",
+    "title_ru": "Что посеешь",
     "description": "Harvest your first crop",
+    "description_ru": "Собери свой первый урожай",
     "condition": { "type": "HARVEST", "count": 1 },
     "requirements": { "minLevel": 1 },
     "rewards": { "coins": 100, "xp": 20 },
@@ -20,7 +24,9 @@
   "quest_plant_5": {
     "id": "quest_plant_5",
     "title": "Budding Farmer",
+    "title_ru": "Начинающий фермер",
     "description": "Plant 5 seeds",
+    "description_ru": "Посади 5 семян",
     "condition": { "type": "PLANT_SEED", "count": 5 },
     "requirements": { "minLevel": 1 },
     "rewards": { "coins": 200, "xp": 50 },
@@ -29,7 +35,9 @@
   "quest_harvest_10": {
     "id": "quest_harvest_10",
     "title": "Master Gardener",
+    "title_ru": "Мастер-садовник",
     "description": "Harvest 10 crops",
+    "description_ru": "Собери 10 урожаев",
     "condition": { "type": "HARVEST", "count": 10 },
     "requirements": { "minLevel": 2 },
     "rewards": { "coins": 500, "xp": 100, "gems": 5 },
@@ -38,7 +46,9 @@
   "quest_buy_item": {
     "id": "quest_buy_item",
     "title": "Shopping Spree",
+    "title_ru": "Шопинг",
     "description": "Buy your first item from the shop",
+    "description_ru": "Купи свой первый предмет в магазине",
     "condition": { "type": "BUY_ITEM", "count": 1 },
     "requirements": { "minLevel": 1 },
     "rewards": { "coins": 30, "xp": 5 },

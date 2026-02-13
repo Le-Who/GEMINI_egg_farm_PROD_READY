@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Users, ExternalLink, RefreshCw, X } from "lucide-react";
 import { NeighborProfile } from "../../types";
 import { GameEngine } from "../../services/gameEngine";
+import { useLanguage } from "../../components/LanguageContext";
 
 interface NeighborsPanelProps {
   onVisit: (neighborId: string) => void;
@@ -14,6 +15,7 @@ export const NeighborsPanel: React.FC<NeighborsPanelProps> = ({
   isOpen,
   onToggle,
 }) => {
+  const { t } = useLanguage();
   const [neighbors, setNeighbors] = useState<NeighborProfile[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -38,7 +40,7 @@ export const NeighborsPanel: React.FC<NeighborsPanelProps> = ({
       <div className="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
         <div className="flex items-center gap-2 text-blue-400">
           <Users size={20} />
-          <span className="font-bold">Neighbors</span>
+          <span className="font-bold">{t("hud.neighbors")}</span>
         </div>
         <div className="flex gap-2">
           <button
@@ -82,7 +84,9 @@ export const NeighborsPanel: React.FC<NeighborsPanelProps> = ({
                 <span className="font-bold text-gray-200 text-sm truncate max-w-[80px]">
                   {n.username}
                 </span>
-                <span className="text-xs text-gray-500">Lvl {n.level}</span>
+                <span className="text-xs text-gray-500">
+                  {t("common.levelShort")} {n.level}
+                </span>
               </div>
             </div>
             <button

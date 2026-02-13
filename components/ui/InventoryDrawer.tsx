@@ -10,6 +10,7 @@ import {
   Search,
   Filter,
 } from "lucide-react";
+import { useLanguage } from "../../components/LanguageContext";
 
 interface InventoryDrawerProps {
   user: UserState;
@@ -44,6 +45,7 @@ export const InventoryDrawer: React.FC<InventoryDrawerProps> = ({
   isEditMode,
   onToggleEditMode,
 }) => {
+  const { t, tContent } = useLanguage();
   const [isExpanded, setIsExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -97,7 +99,7 @@ export const InventoryDrawer: React.FC<InventoryDrawerProps> = ({
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
           <ChevronUp size={20} className="text-emerald-400" />
           <span className="uppercase tracking-widest text-xs font-black text-emerald-100">
-            Inventory
+            {t("inventory.title")}
           </span>
           <span className="bg-emerald-800 text-white text-[10px] px-2 py-0.5 rounded-full font-mono border border-emerald-600">
             {Object.keys(user.inventory).length}
@@ -144,7 +146,7 @@ export const InventoryDrawer: React.FC<InventoryDrawerProps> = ({
                       : "text-emerald-400/70 hover:text-emerald-200 hover:bg-white/5"
                   }`}
                 >
-                  {tab.label}
+                  {t(`inventory.${tab.id}` as any)}
                 </button>
               ))}
             </div>
@@ -196,7 +198,7 @@ export const InventoryDrawer: React.FC<InventoryDrawerProps> = ({
                 />
                 <input
                   type="text"
-                  placeholder="Search..."
+                  placeholder={t("inventory.search")}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full bg-emerald-950/80 border border-emerald-500/20 rounded-full pl-8 pr-3 py-1 text-[10px] text-emerald-100 placeholder-emerald-700/50 focus:outline-none focus:border-emerald-400/50 focus:bg-black/40 transition-all shadow-lg backdrop-blur-sm"
@@ -208,7 +210,7 @@ export const InventoryDrawer: React.FC<InventoryDrawerProps> = ({
               {filteredItems.length === 0 ? (
                 <div className="col-span-full h-full flex flex-col items-center justify-center text-emerald-500/50 gap-2">
                   <Search size={24} className="opacity-30" />
-                  <p className="text-xs">Nothing here.</p>
+                  <p className="text-xs">{t("inventory.nothingHere")}</p>
                 </div>
               ) : (
                 filteredItems.map((item) => (
@@ -255,7 +257,7 @@ export const InventoryDrawer: React.FC<InventoryDrawerProps> = ({
                     {/* Name Label */}
                     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-emerald-950 to-transparent p-1 pt-3 rounded-b-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                       <p className="text-[8px] text-center text-emerald-100 font-medium truncate leading-none pb-0.5">
-                        {item.name}
+                        {tContent(item, "name")}
                       </p>
                     </div>
                   </button>

@@ -9,6 +9,7 @@ import {
   ChevronRight,
   Palette,
 } from "lucide-react";
+import { useLanguage } from "../../components/LanguageContext";
 
 interface ShopModalProps {
   isOpen: boolean;
@@ -32,6 +33,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({
   const [activeTab, setActiveTab] = useState<"items" | "dyes" | "gems">(
     "items",
   );
+  const { t, tContent } = useLanguage();
   const itemsList = Object.values(ITEMS).filter((i) => i.type !== ItemType.DYE);
   const dyesList = Object.values(ITEMS).filter((i) => i.type === ItemType.DYE);
 
@@ -52,7 +54,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({
           <div className="flex justify-between items-center p-4 border-b border-gray-700 bg-gray-900/80 shrink-0">
             <div className="flex items-center gap-2 text-white">
               <ShoppingBag className="text-green-400" size={22} />
-              <h2 className="text-lg font-bold">Shop</h2>
+              <h2 className="text-lg font-bold">{t("shop.title")}</h2>
             </div>
             <div className="flex items-center gap-3">
               <span className="text-yellow-400 font-mono text-sm font-bold">
@@ -77,19 +79,19 @@ export const ShopModal: React.FC<ShopModalProps> = ({
               onClick={() => setActiveTab("items")}
               className={`flex-1 py-2.5 font-bold text-sm flex items-center justify-center gap-1.5 transition-colors ${activeTab === "items" ? "bg-gray-700 text-white border-b-2 border-green-500" : "text-gray-400 hover:text-gray-200"}`}
             >
-              <Package size={14} /> Items
+              <Package size={14} /> {t("shop.items")}
             </button>
             <button
               onClick={() => setActiveTab("dyes")}
               className={`flex-1 py-2.5 font-bold text-sm flex items-center justify-center gap-1.5 transition-colors ${activeTab === "dyes" ? "bg-gray-700 text-pink-300 border-b-2 border-pink-500" : "text-gray-400 hover:text-gray-200"}`}
             >
-              <Palette size={14} /> Dyes
+              <Palette size={14} /> {t("shop.dyes")}
             </button>
             <button
               onClick={() => setActiveTab("gems")}
               className={`flex-1 py-2.5 font-bold text-sm flex items-center justify-center gap-1.5 transition-colors ${activeTab === "gems" ? "bg-gray-700 text-purple-300 border-b-2 border-purple-500" : "text-gray-400 hover:text-gray-200"}`}
             >
-              <Gem size={14} /> Gems
+              <Gem size={14} /> {t("shop.gems")}
             </button>
           </div>
 
@@ -113,7 +115,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                     >
                       {isTutorialTarget && (
                         <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-yellow-400 text-black text-[10px] font-bold px-2 py-0.5 rounded shadow-lg animate-bounce z-20">
-                          Buy Me! ↓
+                          {t("tutorial.buyMe")}
                         </div>
                       )}
 
@@ -121,7 +123,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                         {item.sprite ? (
                           <img
                             src={item.sprite}
-                            alt={item.name}
+                            alt={tContent(item, "name")}
                             className="w-10 h-10 object-contain drop-shadow-md transition-transform group-hover:scale-110"
                             style={{ imageRendering: "pixelated" }}
                           />
@@ -140,10 +142,10 @@ export const ShopModal: React.FC<ShopModalProps> = ({
 
                       <div>
                         <h3 className="font-bold text-white text-sm leading-tight">
-                          {item.name}
+                          {tContent(item, "name")}
                         </h3>
                         <p className="text-[10px] text-gray-400 leading-snug line-clamp-2">
-                          {item.description}
+                          {tContent(item, "description")}
                         </p>
                       </div>
 
@@ -162,7 +164,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                               : "bg-gray-600 text-gray-400 cursor-not-allowed"
                           }`}
                         >
-                          Buy
+                          {t("shop.buy")}
                         </button>
                       </div>
                     </div>
@@ -186,10 +188,10 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                         style={{ backgroundColor: dyeHex }}
                       />
                       <span className="text-xs text-white font-bold text-center leading-tight">
-                        {dye.name}
+                        {tContent(dye, "name")}
                       </span>
                       <span className="text-[10px] text-gray-400 text-center leading-tight">
-                        {dye.description}
+                        {tContent(dye, "description")}
                       </span>
                       <button
                         onClick={() => onBuy(dye.id)}
@@ -206,9 +208,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                   );
                 })}
                 <div className="col-span-3 mt-1 p-2.5 bg-pink-900/20 rounded-lg border border-pink-800 text-center">
-                  <p className="text-pink-200 text-xs">
-                    Buy dyes, then use Edit Mode to paint furniture! 🎨
-                  </p>
+                  <p className="text-pink-200 text-xs">{t("shop.dyesHint")}</p>
                 </div>
               </div>
             )}
@@ -227,9 +227,11 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                       </div>
                       <div>
                         <h3 className="font-bold text-white">
-                          {sku.amount} Gems
+                          {sku.amount} {t("common.gems")}
                         </h3>
-                        <p className="text-gray-400 text-xs">{sku.name}</p>
+                        <p className="text-gray-400 text-xs">
+                          {tContent(sku, "name")}
+                        </p>
                       </div>
                     </div>
                     <button
@@ -241,9 +243,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                   </div>
                 ))}
                 <div className="mt-2 p-3 bg-blue-900/20 rounded-lg border border-blue-800 text-center">
-                  <p className="text-blue-200 text-xs">
-                    Use Gems to speed up crops and buy rare items!
-                  </p>
+                  <p className="text-blue-200 text-xs">{t("shop.gemsHint")}</p>
                 </div>
               </div>
             )}

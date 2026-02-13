@@ -2,6 +2,7 @@ import React from "react";
 import { UserState } from "../../types";
 import { PETS } from "../../constants";
 import { ChevronRight, PawPrint, Star } from "lucide-react";
+import { useLanguage } from "../../components/LanguageContext";
 
 interface PetsModalProps {
   isOpen: boolean;
@@ -16,6 +17,7 @@ export const PetsModal: React.FC<PetsModalProps> = ({
   onEquip,
   user,
 }) => {
+  const { t, tContent } = useLanguage();
   return (
     <>
       {/* Backdrop */}
@@ -33,7 +35,7 @@ export const PetsModal: React.FC<PetsModalProps> = ({
           <div className="flex justify-between items-center p-4 bg-indigo-900/40 border-b border-indigo-800/50 shrink-0">
             <div className="flex items-center gap-2 text-indigo-100">
               <PawPrint size={22} />
-              <h2 className="text-lg font-bold">Pet Collection</h2>
+              <h2 className="text-lg font-bold">{t("pets.title")}</h2>
               <span className="text-xs bg-indigo-600/50 px-2 py-0.5 rounded-full font-mono">
                 {user.pets.length}
               </span>
@@ -51,10 +53,8 @@ export const PetsModal: React.FC<PetsModalProps> = ({
             {user.pets.length === 0 && (
               <div className="text-gray-400 text-center py-12 flex flex-col items-center gap-3">
                 <PawPrint size={40} className="text-gray-600" />
-                <p className="font-bold">No Pets Yet</p>
-                <p className="text-sm text-gray-500">
-                  Buy an Incubator and an Egg from the shop!
-                </p>
+                <p className="font-bold">{t("pets.noPets")}</p>
+                <p className="text-sm text-gray-500">{t("pets.howToGet")}</p>
               </div>
             )}
 
@@ -86,17 +86,18 @@ export const PetsModal: React.FC<PetsModalProps> = ({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <h3 className="font-bold text-white text-sm">
-                          {pet.name}
+                          {tContent(pet, "name")}
                         </h3>
                         {isEquipped && (
                           <span className="text-[9px] bg-indigo-500 text-white px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wide">
-                            Active
+                            {t("common.active")}
                           </span>
                         )}
                       </div>
                       <p className="text-xs text-gray-300 flex items-center gap-1">
                         <Star size={10} className="text-yellow-400" />
-                        Lvl {pet.level} • {config.bonusDescription}
+                        {t("common.levelShort")} {pet.level} •{" "}
+                        {tContent(config, "bonusDescription")}
                       </p>
                     </div>
 
@@ -106,7 +107,7 @@ export const PetsModal: React.FC<PetsModalProps> = ({
                         onClick={() => onEquip(pet.id)}
                         className="px-3 py-1.5 bg-gray-600 hover:bg-indigo-600 text-white text-xs font-bold rounded-lg transition-colors shrink-0"
                       >
-                        Equip
+                        {t("common.equip")}
                       </button>
                     )}
                   </div>

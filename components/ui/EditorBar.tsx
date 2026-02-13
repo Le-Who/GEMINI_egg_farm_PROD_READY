@@ -2,6 +2,7 @@ import React from "react";
 import { ITEMS } from "../../constants";
 import { UserState } from "../../types";
 import { RotateCw, Check, X, ArrowLeft } from "lucide-react";
+import { useLanguage } from "../../components/LanguageContext";
 
 interface EditorBarProps {
   user: UserState;
@@ -20,6 +21,7 @@ export const EditorBar: React.FC<EditorBarProps> = ({
   onRotate,
   onClose,
 }) => {
+  const { t, tContent } = useLanguage();
   const inventoryItems = (Object.entries(user.inventory) as [string, number][])
     .filter(([id, count]) => count > 0 && ITEMS[id])
     .map(([id, count]) => ({ ...ITEMS[id], count }));
@@ -29,7 +31,7 @@ export const EditorBar: React.FC<EditorBarProps> = ({
       {/* Action Bar */}
       <div className="flex justify-between items-center px-4">
         <div className="text-white font-bold text-lg flex items-center gap-2">
-          <span className="text-green-400">Editing Mode</span>
+          <span className="text-green-400">{t("editor.title")}</span>
         </div>
 
         <div className="flex gap-4">
@@ -38,14 +40,14 @@ export const EditorBar: React.FC<EditorBarProps> = ({
               onClick={onRotate}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 rounded-lg text-white font-bold hover:bg-blue-500 active:scale-95"
             >
-              <RotateCw size={18} /> Rotate
+              <RotateCw size={18} /> {t("editor.rotate")}
             </button>
           )}
           <button
             onClick={onClose}
             className="flex items-center gap-2 px-4 py-2 bg-red-600 rounded-lg text-white font-bold hover:bg-red-500 active:scale-95"
           >
-            <Check size={18} /> Done
+            <Check size={18} /> {t("common.done")}
           </button>
         </div>
       </div>
@@ -69,7 +71,7 @@ export const EditorBar: React.FC<EditorBarProps> = ({
               }}
             />
             <span className="text-xs text-center text-gray-300 w-full px-1 truncate">
-              {item.name}
+              {tContent(item, "name")}
             </span>
             <span className="absolute top-1 right-1 bg-black/60 px-1.5 rounded text-[10px] text-white font-mono">
               x{item.count}
@@ -79,7 +81,7 @@ export const EditorBar: React.FC<EditorBarProps> = ({
 
         {inventoryItems.length === 0 && (
           <div className="text-gray-500 w-full text-center py-4 italic">
-            Your inventory is empty. Visit the shop!
+            {t("editor.emptyInventory")}
           </div>
         )}
       </div>

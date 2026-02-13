@@ -12,7 +12,9 @@ import {
   Flower2,
   Trophy,
   Pencil,
+  Languages, // Import Languages icon
 } from "lucide-react";
+import { useLanguage } from "../../components/LanguageContext";
 
 interface HUDProps {
   user: UserState;
@@ -41,6 +43,8 @@ export const HUD: React.FC<HUDProps> = ({
   isEditMode,
   isNeighborsOpen,
 }) => {
+  const { t, language, setLanguage } = useLanguage();
+
   if (isEditMode) return null;
 
   const roomUser = displayUser || user;
@@ -172,7 +176,7 @@ export const HUD: React.FC<HUDProps> = ({
                   : "bg-gray-900/50 text-gray-300 hover:bg-gray-800/80 hover:text-white backdrop-blur-sm"
               }`}
             >
-              <Home size={16} /> House
+              <Home size={16} /> {t("hud.interior")}
             </button>
             <button
               onClick={() => onSwitchRoom("garden")}
@@ -182,7 +186,7 @@ export const HUD: React.FC<HUDProps> = ({
                   : "bg-gray-900/50 text-gray-300 hover:bg-gray-800/80 hover:text-white backdrop-blur-sm"
               }`}
             >
-              <Flower2 size={16} /> Garden
+              <Flower2 size={16} /> {t("hud.garden")}
             </button>
           </div>
         )}
@@ -190,13 +194,21 @@ export const HUD: React.FC<HUDProps> = ({
 
       {/* Right Sidebar */}
       <div className="absolute top-20 right-4 z-10 flex flex-col gap-3">
+        {/* Language Switcher */}
+        <SidebarButton
+          onClick={() => setLanguage(language === "en" ? "ru" : "en")}
+          icon={Languages}
+          label={language === "en" ? "EN / RU" : "RU / EN"}
+          colorClass="text-cyan-300"
+        />
+
         {/* Edit Button - Hidden when visiting */}
         {!isVisiting && (
           <SidebarButton
             id="btn-edit"
             onClick={onToggleEdit}
             icon={Pencil}
-            label="Edit Mode"
+            label={t("hud.editMode")}
             colorClass="text-yellow-300"
             pulse={user.tutorialStep === 2}
           />
@@ -207,7 +219,7 @@ export const HUD: React.FC<HUDProps> = ({
           id="btn-shop"
           onClick={onOpenShop}
           icon={ShoppingCart}
-          label="Shop"
+          label={t("hud.shop")}
           colorClass="text-green-300"
           pulse={user.tutorialStep === 0}
         />
@@ -216,20 +228,20 @@ export const HUD: React.FC<HUDProps> = ({
           id="btn-pets"
           onClick={onOpenPets}
           icon={PawPrint}
-          label="Pets"
+          label={t("hud.pets")}
           colorClass="text-purple-300"
         />
         <SidebarButton
           id="btn-quests"
           onClick={onOpenQuests}
           icon={Trophy}
-          label="Quests"
+          label={t("hud.quests")}
           colorClass="text-amber-300"
         />
         <SidebarButton
           onClick={onToggleNeighbors}
           icon={Users}
-          label="Neighbors"
+          label={t("hud.neighbors")}
           active={isNeighborsOpen}
           colorClass="text-blue-300"
         />

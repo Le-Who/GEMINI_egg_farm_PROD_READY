@@ -11,6 +11,39 @@ export enum ItemType {
 
 export type RoomType = "interior" | "garden";
 
+export interface LevelConfig {
+  level: number;
+  xpRequired: number;
+  unlockItems: string[];
+}
+
+export interface NeighborProfile {
+  id: string;
+  username: string;
+  level: number;
+  avatarUrl?: string;
+}
+
+export interface PlacedItem {
+  id: string;
+  itemId: string;
+  gridX: number;
+  gridY: number;
+  rotation: number;
+  placedAt: number;
+  meta?: {
+    eggId?: string;
+    hatchStart?: number;
+    [key: string]: any;
+  };
+  cropData?: {
+    cropId: string;
+    plantedAt: number;
+    isReady: boolean;
+  } | null;
+  tint?: number | null; // For Dye system
+}
+
 export interface Room {
   type: RoomType;
   items: PlacedItem[];
@@ -20,6 +53,7 @@ export interface Room {
 export interface ItemConfig {
   id: string;
   name: string;
+  name_ru?: string;
   type: ItemType;
   price: number;
   currency?: "coins" | "gems"; // Default coins
@@ -30,6 +64,7 @@ export interface ItemConfig {
   growthTime?: number; // Legacy
   sellPrice?: number; // Legacy
   description: string;
+  description_ru?: string;
   sprite?: string | null;
   dyeColor?: string; // For DYE items: hex tint color (e.g. "0xff4444")
 }
@@ -37,6 +72,7 @@ export interface ItemConfig {
 export interface CropConfig {
   id: string;
   name: string;
+  name_ru?: string;
   seedPrice: number;
   sellPrice: number;
   growthTime: number; // in seconds
@@ -50,9 +86,11 @@ export interface CropConfig {
 export interface PetConfig {
   id: string;
   name: string;
+  name_ru?: string;
   rarity: "common" | "rare" | "legendary";
   color: number;
   bonusDescription: string;
+  bonusDescription_ru?: string;
   bonus?: { type: "growth_speed" | "coin_reward" | "xp_reward"; value: number }; // Legacy single bonus
   bonuses?: { type: string; value: number }[]; // Multi-ability (preferred)
   sprite?: string | null;
@@ -63,40 +101,47 @@ export interface EggConfig {
   hatchTime: number; // seconds
   pool: { petId: string; weight: number }[];
   sprite?: string; // New: Custom egg sprite
+  name_ru?: string; // Optional name override
+  description_ru?: string; // Optional desc override
 }
 
-export interface LevelConfig {
-  level: number;
-  xpRequired: number;
-  unlocks: string[];
-}
-
-export interface CropData {
-  cropId: string;
-  plantedAt: number;
-  isReady: boolean;
-}
-
-export interface PlacedItem {
+export interface QuestConfig {
   id: string;
-  itemId: string;
-  gridX: number;
-  gridY: number;
-  rotation: number; // 0, 1, 2, 3 (90 degrees steps)
-  placedAt: number;
-  meta: Record<string, any>; // JSONB equivalent (e.g. { eggId: 'egg_common', hatchStart: 123456 })
-  cropData?: CropData | null;
-  tint?: number | null; // Color tint applied via dye system (hex, e.g. 0xff4444)
+  title: string;
+  title_ru?: string;
+  description: string;
+  description_ru?: string;
+  condition: { type: string; count: number; targetId?: string };
+  requirements: { minLevel?: number; maxLevel?: number };
+  rewards: {
+    coins?: number;
+    gems?: number;
+    xp?: number;
+    items?: Record<string, number>;
+  };
+  repeatable: boolean;
 }
 
-export interface PetData {
-  id: string; // instance id
-  configId: string; // e.g. 'slime_green'
+export interface SkuConfig {
+  id: string;
   name: string;
-  level: number;
-  xp: number;
-  happiness: number;
-  acquiredAt: number;
+  name_ru?: string;
+  price: string; // Display price e.g. "$1.99"
+  amount: number; // Legacy: gems amount
+  icon: string;
+  rewards?: {
+    coins?: number;
+    gems?: number;
+    items?: Record<string, number>;
+  };
+}
+
+export interface TutorialStepConfig {
+  id: number;
+  text: string;
+  text_ru?: string;
+  trigger: string; // Event name
+  targetId?: string; // Item ID or UI Element ID
 }
 
 export type StickerType =
@@ -111,8 +156,25 @@ export interface BillboardEntry {
   fromId: string;
   fromName: string;
   sticker: StickerType;
-  message?: string; // New: Optional text message
+  message?: string;
   timestamp: number;
+}
+
+export interface PetData {
+  id: string;
+  configId: string;
+  name: string;
+  level: number;
+  xp: number;
+  happiness: number;
+  acquiredAt: number;
+}
+
+export interface QuestProgress {
+  questId: string;
+  progress: number;
+  completed: boolean;
+  completedAt?: number;
 }
 
 export interface UserState {
@@ -124,80 +186,19 @@ export interface UserState {
   xp: number;
   level: number;
   inventory: Record<string, number>;
-
-  // Room System
-  currentRoom: RoomType;
+  placedItems: PlacedItem[]; // Global/Legacy or not used?
   rooms: Record<RoomType, Room>;
-  placedItems: PlacedItem[]; // Deprecated, kept for interface compat during migration logic but unused in logic
-
+  currentRoom: RoomType;
   pets: PetData[];
-  equippedPetId?: string | null;
-
-  // Tutorial
+  equippedPetId: string | null;
   tutorialStep: number;
   completedTutorial: boolean;
-
-  // Quest System
-  quests?: QuestProgress[];
-
-  // Billboard (visitor guestbook)
+  quests: QuestProgress[];
   billboard?: BillboardEntry[];
-
-  // Echo Ghosts (last action for visitors)
   lastAction?: {
     type: string;
     gridX: number;
     gridY: number;
     timestamp: number;
-  } | null;
-}
-
-export interface QuestConfig {
-  id: string;
-  title: string;
-  description: string;
-  condition: { type: string; count: number; targetId?: string };
-  requirements: { minLevel?: number; maxLevel?: number };
-  rewards: {
-    coins?: number;
-    gems?: number;
-    xp?: number;
-    items?: Record<string, number>;
   };
-  repeatable: boolean;
-}
-
-export interface QuestProgress {
-  questId: string;
-  progress: number;
-  completed: boolean;
-  completedAt?: number;
-}
-
-export interface NeighborProfile {
-  id: string;
-  username: string;
-  level: number;
-  discordId?: string;
-  avatarUrl?: string; // Optional for UI
-}
-
-export interface SkuConfig {
-  id: string;
-  name: string;
-  price: string; // Display price e.g. "$1.99"
-  amount: number; // Legacy: gems amount
-  icon: string;
-  rewards?: {
-    coins?: number;
-    gems?: number;
-    items?: Record<string, number>;
-  };
-}
-
-export interface TutorialStepConfig {
-  id: number;
-  text: string;
-  trigger: string; // Event name
-  targetId?: string; // Item ID or UI Element ID
 }

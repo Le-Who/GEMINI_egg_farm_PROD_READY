@@ -2,6 +2,7 @@ import React from "react";
 import { UserState, QuestConfig, QuestProgress } from "../../types";
 import { QUESTS } from "../../constants";
 import { ChevronRight, Trophy, CheckCircle2, Clock, Star } from "lucide-react";
+import { useLanguage } from "../../components/LanguageContext";
 
 interface QuestsPanelProps {
   isOpen: boolean;
@@ -14,6 +15,7 @@ export const QuestsPanel: React.FC<QuestsPanelProps> = ({
   onClose,
   user,
 }) => {
+  const { t, tContent } = useLanguage();
   const allQuests = Object.values(QUESTS) as QuestConfig[];
   const userQuests = user.quests || [];
 
@@ -56,7 +58,7 @@ export const QuestsPanel: React.FC<QuestsPanelProps> = ({
           <div className="flex justify-between items-center p-4 bg-amber-900/30 border-b border-amber-800/40 shrink-0">
             <div className="flex items-center gap-2 text-amber-100">
               <Trophy size={22} className="text-amber-400" />
-              <h2 className="text-lg font-bold">Quests</h2>
+              <h2 className="text-lg font-bold">{t("quests.title")}</h2>
               <span className="text-xs bg-amber-600/50 px-2 py-0.5 rounded-full font-mono">
                 {completedQuests.length}/{visibleQuests.length}
               </span>
@@ -74,9 +76,9 @@ export const QuestsPanel: React.FC<QuestsPanelProps> = ({
             {visibleQuests.length === 0 && (
               <div className="text-gray-400 text-center py-12 flex flex-col items-center gap-3">
                 <Trophy size={40} className="text-gray-600" />
-                <p className="font-bold">No Quests Available</p>
+                <p className="font-bold">{t("quests.noQuests")}</p>
                 <p className="text-sm text-gray-500">
-                  Level up to unlock new quests!
+                  {t("quests.howToUnlock")}
                 </p>
               </div>
             )}
@@ -85,7 +87,7 @@ export const QuestsPanel: React.FC<QuestsPanelProps> = ({
             {activeQuests.length > 0 && (
               <div className="mb-4">
                 <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2 px-1">
-                  Active
+                  {t("quests.active")}
                 </h3>
                 <div className="flex flex-col gap-2">
                   {activeQuests.map((quest) => {
@@ -104,10 +106,10 @@ export const QuestsPanel: React.FC<QuestsPanelProps> = ({
                         <div className="flex items-start justify-between mb-1">
                           <div>
                             <h4 className="font-bold text-white text-sm">
-                              {quest.title}
+                              {tContent(quest, "title")}
                             </h4>
                             <p className="text-xs text-gray-400">
-                              {quest.description}
+                              {tContent(quest, "description")}
                             </p>
                           </div>
                           <Clock
@@ -156,7 +158,7 @@ export const QuestsPanel: React.FC<QuestsPanelProps> = ({
             {completedQuests.length > 0 && (
               <div>
                 <h3 className="text-xs font-bold text-green-400 uppercase tracking-wider mb-2 px-1">
-                  Completed
+                  {t("quests.completed")}
                 </h3>
                 <div className="flex flex-col gap-1.5">
                   {completedQuests.map((quest) => (
@@ -170,10 +172,10 @@ export const QuestsPanel: React.FC<QuestsPanelProps> = ({
                       />
                       <div className="flex-1 min-w-0">
                         <h4 className="font-bold text-gray-300 text-sm">
-                          {quest.title}
+                          {tContent(quest, "title")}
                         </h4>
                         <p className="text-[10px] text-gray-500">
-                          {quest.description}
+                          {tContent(quest, "description")}
                         </p>
                       </div>
                       <Star size={12} className="text-amber-400 shrink-0" />

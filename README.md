@@ -18,6 +18,7 @@
 | 📋 **Billboard**    | Place a visitor guestbook — friends leave sticker reactions when visiting       |
 | 👻 **Echo Ghosts**  | See a pulsing glow at the last action spot when visiting neighbors              |
 | 👥 **Social**       | Visit neighbor farms, water their plants                                        |
+| 🌍 **Localization** | **English & Russian** support, extensible custom i18n system                    |
 | 🎨 **CMS**          | Admin dashboard for live content editing (items, crops, pets, quests, sprites)  |
 
 ---
@@ -121,20 +122,21 @@ egg-farm/
 
 ## ⚙️ Tech Stack
 
-| Layer           | Technology               | Version     |
-| --------------- | ------------------------ | ----------- |
-| **Runtime**     | Node.js                  | 20 (Alpine) |
-| **Frontend**    | React                    | 19.0        |
-| **Game Engine** | Phaser                   | 3.90        |
-| **Bundler**     | Vite                     | 7.3         |
-| **Styling**     | Tailwind CSS             | 3.4         |
-| **Icons**       | Lucide React             | 0.563       |
-| **Backend**     | Express.js               | 4.18        |
-| **Storage**     | Google Cloud Storage     | 7.x         |
-| **Auth**        | Discord Embedded App SDK | 1.0         |
-| **Language**    | TypeScript               | 5.5         |
-| **Container**   | Docker                   | Multi-stage |
-| **Deployment**  | Google Cloud Run         | —           |
+| Layer            | Technology               | Version     |
+| ---------------- | ------------------------ | ----------- |
+| **Runtime**      | Node.js                  | 20 (Alpine) |
+| **Frontend**     | React                    | 19.0        |
+| **Game Engine**  | Phaser                   | 3.90        |
+| **Bundler**      | Vite                     | 7.3         |
+| **Styling**      | Tailwind CSS             | 3.4         |
+| **Icons**        | Lucide React             | 0.563       |
+| **Backend**      | Express.js               | 4.18        |
+| **Storage**      | Google Cloud Storage     | 7.x         |
+| **Auth**         | Discord Embedded App SDK | 1.0         |
+| **Localization** | Custom (React Context)   | —           |
+| **Language**     | TypeScript               | 5.5         |
+| **Container**    | Docker                   | Multi-stage |
+| **Deployment**   | Google Cloud Run         | —           |
 
 ---
 

@@ -46,8 +46,8 @@ vi.mock("../../services/contentLoader", () => ({
     },
   }),
   getLevels: () => [
-    { level: 1, xpFiltered: 0, unlockItems: [] },
-    { level: 2, xpFiltered: 100, unlockItems: [] },
+    { level: 1, xpRequired: 0, unlockItems: [] },
+    { level: 2, xpRequired: 100, unlockItems: [] },
   ],
   getTutorial: () => [],
   getSkus: () => [],
@@ -80,6 +80,8 @@ const MOCK_USER: UserState = {
   tutorialStep: 10,
   completedTutorial: true,
   placedItems: [],
+  quests: [],
+  equippedPetId: null,
 };
 
 describe("GameEngine", () => {
