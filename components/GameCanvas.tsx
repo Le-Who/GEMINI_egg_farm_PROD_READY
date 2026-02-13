@@ -1,9 +1,8 @@
-
-import React, { useEffect, useRef } from 'react';
-import Phaser from 'phaser';
-import { MainScene } from '../game/scenes/MainScene';
-import { CANVAS_BG_COLOR } from '../constants';
-import { PlacedItem, PetData, RoomType } from '../types';
+import React, { useEffect, useRef } from "react";
+import Phaser from "phaser";
+import { MainScene } from "../game/scenes/MainScene";
+import { CANVAS_BG_COLOR } from "../constants";
+import { PlacedItem, PetData, RoomType } from "../types";
 
 interface GameCanvasProps {
   items: PlacedItem[];
@@ -18,8 +17,16 @@ interface GameCanvasProps {
   tutorialStep: number;
 }
 
-export const GameCanvas: React.FC<GameCanvasProps> = ({ 
-    items, roomType, ghostItem, onTileClick, currentPet, isVisiting, wateredPlants, playerGridPos, tutorialStep 
+export const GameCanvas: React.FC<GameCanvasProps> = ({
+  items,
+  roomType,
+  ghostItem,
+  onTileClick,
+  currentPet,
+  isVisiting,
+  wateredPlants,
+  playerGridPos,
+  tutorialStep,
 }) => {
   const gameRef = useRef<Phaser.Game | null>(null);
   const sceneRef = useRef<MainScene | null>(null);
@@ -28,17 +35,17 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     if (gameRef.current) return;
 
     // Ensure valid dimensions to prevent "Framebuffer status: Incomplete Attachment"
-    const width = Math.max(window.innerWidth, 800);
-    const height = Math.max(window.innerHeight, 600);
+    const width = window.innerWidth;
+    const height = window.innerHeight;
 
     const config: Phaser.Types.Core.GameConfig = {
       type: Phaser.AUTO,
-      parent: 'phaser-container',
+      parent: "phaser-container",
       width: width,
       height: height,
       backgroundColor: CANVAS_BG_COLOR,
       scene: [MainScene],
-      physics: { default: 'arcade' },
+      physics: { default: "arcade" },
       scale: {
         mode: Phaser.Scale.RESIZE,
         // When using RESIZE, use NO_CENTER to avoid conflicts with CSS layout
@@ -48,7 +55,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         antialias: true,
         pixelArt: false,
         roundPixels: true,
-        powerPreference: 'high-performance'
+        powerPreference: "high-performance",
       },
       autoFocus: true,
     };
@@ -57,13 +64,20 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     gameRef.current = game;
     (window as any).game = game; // Expose for floating text trigger hack
 
-    game.events.on('ready', () => {
-      const scene = game.scene.getScene('MainScene') as MainScene;
+    game.events.on("ready", () => {
+      const scene = game.scene.getScene("MainScene") as MainScene;
       if (scene) {
         sceneRef.current = scene;
-        scene.setRoomData(items, roomType, currentPet, isVisiting, wateredPlants, tutorialStep);
+        scene.setRoomData(
+          items,
+          roomType,
+          currentPet,
+          isVisiting,
+          wateredPlants,
+          tutorialStep,
+        );
         scene.onTileClick = onTileClick;
-        if(playerGridPos) scene.setPlayerPos(playerGridPos.x, playerGridPos.y);
+        if (playerGridPos) scene.setPlayerPos(playerGridPos.x, playerGridPos.y);
       }
     });
 
@@ -78,12 +92,39 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
   useEffect(() => {
     if (sceneRef.current) {
-      sceneRef.current.setRoomData(items, roomType, currentPet, isVisiting, wateredPlants, tutorialStep);
+      sceneRef.current.setRoomData(
+        items,
+        roomType,
+        currentPet,
+        isVisiting,
+        wateredPlants,
+        tutorialStep,
+      );
       sceneRef.current.onTileClick = onTileClick;
-      sceneRef.current.setGhostItem(ghostItem ? ghostItem.id : null, ghostItem ? ghostItem.rotation : 0);
-      if(playerGridPos) sceneRef.current.setPlayerPos(playerGridPos.x, playerGridPos.y);
+      sceneRef.current.setGhostItem(
+        ghostItem ? ghostItem.id : null,
+        ghostItem ? ghostItem.rotation : 0,
+      );
+      if (playerGridPos)
+        sceneRef.current.setPlayerPos(playerGridPos.x, playerGridPos.y);
     }
-  }, [items, roomType, ghostItem, onTileClick, currentPet, isVisiting, wateredPlants, playerGridPos, tutorialStep]);
+  }, [
+    items,
+    roomType,
+    ghostItem,
+    onTileClick,
+    currentPet,
+    isVisiting,
+    wateredPlants,
+    playerGridPos,
+    tutorialStep,
+  ]);
 
-  return <div id="phaser-container" className="absolute inset-0 z-0 overflow-hidden" style={{ width: '100%', height: '100%' }} />;
+  return (
+    <div
+      id="phaser-container"
+      className="absolute inset-0 z-0 overflow-hidden"
+      style={{ width: "100%", height: "100%" }}
+    />
+  );
 };

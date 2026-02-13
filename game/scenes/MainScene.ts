@@ -48,9 +48,28 @@ export class MainScene extends Phaser.Scene {
     super({ key: "MainScene" });
   }
 
+  // Calculate zoom so the full iso grid fits in the viewport
+  private calculateZoom(): number {
+    const vw = this.scale.width;
+    const vh = this.scale.height;
+    const gridPixelWidth = GRID_SIZE * TILE_WIDTH; // 1024
+    const gridPixelHeight = GRID_SIZE * TILE_HEIGHT; // 512
+    const padding = 0.85; // 15% breathing room
+    const zoomX = (vw * padding) / gridPixelWidth;
+    const zoomY = (vh * padding) / gridPixelHeight;
+    return Math.min(zoomX, zoomY, 2.0); // cap at 2x
+  }
+
   create() {
     this.cameras.main.centerOn(0, 0);
-    this.cameras.main.setZoom(1.2);
+    this.cameras.main.setZoom(this.calculateZoom());
+
+    // Recalculate zoom on window/iframe resize
+    this.scale.on("resize", () => {
+      this.cameras.main.setZoom(this.calculateZoom());
+      this.cameras.main.centerOn(0, 0);
+      this.drawGrid();
+    });
 
     this.gridGraphics = this.add.graphics();
     this.itemsGraphics = this.add.graphics();
