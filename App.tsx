@@ -276,6 +276,15 @@ const App: React.FC = () => {
     }
   };
 
+  // Pet interaction — owner and visitors can pet
+  const handlePetPet = useCallback(
+    (petId: string) => {
+      if (!currentUser) return;
+      showNotification("You petted the pet! 💕", "success");
+    },
+    [currentUser],
+  );
+
   const handleTileClick = useCallback(
     async (x: number, y: number) => {
       if (!currentUser || !displayUser) return;
@@ -494,6 +503,7 @@ const App: React.FC = () => {
         items={currentRoomItems}
         roomType={displayUser.currentRoom}
         onTileClick={handleTileClick}
+        onPetClick={handlePetPet}
         ghostItem={
           isEditMode && selectedItemId ? { id: selectedItemId, rotation } : null
         }

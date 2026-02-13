@@ -45,6 +45,7 @@ export class MainScene extends Phaser.Scene {
   private failedTextures: Set<string> = new Set(); // URLs that failed to load
 
   public onTileClick?: (x: number, y: number) => void;
+  public onPetClick?: (petId: string) => void; // Called when pet tile is clicked
   public placedItems: PlacedItem[] = [];
   public currentRoomType: RoomType = "interior";
   public currentPet: PetData | null = null;
@@ -60,6 +61,20 @@ export class MainScene extends Phaser.Scene {
     gridY: number;
     timestamp: number;
   } | null = null;
+
+  // Free-roaming pet AI state
+  private petAI = {
+    x: 6,
+    y: 7, // Current grid position
+    targetX: 6,
+    targetY: 7, // Movement target
+    moveProgress: 1, // 0→1 interpolation (1 = arrived)
+    state: "IDLE" as "IDLE" | "WANDER" | "APPROACH",
+    stateTimer: 0, // ms remaining in current state
+    approachCooldown: 0, // ms until next approach check
+    lastPetTime: 0, // Last time pet was petted (for cooldown)
+  };
+  private petReactionEmojis = ["❤️", "⭐", "✨", "🐾", "💕"];
 
   // Editor State
   private ghostItemId: string | null = null;
@@ -115,6 +130,20 @@ export class MainScene extends Phaser.Scene {
     // --- Input for tile clicking ---
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       const iso = this.getIsoFromScreen(pointer.worldX, pointer.worldY);
+
+      // Check pet click first
+      if (
+        this.currentPet &&
+        Math.floor(this.petAI.x) === iso.x &&
+        Math.floor(this.petAI.y) === iso.y
+      ) {
+        if (this.onPetClick) {
+          this.onPetClick(this.currentPet.id);
+        }
+        this.triggerPetReaction();
+        return; // Don't pass click to tile handler
+      }
+
       if (this.isValidGrid(iso.x, iso.y) && this.onTileClick) {
         this.onTileClick(iso.x, iso.y);
       }
@@ -126,7 +155,8 @@ export class MainScene extends Phaser.Scene {
     });
   }
 
-  update() {
+  update(_time: number, delta: number) {
+    this.updatePetAI(delta);
     this.drawScene();
   }
 
@@ -146,7 +176,25 @@ export class MainScene extends Phaser.Scene {
   ) {
     this.placedItems = items;
     this.currentRoomType = roomType;
+
+    // Reset pet position when pet changes
+    const prevPetId = this.currentPet?.id;
     this.currentPet = currentPet;
+    if (currentPet && currentPet.id !== prevPetId) {
+      // Place pet near player
+      this.petAI.x = Math.max(
+        0,
+        Math.min(GRID_SIZE - 1, this.playerGridPos.x - 1),
+      );
+      this.petAI.y = Math.max(0, Math.min(GRID_SIZE - 1, this.playerGridPos.y));
+      this.petAI.targetX = this.petAI.x;
+      this.petAI.targetY = this.petAI.y;
+      this.petAI.moveProgress = 1;
+      this.petAI.state = "IDLE";
+      this.petAI.stateTimer = 2000;
+      this.petAI.approachCooldown = 15000;
+    }
+
     this.isVisiting = isVisiting;
     this.wateredPlants = wateredPlants || new Set();
     this.tutorialStep = tutorialStep;
@@ -166,6 +214,150 @@ export class MainScene extends Phaser.Scene {
 
   public setPlayerPos(x: number, y: number) {
     this.playerGridPos = { x, y };
+  }
+
+  // ─── Free-Roaming Pet AI ───────────────────────────────────────────
+
+  private updatePetAI(delta: number) {
+    if (!this.currentPet) return;
+
+    const ai = this.petAI;
+    ai.approachCooldown = Math.max(0, ai.approachCooldown - delta);
+
+    switch (ai.state) {
+      case "IDLE": {
+        ai.stateTimer -= delta;
+        if (ai.stateTimer <= 0) {
+          // Should we approach the player?
+          const distToPlayer =
+            Math.abs(ai.x - this.playerGridPos.x) +
+            Math.abs(ai.y - this.playerGridPos.y);
+
+          if (distToPlayer > 3 && ai.approachCooldown <= 0) {
+            ai.state = "APPROACH";
+            ai.approachCooldown = 15000; // 15s cooldown
+          } else {
+            ai.state = "WANDER";
+          }
+          this.pickPetTarget();
+        }
+        break;
+      }
+
+      case "WANDER":
+      case "APPROACH": {
+        // Advance movement interpolation (move at ~1.5 tiles per second)
+        ai.moveProgress += delta / 650;
+        if (ai.moveProgress >= 1) {
+          ai.moveProgress = 1;
+          ai.x = ai.targetX;
+          ai.y = ai.targetY;
+          ai.state = "IDLE";
+          // Random idle time: 2-5 seconds
+          ai.stateTimer = 2000 + Math.random() * 3000;
+        }
+        break;
+      }
+    }
+  }
+
+  private pickPetTarget() {
+    const ai = this.petAI;
+
+    if (ai.state === "APPROACH") {
+      // Move one step toward player
+      const dx = this.playerGridPos.x - ai.x;
+      const dy = this.playerGridPos.y - ai.y;
+
+      if (Math.abs(dx) >= Math.abs(dy)) {
+        ai.targetX = ai.x + Math.sign(dx);
+        ai.targetY = ai.y;
+      } else {
+        ai.targetX = ai.x;
+        ai.targetY = ai.y + Math.sign(dy);
+      }
+    } else {
+      // WANDER: pick random adjacent tile
+      const dirs = [
+        { dx: 1, dy: 0 },
+        { dx: -1, dy: 0 },
+        { dx: 0, dy: 1 },
+        { dx: 0, dy: -1 },
+      ];
+      // Shuffle
+      for (let i = dirs.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [dirs[i], dirs[j]] = [dirs[j], dirs[i]];
+      }
+
+      let picked = false;
+      for (const d of dirs) {
+        const nx = ai.x + d.dx;
+        const ny = ai.y + d.dy;
+        if (this.isValidGrid(nx, ny) && !this.isTileOccupied(nx, ny)) {
+          ai.targetX = nx;
+          ai.targetY = ny;
+          picked = true;
+          break;
+        }
+      }
+      if (!picked) {
+        // Nowhere to go, stay put
+        ai.targetX = ai.x;
+        ai.targetY = ai.y;
+      }
+    }
+
+    // Clamp
+    ai.targetX = Math.max(0, Math.min(GRID_SIZE - 1, ai.targetX));
+    ai.targetY = Math.max(0, Math.min(GRID_SIZE - 1, ai.targetY));
+    ai.moveProgress = 0;
+  }
+
+  private isTileOccupied(x: number, y: number): boolean {
+    // Check if a placed item occupies this tile
+    return this.placedItems.some(
+      (item) => item.gridX === x && item.gridY === y,
+    );
+  }
+
+  public triggerPetReaction() {
+    const ai = this.petAI;
+    const now = Date.now();
+
+    // 5s cooldown
+    if (now - ai.lastPetTime < 5000) return;
+    ai.lastPetTime = now;
+
+    // Random emoji
+    const emoji =
+      this.petReactionEmojis[
+        Math.floor(Math.random() * this.petReactionEmojis.length)
+      ];
+
+    // Get screen position of pet
+    const lerpX = Phaser.Math.Linear(ai.x, ai.targetX, ai.moveProgress);
+    const lerpY = Phaser.Math.Linear(ai.y, ai.targetY, ai.moveProgress);
+    const screen = this.getScreenFromIso(lerpX, lerpY);
+
+    // Happy bounce effect — temporarily speed up bounce
+    // Create floating emoji
+    const text = this.add
+      .text(screen.x, screen.y - 30, emoji, {
+        fontSize: "24px",
+      })
+      .setOrigin(0.5)
+      .setDepth(10000);
+
+    // Float up + fade out
+    this.tweens.add({
+      targets: text,
+      y: text.y - 40,
+      alpha: 0,
+      duration: 1200,
+      ease: "Cubic.easeOut",
+      onComplete: () => text.destroy(),
+    });
   }
 
   public showFloatingText(
@@ -368,19 +560,24 @@ export class MainScene extends Phaser.Scene {
       gridY: this.playerGridPos.y,
     });
 
-    // Pet
+    // Pet — uses AI position instead of static offset
     if (this.currentPet) {
-      // Simple "follow" logic: Pet is 1 unit behind player or beside
-      const petX = Math.max(
-        0,
-        Math.min(GRID_SIZE - 1, this.playerGridPos.x - 1),
+      // Lerp between current and target for smooth movement
+      const lerpX = Phaser.Math.Linear(
+        this.petAI.x,
+        this.petAI.targetX,
+        this.petAI.moveProgress,
       );
-      const petY = Math.max(0, Math.min(GRID_SIZE - 1, this.playerGridPos.y)); // beside
+      const lerpY = Phaser.Math.Linear(
+        this.petAI.y,
+        this.petAI.targetY,
+        this.petAI.moveProgress,
+      );
 
       renderList.push({
         type: "PET",
-        gridX: petX,
-        gridY: petY,
+        gridX: lerpX,
+        gridY: lerpY,
         petData: this.currentPet,
       });
     }

@@ -10,6 +10,7 @@ interface GameCanvasProps {
   roomType: RoomType;
   ghostItem: { id: string; rotation: number } | null;
   onTileClick: (x: number, y: number) => void;
+  onPetClick?: (petId: string) => void;
   currentPet: PetData | null;
   isVisiting: boolean;
   wateredPlants?: Set<string>;
@@ -28,6 +29,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   roomType,
   ghostItem,
   onTileClick,
+  onPetClick,
   currentPet,
   isVisiting,
   wateredPlants,
@@ -85,6 +87,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           lastAction,
         );
         scene.onTileClick = onTileClick;
+        if (onPetClick) scene.onPetClick = onPetClick;
         if (playerGridPos) scene.setPlayerPos(playerGridPos.x, playerGridPos.y);
       }
     });
@@ -144,6 +147,13 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       sceneRef.current.setPlayerPos(playerGridPos.x, playerGridPos.y);
     }
   }, [playerGridPos]);
+
+  // --- Pet click handler ---
+  useEffect(() => {
+    if (sceneRef.current && onPetClick) {
+      sceneRef.current.onPetClick = onPetClick;
+    }
+  }, [onPetClick]);
 
   // --- EventBus: floating text ---
   useEffect(() => {

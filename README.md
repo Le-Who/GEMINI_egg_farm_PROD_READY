@@ -6,19 +6,19 @@
 
 ## 📸 Overview
 
-| Feature              | Description                                                                    |
-| -------------------- | ------------------------------------------------------------------------------ |
-| 🏠 **Room System**   | Interior house + outdoor garden, switchable in real-time                       |
-| 🌱 **Farming**       | Plant seeds, grow crops, harvest for coins & XP                                |
-| 🥚 **Pet Hatching**  | Incubate eggs → weighted random pet drops with rarity tiers                    |
-| 🐾 **Pet Abilities** | Equipped pets grant multiple stacking bonuses (growth speed, coin/XP rewards)  |
-| 🏆 **Quest System**  | Progressive quests with conditions, level gates, and rich rewards              |
-| 🛒 **Shop**          | Coins & gems economy with furniture, planters, consumables, dyes               |
-| 🎨 **Dye System**    | Tint furniture & decorations with 6 colors via Edit Mode                       |
-| 📋 **Billboard**     | Place a visitor guestbook — friends leave sticker reactions when visiting      |
-| 👻 **Echo Ghosts**   | See a pulsing glow at the last action spot when visiting neighbors             |
-| 👥 **Social**        | Visit neighbor farms, water their plants                                       |
-| 🎨 **CMS**           | Admin dashboard for live content editing (items, crops, pets, quests, sprites) |
+| Feature             | Description                                                                     |
+| ------------------- | ------------------------------------------------------------------------------- |
+| 🏠 **Room System**  | Interior house + outdoor garden, switchable in real-time                        |
+| 🌱 **Farming**      | Plant seeds, grow crops, harvest for coins & XP                                 |
+| 🥚 **Pet Hatching** | Incubate eggs → weighted random pet drops with rarity tiers                     |
+| 🐾 **Pet AI**       | Free-roaming petted behavior with IDLE/WANDER/APPROACH states + click-to-pet 💖 |
+| 🏆 **Quest System** | Progressive quests with conditions, level gates, and rich rewards               |
+| 🛒 **Shop**         | Coins & gems economy with furniture, planters, consumables, dyes                |
+| 🎨 **Dye System**   | Tint furniture & decorations with 6 colors via Edit Mode                        |
+| 📋 **Billboard**    | Place a visitor guestbook — friends leave sticker reactions when visiting       |
+| 👻 **Echo Ghosts**  | See a pulsing glow at the last action spot when visiting neighbors              |
+| 👥 **Social**       | Visit neighbor farms, water their plants                                        |
+| 🎨 **CMS**          | Admin dashboard for live content editing (items, crops, pets, quests, sprites)  |
 
 ---
 
@@ -203,10 +203,11 @@ buyPremiumCurrency → triggerTutorial → checkQuests → checkLevelUp → reco
 - **Coordinate system**: `getScreenFromIso()` / `getIsoFromScreen()` — standard 2:1 isometric projection
 - **Z-sorting**: Painter's algorithm based on `gridY + gridX` for correct overlap
 - **Object pooling**: Sprite and text pools via Phaser Groups (max 100/20) — zero GC per frame
+- **Pet AI**: Client-side state machine (IDLE/WANDER/APPROACH) with smooth lerp movement & emoji reactions
 - **Dye rendering**: `setTint()`/`clearTint()` on sprite images driven by `PlacedItem.tint`
 - **Echo ghosts**: Pulsing glow + action emoji at `lastAction` tile when visiting (24h TTL)
 - **Entity types**: Items (8 subtypes), Player avatar, Pet follower
-- **Visual effects**: Crop growth animation, egg incubation progress bar, harvest sparkle, tutorial hints
+- **Visual effects**: Crop growth animation, egg incubation progress bar, harvest sparkle, tutorial hints, pet emoji burst
 - **Ghost placement**: Translucent preview item follows cursor during edit mode
 
 ### Content Hot-Reloading
