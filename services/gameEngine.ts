@@ -156,6 +156,14 @@ export const GameEngine = {
     // Sync username from Discord
     if (state.username !== username) state.username = username;
 
+    // OPTIMIZATION: If identical to current cached state, return cache to prevent re-renders
+    if (
+      currentUserState &&
+      JSON.stringify(state) === JSON.stringify(currentUserState)
+    ) {
+      return currentUserState;
+    }
+
     currentUserState = state;
     debouncedSave(state);
     return state;
