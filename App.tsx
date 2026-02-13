@@ -21,6 +21,7 @@ import {
 } from "./constants";
 import { Loader2, ArrowLeft } from "lucide-react";
 import Phaser from "phaser";
+import { gameBus } from "./services/eventBus";
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<UserState | null>(null); // Me
@@ -156,20 +157,14 @@ const App: React.FC = () => {
     [],
   );
 
-  // Floating Text Helper - Finds the active scene
+  // Floating Text Helper — via EventBus (decoupled from Phaser)
   const triggerFloatingText = (
     x: number,
     y: number,
     text: string,
     color: string,
   ) => {
-    const game = (window as any).game;
-    if (game) {
-      const scene = game.scene.getScene("MainScene");
-      if (scene && scene.showFloatingText) {
-        scene.showFloatingText(x, y, text, color);
-      }
-    }
+    gameBus.emit("floatingText", x, y, text, color);
   };
 
   const handleOpenShop = async () => {
@@ -466,6 +461,7 @@ const App: React.FC = () => {
         wateredPlants={wateredPlants}
         playerGridPos={playerGridPos}
         tutorialStep={currentUser.tutorialStep}
+        lastAction={isVisiting ? displayUser.lastAction : null}
       />
 
       {isVisiting && (

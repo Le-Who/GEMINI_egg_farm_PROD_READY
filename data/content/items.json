@@ -106,5 +106,83 @@
     "height": 1,
     "sprite": null,
     "description": "A classic garden border."
+  },
+  "dye_red": {
+    "id": "dye_red",
+    "name": "Crimson Dye",
+    "type": "DYE",
+    "price": 25,
+    "currency": "coins",
+    "color": "0xff4444",
+    "width": 1,
+    "height": 1,
+    "sprite": null,
+    "description": "Tint furniture a warm crimson.",
+    "dyeColor": "0xff4444"
+  },
+  "dye_blue": {
+    "id": "dye_blue",
+    "name": "Ocean Dye",
+    "type": "DYE",
+    "price": 25,
+    "currency": "coins",
+    "color": "0x4488ff",
+    "width": 1,
+    "height": 1,
+    "sprite": null,
+    "description": "Tint furniture a deep ocean blue.",
+    "dyeColor": "0x4488ff"
+  },
+  "dye_green": {
+    "id": "dye_green",
+    "name": "Forest Dye",
+    "type": "DYE",
+    "price": 25,
+    "currency": "coins",
+    "color": "0x44bb44",
+    "width": 1,
+    "height": 1,
+    "sprite": null,
+    "description": "Tint furniture a lush forest green.",
+    "dyeColor": "0x44bb44"
+  },
+  "dye_orange": {
+    "id": "dye_orange",
+    "name": "Sunset Dye",
+    "type": "DYE",
+    "price": 25,
+    "currency": "coins",
+    "color": "0xff8844",
+    "width": 1,
+    "height": 1,
+    "sprite": null,
+    "description": "Tint furniture a warm sunset orange.",
+    "dyeColor": "0xff8844"
+  },
+  "dye_purple": {
+    "id": "dye_purple",
+    "name": "Violet Dye",
+    "type": "DYE",
+    "price": 25,
+    "currency": "coins",
+    "color": "0xaa44ff",
+    "width": 1,
+    "height": 1,
+    "sprite": null,
+    "description": "Tint furniture a royal violet.",
+    "dyeColor": "0xaa44ff"
+  },
+  "dye_gold": {
+    "id": "dye_gold",
+    "name": "Gold Dye",
+    "type": "DYE",
+    "price": 50,
+    "currency": "coins",
+    "color": "0xffd700",
+    "width": 1,
+    "height": 1,
+    "sprite": null,
+    "description": "Tint furniture a luxurious gold.",
+    "dyeColor": "0xffd700"
   }
 }

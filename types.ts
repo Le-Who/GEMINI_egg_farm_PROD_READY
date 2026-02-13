@@ -6,6 +6,7 @@ export enum ItemType {
   INCUBATOR = "INCUBATOR", // New for Sprint 3
   EGG = "EGG", // New for Sprint 3
   CONSUMABLE = "CONSUMABLE", // New for Fertilizer
+  DYE = "DYE", // Tint items — apply color to placed furniture/decoration
 }
 
 export type RoomType = "interior" | "garden";
@@ -30,6 +31,7 @@ export interface ItemConfig {
   sellPrice?: number; // Legacy
   description: string;
   sprite?: string | null;
+  dyeColor?: string; // For DYE items: hex tint color (e.g. "0xff4444")
 }
 
 export interface CropConfig {
@@ -83,6 +85,7 @@ export interface PlacedItem {
   placedAt: number;
   meta: Record<string, any>; // JSONB equivalent (e.g. { eggId: 'egg_common', hatchStart: 123456 })
   cropData?: CropData | null;
+  tint?: number | null; // Color tint applied via dye system (hex, e.g. 0xff4444)
 }
 
 export interface PetData {
@@ -93,6 +96,21 @@ export interface PetData {
   xp: number;
   happiness: number;
   acquiredAt: number;
+}
+
+export type StickerType =
+  | "heart"
+  | "star"
+  | "thumbsup"
+  | "sparkle"
+  | "flower"
+  | "wave";
+
+export interface BillboardEntry {
+  fromId: string;
+  fromName: string;
+  sticker: StickerType;
+  timestamp: number;
 }
 
 export interface UserState {
@@ -119,6 +137,17 @@ export interface UserState {
 
   // Quest System
   quests?: QuestProgress[];
+
+  // Billboard (visitor guestbook)
+  billboard?: BillboardEntry[];
+
+  // Echo Ghosts (last action for visitors)
+  lastAction?: {
+    type: string;
+    gridX: number;
+    gridY: number;
+    timestamp: number;
+  } | null;
 }
 
 export interface QuestConfig {

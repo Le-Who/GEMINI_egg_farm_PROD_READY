@@ -3,18 +3,24 @@ import Phaser from "phaser";
 import { MainScene } from "../game/scenes/MainScene";
 import { CANVAS_BG_COLOR } from "../constants";
 import { PlacedItem, PetData, RoomType } from "../types";
+import { gameBus } from "../services/eventBus";
 
 interface GameCanvasProps {
   items: PlacedItem[];
   roomType: RoomType;
   ghostItem: { id: string; rotation: number } | null;
   onTileClick: (x: number, y: number) => void;
-  onFloatingText?: (x: number, y: number, text: string, color: string) => void;
   currentPet: PetData | null;
   isVisiting: boolean;
   wateredPlants?: Set<string>;
   playerGridPos?: { x: number; y: number };
   tutorialStep: number;
+  lastAction?: {
+    type: string;
+    gridX: number;
+    gridY: number;
+    timestamp: number;
+  } | null;
 }
 
 export const GameCanvas: React.FC<GameCanvasProps> = ({
@@ -27,14 +33,15 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   wateredPlants,
   playerGridPos,
   tutorialStep,
+  lastAction,
 }) => {
   const gameRef = useRef<Phaser.Game | null>(null);
   const sceneRef = useRef<MainScene | null>(null);
 
+  // --- Boot Phaser once ---
   useEffect(() => {
     if (gameRef.current) return;
 
-    // Ensure valid dimensions to prevent "Framebuffer status: Incomplete Attachment"
     const width = window.innerWidth;
     const height = window.innerHeight;
 
@@ -48,7 +55,6 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       physics: { default: "arcade" },
       scale: {
         mode: Phaser.Scale.RESIZE,
-        // When using RESIZE, use NO_CENTER to avoid conflicts with CSS layout
         autoCenter: Phaser.Scale.NO_CENTER,
       },
       render: {
@@ -62,12 +68,13 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
     const game = new Phaser.Game(config);
     gameRef.current = game;
-    (window as any).game = game; // Expose for floating text trigger hack
+    (window as any).game = game;
 
     game.events.on("ready", () => {
       const scene = game.scene.getScene("MainScene") as MainScene;
       if (scene) {
         sceneRef.current = scene;
+        // Initial data push
         scene.setRoomData(
           items,
           roomType,
@@ -75,6 +82,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           isVisiting,
           wateredPlants,
           tutorialStep,
+          lastAction,
         );
         scene.onTileClick = onTileClick;
         if (playerGridPos) scene.setPlayerPos(playerGridPos.x, playerGridPos.y);
@@ -90,6 +98,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     };
   }, []);
 
+  // --- Room data (items, room type, visiting, pets, tutorial) ---
   useEffect(() => {
     if (sceneRef.current) {
       sceneRef.current.setRoomData(
@@ -99,26 +108,51 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         isVisiting,
         wateredPlants,
         tutorialStep,
+        lastAction,
       );
-      sceneRef.current.onTileClick = onTileClick;
-      sceneRef.current.setGhostItem(
-        ghostItem ? ghostItem.id : null,
-        ghostItem ? ghostItem.rotation : 0,
-      );
-      if (playerGridPos)
-        sceneRef.current.setPlayerPos(playerGridPos.x, playerGridPos.y);
     }
   }, [
     items,
     roomType,
-    ghostItem,
-    onTileClick,
     currentPet,
     isVisiting,
     wateredPlants,
-    playerGridPos,
     tutorialStep,
+    lastAction,
   ]);
+
+  // --- Ghost item (editor mode) ---
+  useEffect(() => {
+    if (sceneRef.current) {
+      sceneRef.current.setGhostItem(
+        ghostItem ? ghostItem.id : null,
+        ghostItem ? ghostItem.rotation : 0,
+      );
+    }
+  }, [ghostItem]);
+
+  // --- Tile click handler ---
+  useEffect(() => {
+    if (sceneRef.current) {
+      sceneRef.current.onTileClick = onTileClick;
+    }
+  }, [onTileClick]);
+
+  // --- Player position ---
+  useEffect(() => {
+    if (sceneRef.current && playerGridPos) {
+      sceneRef.current.setPlayerPos(playerGridPos.x, playerGridPos.y);
+    }
+  }, [playerGridPos]);
+
+  // --- EventBus: floating text ---
+  useEffect(() => {
+    const handleFloat = (x: number, y: number, text: string, color: string) => {
+      sceneRef.current?.showFloatingText(x, y, text, color);
+    };
+    gameBus.on("floatingText", handleFloat);
+    return () => gameBus.off("floatingText", handleFloat);
+  }, []);
 
   return (
     <div

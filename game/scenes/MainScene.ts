@@ -36,8 +36,10 @@ export class MainScene extends Phaser.Scene {
   private overlayGraphics!: Phaser.GameObjects.Graphics;
   private itemsGraphics!: Phaser.GameObjects.Graphics; // Persistent: items/player/pet rendering
 
-  // Sprite rendering system
-  private spriteImages: Phaser.GameObjects.Image[] = []; // Pool of active sprite images this frame
+  // Sprite rendering system — Object Pool
+  private spritePool!: Phaser.GameObjects.Group; // Reusable image pool (never destroyed)
+  private activeSprites: Phaser.GameObjects.Image[] = []; // Sprites used THIS frame
+  private textPool!: Phaser.GameObjects.Group; // Reusable floating text pool
   private loadingTextures: Set<string> = new Set(); // URLs currently being loaded
   private loadedTextures: Set<string> = new Set(); // Successfully loaded texture keys
   private failedTextures: Set<string> = new Set(); // URLs that failed to load
@@ -50,6 +52,14 @@ export class MainScene extends Phaser.Scene {
   public wateredPlants: Set<string> = new Set();
   public playerGridPos = { x: 7, y: 7 };
   public tutorialStep: number = 0;
+
+  // Echo Ghost — last action of visited user
+  public lastAction: {
+    type: string;
+    gridX: number;
+    gridY: number;
+    timestamp: number;
+  } | null = null;
 
   // Editor State
   private ghostItemId: string | null = null;
@@ -90,12 +100,26 @@ export class MainScene extends Phaser.Scene {
 
     this.drawGrid();
 
+    // --- Object Pools ---
+    this.spritePool = this.add.group({
+      classType: Phaser.GameObjects.Image,
+      maxSize: 100, // Max sprite images in a single frame
+      runChildUpdate: false,
+    });
+    this.textPool = this.add.group({
+      classType: Phaser.GameObjects.Text,
+      maxSize: 20,
+      runChildUpdate: false,
+    });
+
+    // --- Input for tile clicking ---
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
-      const { x, y } = this.getIsoFromScreen(pointer.worldX, pointer.worldY);
-      if (this.isValidGrid(x, y)) {
-        if (this.onTileClick) {
-          this.onTileClick(x, y);
-        }
+      const cam = this.cameras.main;
+      const worldX = pointer.x / cam.zoom + cam.scrollX;
+      const worldY = pointer.y / cam.zoom + cam.scrollY;
+      const iso = this.getIsoFromScreen(worldX, worldY);
+      if (this.isValidGrid(iso.x, iso.y) && this.onTileClick) {
+        this.onTileClick(iso.x, iso.y);
       }
     });
 
@@ -116,6 +140,12 @@ export class MainScene extends Phaser.Scene {
     isVisiting = false,
     wateredPlants?: Set<string>,
     tutorialStep: number = 0,
+    lastAction?: {
+      type: string;
+      gridX: number;
+      gridY: number;
+      timestamp: number;
+    } | null,
   ) {
     this.placedItems = items;
     this.currentRoomType = roomType;
@@ -123,6 +153,7 @@ export class MainScene extends Phaser.Scene {
     this.isVisiting = isVisiting;
     this.wateredPlants = wateredPlants || new Set();
     this.tutorialStep = tutorialStep;
+    this.lastAction = lastAction || null;
 
     const bgColor =
       this.currentRoomType === "garden" ? GARDEN_BG_COLOR : CANVAS_BG_COLOR;
@@ -147,16 +178,31 @@ export class MainScene extends Phaser.Scene {
     color: string,
   ) {
     const screen = this.getScreenFromIso(gridX, gridY);
-    const textObj = this.add
-      .text(screen.x, screen.y - 60, text, {
-        fontFamily: "monospace",
-        fontSize: "20px",
-        color: color,
-        stroke: "#000000",
-        strokeThickness: 4,
-        fontStyle: "bold",
-      })
-      .setOrigin(0.5);
+
+    // Acquire from pool or create new
+    let textObj = this.textPool.getFirstDead(
+      false,
+    ) as Phaser.GameObjects.Text | null;
+    if (textObj) {
+      textObj.setActive(true).setVisible(true);
+      textObj.setPosition(screen.x, screen.y - 60);
+      textObj.setText(text);
+      textObj.setStyle({ color: color });
+      textObj.setAlpha(1).setScale(1);
+      textObj.setOrigin(0.5);
+    } else {
+      textObj = this.add
+        .text(screen.x, screen.y - 60, text, {
+          fontFamily: "monospace",
+          fontSize: "20px",
+          color: color,
+          stroke: "#000000",
+          strokeThickness: 4,
+          fontStyle: "bold",
+        })
+        .setOrigin(0.5);
+      this.textPool.add(textObj);
+    }
 
     this.tweens.add({
       targets: textObj,
@@ -165,7 +211,9 @@ export class MainScene extends Phaser.Scene {
       scale: 1.5,
       duration: 1200,
       ease: "Back.easeOut",
-      onComplete: () => textObj.destroy(),
+      onComplete: () => {
+        (textObj as Phaser.GameObjects.Text).setActive(false).setVisible(false);
+      },
     });
   }
 
@@ -207,7 +255,8 @@ export class MainScene extends Phaser.Scene {
   }
 
   /** Place a sprite image at screen coordinates, sized to fit an isometric tile.
-   *  @param originY  Vertical anchor: 0.5 = center (default, for furniture), 1.0 = bottom (for crops/plants) */
+   *  @param originY  Vertical anchor: 0.5 = center (default, for furniture), 1.0 = bottom (for crops/plants)
+   *  @param tint     Optional color tint (hex, e.g. 0xff4444) applied via Phaser setTint */
   private drawSpriteImage(
     spritePath: string,
     screenX: number,
@@ -217,6 +266,7 @@ export class MainScene extends Phaser.Scene {
     alpha: number = 1,
     depth: number = 0,
     originY: number = 0.5,
+    tint?: number | null,
   ): boolean {
     const key = this.getSpriteKey(spritePath);
     if (!this.loadedTextures.has(key)) {
@@ -224,12 +274,29 @@ export class MainScene extends Phaser.Scene {
       return false; // Not ready yet, caller should fallback
     }
 
-    const img = this.add.image(screenX, screenY, key);
+    // Acquire from pool or create new
+    let img = this.spritePool.getFirstDead(
+      false,
+    ) as Phaser.GameObjects.Image | null;
+    if (img) {
+      img.setActive(true).setVisible(true);
+      img.setTexture(key);
+      img.setPosition(screenX, screenY);
+    } else {
+      img = this.add.image(screenX, screenY, key);
+      this.spritePool.add(img);
+    }
     img.setOrigin(0.5, originY);
     img.setDisplaySize(width, height);
     img.setAlpha(alpha);
     img.setDepth(depth);
-    this.spriteImages.push(img);
+    // Apply or clear tint
+    if (tint != null) {
+      img.setTint(tint);
+    } else {
+      img.clearTint();
+    }
+    this.activeSprites.push(img);
     return true;
   }
 
@@ -261,9 +328,11 @@ export class MainScene extends Phaser.Scene {
     this.overlayGraphics.clear();
     this.itemsGraphics.clear();
 
-    // Destroy previous frame's sprite images
-    for (const img of this.spriteImages) img.destroy();
-    this.spriteImages = [];
+    // Return previous frame's sprites to pool (deactivate, don't destroy)
+    for (const img of this.activeSprites) {
+      img.setActive(false).setVisible(false);
+    }
+    this.activeSprites.length = 0;
 
     // 2. Build Render List
     const renderList: RenderEntity[] = [];
@@ -358,6 +427,48 @@ export class MainScene extends Phaser.Scene {
 
     // 6. Draw Tutorial Hints
     this.drawTutorialHints();
+
+    // 7. Echo Ghost glow (when visiting, show last action of the host)
+    if (this.isVisiting && this.lastAction) {
+      const age = Date.now() - this.lastAction.timestamp;
+      if (age < 24 * 60 * 60 * 1000) {
+        // Only show within 24 hours
+        const screen = this.getScreenFromIso(
+          this.lastAction.gridX,
+          this.lastAction.gridY,
+        );
+        const pulse = 0.3 + 0.2 * Math.sin(Date.now() / 400); // Breathing glow
+        const g = this.overlayGraphics;
+        g.fillStyle(0x88ccff, pulse);
+        g.fillCircle(screen.x, screen.y, 18);
+        g.fillStyle(0xffffff, pulse + 0.1);
+        g.fillCircle(screen.x, screen.y, 8);
+
+        // Action type icon hint
+        const icons: Record<string, string> = {
+          PLANT: "🌱",
+          HARVEST: "🌾",
+          PLACE: "📦",
+          PICKUP: "🔄",
+        };
+        const icon = icons[this.lastAction.type] || "✨";
+        const textKey = `ghost_${this.lastAction.gridX}_${this.lastAction.gridY}`;
+        let label = this.children.getByName(
+          textKey,
+        ) as Phaser.GameObjects.Text | null;
+        if (!label) {
+          label = this.add
+            .text(screen.x, screen.y - 28, icon, {
+              fontSize: "16px",
+            })
+            .setOrigin(0.5)
+            .setName(textKey)
+            .setDepth(9999);
+        }
+        label.setPosition(screen.x, screen.y - 28);
+        label.setAlpha(pulse + 0.3);
+      }
+    }
   }
 
   private drawTutorialHints() {
@@ -513,6 +624,8 @@ export class MainScene extends Phaser.Scene {
         spriteH,
         alpha,
         depth,
+        0.5,
+        item.tint, // Apply dye tint if set
       );
       if (drawn) return; // Sprite rendered — skip procedural
     }

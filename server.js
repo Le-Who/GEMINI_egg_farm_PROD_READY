@@ -272,8 +272,13 @@ async function startServer() {
     });
   });
 
-  // --- Content API (public, read-only) ---
-  app.get("/api/content", (req, res) => res.json(contentCache));
+  // --- Content API (public, read-only, with ETag) ---
+  app.get("/api/content", (req, res) => {
+    const etag = `"v${contentVersion}"`;
+    res.set("ETag", etag);
+    if (req.headers["if-none-match"] === etag) return res.status(304).end();
+    res.json(contentCache);
+  });
   app.get("/api/content/version", (req, res) =>
     res.json({ version: contentVersion }),
   );
@@ -520,24 +525,79 @@ async function startServer() {
     res.json({ success: true });
   });
 
+  // Neighbor list with TTL cache (60s)
+  let neighborCache = { data: null, timestamp: 0 };
   app.get("/api/neighbors", requireAuth, (req, res) => {
-    const keys = Array.from(db.keys()).filter((k) => k !== req.discordUser.id);
-    const shuffled = keys.sort(() => 0.5 - Math.random()).slice(0, 5);
-    const neighbors = shuffled
-      .map((k) => {
-        const u = db.get(k);
-        return u
-          ? {
-              id: u.id,
-              username: u.username,
-              level: u.level,
-              discordId: u.id,
-              avatarUrl: null,
-            }
-          : null;
-      })
-      .filter(Boolean);
+    const now = Date.now();
+    if (!neighborCache.data || now - neighborCache.timestamp > 60000) {
+      const keys = Array.from(db.keys());
+      const profiles = keys
+        .map((k) => {
+          const u = db.get(k);
+          return u
+            ? {
+                id: u.id,
+                username: u.username,
+                level: u.level,
+                discordId: u.id,
+                avatarUrl: null,
+              }
+            : null;
+        })
+        .filter(Boolean);
+      neighborCache = { data: profiles, timestamp: now };
+    }
+    // Filter out self, shuffle, return 5
+    const neighbors = neighborCache.data
+      .filter((n) => n.id !== req.discordUser.id)
+      .sort(() => 0.5 - Math.random())
+      .slice(0, 5);
     res.json(neighbors);
+  });
+
+  // Leave a sticker on someone's billboard
+  const VALID_STICKERS = [
+    "heart",
+    "star",
+    "thumbsup",
+    "sparkle",
+    "flower",
+    "wave",
+  ];
+  app.post("/api/billboard/:userId", requireAuth, (req, res) => {
+    const targetId = req.params.userId;
+    const { sticker } = req.body;
+
+    if (!VALID_STICKERS.includes(sticker)) {
+      return res.status(400).json({ error: "Invalid sticker type" });
+    }
+
+    const targetState = db.get(targetId);
+    if (!targetState) return res.status(404).json({ error: "User not found" });
+
+    // Prevent self-stickering
+    if (targetId === req.discordUser.id) {
+      return res
+        .status(400)
+        .json({ error: "Can't sticker your own billboard" });
+    }
+
+    if (!targetState.billboard) targetState.billboard = [];
+
+    // Max 20 entries, FIFO
+    targetState.billboard.push({
+      fromId: req.discordUser.id,
+      fromName: req.discordUser.username || "Visitor",
+      sticker,
+      timestamp: Date.now(),
+    });
+    if (targetState.billboard.length > 20) {
+      targetState.billboard = targetState.billboard.slice(-20);
+    }
+
+    db.set(targetId, targetState);
+    debouncedSaveDb();
+    res.json({ success: true, billboard: targetState.billboard });
   });
 
   // Catch-all for SPA

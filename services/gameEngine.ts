@@ -115,6 +115,16 @@ const debouncedSave = (state: UserState) => {
 // Local cache to keep UI responsive
 let currentUserState: UserState | null = null;
 
+// --- Echo Ghost: record last meaningful action ---
+function recordAction(
+  state: UserState,
+  type: string,
+  gridX: number,
+  gridY: number,
+) {
+  state.lastAction = { type, gridX, gridY, timestamp: Date.now() };
+}
+
 export const GameEngine = {
   getUser: async (): Promise<UserState> => {
     if (!discordService.isReady) {
@@ -209,6 +219,7 @@ export const GameEngine = {
     });
 
     checkTutorial(state, "PLACE_ITEM", itemId);
+    recordAction(state, "PLACE", x, y);
     currentUserState = state;
     debouncedSave(state);
     return { success: true, newState: state };
@@ -241,6 +252,7 @@ export const GameEngine = {
 
     checkTutorial(state, "PLANT_SEED");
     checkQuests(state, "PLANT_SEED", cropId);
+    recordAction(state, "PLANT", planter.gridX, planter.gridY);
     currentUserState = state;
     debouncedSave(state);
     return {
@@ -311,6 +323,7 @@ export const GameEngine = {
         checkLevelUp(state);
         checkTutorial(state, "HARVEST");
         checkQuests(state, "HARVEST", harvestedCropId);
+        recordAction(state, "HARVEST", x, y);
         currentUserState = state;
         debouncedSave(state);
         return {
@@ -324,6 +337,7 @@ export const GameEngine = {
     }
 
     // Pickup
+    recordAction(state, "PICKUP", x, y);
     state.inventory[item.itemId] = (state.inventory[item.itemId] || 0) + 1;
     items.splice(index, 1);
     currentUserState = state;
@@ -452,6 +466,53 @@ export const GameEngine = {
     currentUserState = state;
     debouncedSave(state);
     return { success: true, newState: state, message: "Item Used" };
+  },
+
+  applyDye: async (
+    placedItemId: string,
+    dyeItemId: string | null,
+  ): Promise<{ success: boolean; message?: string; newState?: UserState }> => {
+    if (!currentUserState) return { success: false, message: "Not loaded" };
+    const state = cloneState(currentUserState);
+
+    const placedItem = state.rooms[state.currentRoom].items.find(
+      (i) => i.id === placedItemId,
+    );
+    if (!placedItem) return { success: false, message: "Item not found" };
+
+    const itemConfig = ITEMS[placedItem.itemId];
+    if (
+      !itemConfig ||
+      (itemConfig.type !== ItemType.FURNITURE &&
+        itemConfig.type !== ItemType.DECORATION)
+    ) {
+      return { success: false, message: "Can only dye furniture/decorations" };
+    }
+
+    if (dyeItemId === null) {
+      // Clear tint (free)
+      placedItem.tint = null;
+    } else {
+      const dyeConfig = ITEMS[dyeItemId];
+      if (!dyeConfig || dyeConfig.type !== ItemType.DYE) {
+        return { success: false, message: "Invalid dye" };
+      }
+      if ((state.inventory[dyeItemId] || 0) <= 0) {
+        return { success: false, message: "No dye in inventory" };
+      }
+      state.inventory[dyeItemId]--;
+      if (state.inventory[dyeItemId] <= 0) delete state.inventory[dyeItemId];
+      // Parse hex string to number
+      const tintColor =
+        typeof dyeConfig.dyeColor === "string"
+          ? parseInt(dyeConfig.dyeColor.replace("0x", ""), 16)
+          : dyeConfig.dyeColor;
+      placedItem.tint = tintColor;
+    }
+
+    currentUserState = state;
+    debouncedSave(state);
+    return { success: true, newState: state, message: "Dye applied!" };
   },
 
   placeEgg: async (id: string, eggId: string) => {
