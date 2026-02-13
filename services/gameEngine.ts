@@ -265,7 +265,7 @@ export const GameEngine = {
     };
   },
 
-  harvestOrPickup: async (x: number, y: number): Promise<any> => {
+  hatchEgg: async (x: number, y: number): Promise<any> => {
     if (!currentUserState) return { success: false };
     const state = cloneState(currentUserState);
     const items = state.rooms[state.currentRoom].items;
@@ -275,7 +275,6 @@ export const GameEngine = {
     const item = items[index];
     const config = ITEMS[item.itemId];
 
-    // Hatch
     if (config.type === ItemType.INCUBATOR && item.meta?.eggId) {
       const egg = EGGS[item.meta.eggId];
       const elapsed = (Date.now() - (item.meta.hatchStart || 0)) / 1000;
@@ -305,8 +304,18 @@ export const GameEngine = {
       }
       return { success: false, message: "Incubating..." };
     }
+    return { success: false, message: "Not an incubator or egg" };
+  },
 
-    // Harvest
+  harvestCrop: async (x: number, y: number): Promise<any> => {
+    if (!currentUserState) return { success: false };
+    const state = cloneState(currentUserState);
+    const items = state.rooms[state.currentRoom].items;
+    const index = items.findIndex((i) => i.gridX === x && i.gridY === y);
+    if (index === -1) return { success: false };
+
+    const item = items[index];
+
     if (item.cropData) {
       const crop = CROPS[item.cropData.cropId];
       const harvestedCropId = item.cropData.cropId;
@@ -335,14 +344,45 @@ export const GameEngine = {
       }
       return { success: false, message: "Not ready" };
     }
+    return { success: false, message: "No crop to harvest" };
+  },
 
-    // Pickup
+  pickupItem: async (x: number, y: number): Promise<any> => {
+    if (!currentUserState) return { success: false };
+    const state = cloneState(currentUserState);
+    const items = state.rooms[state.currentRoom].items;
+    const index = items.findIndex((i) => i.gridX === x && i.gridY === y);
+    if (index === -1) return { success: false };
+
+    const item = items[index];
     recordAction(state, "PICKUP", x, y);
     state.inventory[item.itemId] = (state.inventory[item.itemId] || 0) + 1;
     items.splice(index, 1);
     currentUserState = state;
     debouncedSave(state);
     return { success: true, newState: state, action: "pickup" };
+  },
+
+  harvestOrPickup: async (x: number, y: number): Promise<any> => {
+    if (!currentUserState) return { success: false };
+    const items = currentUserState.rooms[currentUserState.currentRoom].items;
+    const item = items.find((i) => i.gridX === x && i.gridY === y);
+    if (!item) return { success: false };
+
+    const config = ITEMS[item.itemId];
+
+    // Hatch
+    if (config.type === ItemType.INCUBATOR && item.meta?.eggId) {
+      return GameEngine.hatchEgg(x, y);
+    }
+
+    // Harvest
+    if (item.cropData) {
+      return GameEngine.harvestCrop(x, y);
+    }
+
+    // Pickup
+    return GameEngine.pickupItem(x, y);
   },
 
   // Helpers
