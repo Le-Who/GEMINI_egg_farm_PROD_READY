@@ -77,9 +77,10 @@ export const HUD: React.FC<HUDProps> = ({
     active = false,
     colorClass = "text-white",
     pulse = false,
+    id,
   }: any) => (
     <button
-      id={props.id}
+      id={id}
       onClick={onClick}
       className={`group relative w-12 h-12 rounded-xl border-2 flex items-center justify-center shadow-lg transition-all hover:scale-105 active:scale-95 ${
         active
