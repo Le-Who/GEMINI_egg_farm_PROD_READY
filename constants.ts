@@ -33,6 +33,8 @@ export const TILE_HEIGHT = 32;
 export const GRID_SIZE = 16;
 export const CANVAS_BG_COLOR = 0x2f3136;
 export const GARDEN_BG_COLOR = 0x5a7d5a;
+export const SYNC_INTERVAL_MS = 5000;
+export const NOTIFICATION_DURATION = 3000;
 
 // --- Dynamic Content Accessors ---
 // These are getter-based so they always return the latest loaded content.
