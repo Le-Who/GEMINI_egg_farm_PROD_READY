@@ -66,6 +66,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({
               <button
                 id="btn-shop-close"
                 onClick={onClose}
+                aria-label="Close shop"
                 className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white transition-colors"
               >
                 <ChevronRight size={18} />

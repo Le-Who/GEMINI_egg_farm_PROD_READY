@@ -129,6 +129,7 @@ export const InventoryDrawer: React.FC<InventoryDrawerProps> = ({
             {/* Close Button (Left) */}
             <button
               onClick={() => setIsExpanded(false)}
+              aria-label="Close inventory"
               className="p-2 bg-emerald-900/50 hover:bg-emerald-800 rounded-xl text-emerald-200 transition-colors border border-emerald-700/30"
             >
               <ChevronDown size={18} />
@@ -162,6 +163,7 @@ export const InventoryDrawer: React.FC<InventoryDrawerProps> = ({
                     : "bg-emerald-900/50 border-white/5 text-emerald-400 hover:bg-emerald-800 hover:text-white"
                 }`}
                 title="Build Mode"
+                aria-label="Toggle build mode"
               >
                 <Hammer size={18} />
               </button>
@@ -172,6 +174,7 @@ export const InventoryDrawer: React.FC<InventoryDrawerProps> = ({
                     onClick={onRotate}
                     className="p-2 bg-blue-600/80 hover:bg-blue-500 text-white rounded-xl shadow-lg active:scale-95 transition-transform"
                     title="Rotate"
+                    aria-label="Rotate item"
                   >
                     <RotateCw size={18} />
                   </button>
@@ -179,6 +182,7 @@ export const InventoryDrawer: React.FC<InventoryDrawerProps> = ({
                     onClick={() => onSelect(null)}
                     className="p-2 bg-red-500/80 hover:bg-red-500 text-white rounded-xl shadow-lg active:scale-95 transition-transform"
                     title="Deselect"
+                    aria-label="Deselect item"
                   >
                     <X size={18} />
                   </button>
