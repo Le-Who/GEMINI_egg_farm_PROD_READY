@@ -10,7 +10,13 @@ import {
   CANVAS_BG_COLOR,
   GARDEN_BG_COLOR,
 } from "../../constants";
-import { PlacedItem, ItemType, PetData, RoomType } from "../../types";
+import {
+  PlacedItem,
+  ItemType,
+  PetData,
+  RoomType,
+  CropConfig,
+} from "../../types";
 
 // Union type for anything that needs to be sorted and drawn on the grid
 type RenderEntity =
@@ -29,6 +35,12 @@ export class MainScene extends Phaser.Scene {
   private highlightGraphics!: Phaser.GameObjects.Graphics;
   private overlayGraphics!: Phaser.GameObjects.Graphics;
   private itemsGraphics!: Phaser.GameObjects.Graphics; // Persistent: items/player/pet rendering
+
+  // Sprite rendering system
+  private spriteImages: Phaser.GameObjects.Image[] = []; // Pool of active sprite images this frame
+  private loadingTextures: Set<string> = new Set(); // URLs currently being loaded
+  private loadedTextures: Set<string> = new Set(); // Successfully loaded texture keys
+  private failedTextures: Set<string> = new Set(); // URLs that failed to load
 
   public onTileClick?: (x: number, y: number) => void;
   public placedItems: PlacedItem[] = [];
@@ -157,11 +169,98 @@ export class MainScene extends Phaser.Scene {
     });
   }
 
+  // --- Sprite Texture Management ---
+
+  /** Get a texture key from a sprite URL path like /sprites/foo.png */
+  private getSpriteKey(spritePath: string): string {
+    return `sprite_${spritePath.replace(/[^a-zA-Z0-9]/g, "_")}`;
+  }
+
+  /** Dynamically load a sprite texture from URL. Returns true if texture is ready. */
+  private ensureSpriteLoaded(spritePath: string): boolean {
+    if (!spritePath) return false;
+    const key = this.getSpriteKey(spritePath);
+
+    // Already loaded?
+    if (this.loadedTextures.has(key)) return true;
+    // Already failed?
+    if (this.failedTextures.has(key)) return false;
+    // Currently loading?
+    if (this.loadingTextures.has(key)) return false;
+
+    // Start loading
+    this.loadingTextures.add(key);
+    this.load.image(key, spritePath);
+    this.load.once("filecomplete-image-" + key, () => {
+      this.loadingTextures.delete(key);
+      this.loadedTextures.add(key);
+    });
+    this.load.once("loaderror", (file: any) => {
+      if (file.key === key) {
+        this.loadingTextures.delete(key);
+        this.failedTextures.add(key);
+        console.warn(`Failed to load sprite: ${spritePath}`);
+      }
+    });
+    this.load.start();
+    return false;
+  }
+
+  /** Place a sprite image at screen coordinates, sized to fit an isometric tile */
+  private drawSpriteImage(
+    spritePath: string,
+    screenX: number,
+    screenY: number,
+    width: number,
+    height: number,
+    alpha: number = 1,
+    depth: number = 0,
+  ): boolean {
+    const key = this.getSpriteKey(spritePath);
+    if (!this.loadedTextures.has(key)) {
+      this.ensureSpriteLoaded(spritePath);
+      return false; // Not ready yet, caller should fallback
+    }
+
+    const img = this.add.image(screenX, screenY - height / 2, key);
+    img.setDisplaySize(width, height);
+    img.setAlpha(alpha);
+    img.setDepth(depth);
+    this.spriteImages.push(img);
+    return true;
+  }
+
+  /** Get the appropriate crop sprite for current growth progress */
+  private getCropSprite(
+    cropConfig: CropConfig,
+    progress: number,
+  ): string | null {
+    // Multi-stage growth sprites (preferred)
+    if (cropConfig.growthSprites && cropConfig.growthSprites.length > 0) {
+      const pct = Math.floor(progress * 100);
+      // Sort stages descending, find first where stage <= current progress
+      const sorted = [...cropConfig.growthSprites].sort(
+        (a, b) => b.stage - a.stage,
+      );
+      for (const gs of sorted) {
+        if (pct >= gs.stage) return gs.sprite;
+      }
+      return sorted[sorted.length - 1].sprite; // Fallback to lowest stage
+    }
+    // Single sprite (only when fully grown)
+    if (progress >= 1 && cropConfig.sprite) return cropConfig.sprite;
+    return null;
+  }
+
   private drawScene() {
     // 1. Clear previous frame
     this.highlightGraphics.clear();
     this.overlayGraphics.clear();
     this.itemsGraphics.clear();
+
+    // Destroy previous frame's sprite images
+    for (const img of this.spriteImages) img.destroy();
+    this.spriteImages = [];
 
     // 2. Build Render List
     const renderList: RenderEntity[] = [];
@@ -341,12 +440,27 @@ export class MainScene extends Phaser.Scene {
     const screen = this.getScreenFromIso(gridX, gridY);
     const g = this.itemsGraphics;
     const bounce = Math.sin(this.time.now / 150) * 4;
+    const depth = gridX + gridY;
 
     // Shadow
     g.fillStyle(0x000000, 0.3);
     g.fillEllipse(screen.x, screen.y, 16, 8);
 
-    // Body
+    // Try sprite rendering
+    if (config.sprite) {
+      const drawn = this.drawSpriteImage(
+        config.sprite,
+        screen.x,
+        screen.y - 10 + bounce,
+        24,
+        24,
+        1,
+        depth,
+      );
+      if (drawn) return; // Sprite rendered, skip procedural
+    }
+
+    // Procedural fallback
     g.fillStyle(config.color, 1);
     g.fillCircle(screen.x, screen.y - 10 + bounce, 10);
 
@@ -357,8 +471,6 @@ export class MainScene extends Phaser.Scene {
     g.fillStyle(0x000000, 1);
     g.fillCircle(screen.x - 3, screen.y - 12 + bounce, 1);
     g.fillCircle(screen.x + 3, screen.y - 12 + bounce, 1);
-
-    // No renderGroup.add needed — using persistent graphics
   }
 
   private drawItem(item: PlacedItem, isGhost: boolean) {
@@ -367,6 +479,7 @@ export class MainScene extends Phaser.Scene {
 
     const screen = this.getScreenFromIso(item.gridX, item.gridY);
     const g = this.itemsGraphics;
+    const depth = item.gridX + item.gridY;
 
     let color = config.color;
     let alpha = isGhost ? 0.6 : 1;
@@ -376,12 +489,33 @@ export class MainScene extends Phaser.Scene {
       alpha = pulse;
     }
 
-    g.fillStyle(color, alpha);
-
     // Height
     let height = 20;
     if (config.type === ItemType.PLANTER) height = 15;
     if (config.type === ItemType.INCUBATOR) height = 15;
+
+    // --- Try sprite rendering for non-planter/non-incubator items ---
+    if (
+      config.sprite &&
+      config.type !== ItemType.PLANTER &&
+      config.type !== ItemType.INCUBATOR
+    ) {
+      const spriteW = TILE_WIDTH * config.width;
+      const spriteH = spriteW * 1.2; // Slightly taller than wide for 3D feel
+      const drawn = this.drawSpriteImage(
+        config.sprite,
+        screen.x,
+        screen.y - height,
+        spriteW,
+        spriteH,
+        alpha,
+        depth,
+      );
+      if (drawn) return; // Sprite rendered — skip procedural
+    }
+
+    // --- Procedural fallback: isometric box ---
+    g.fillStyle(color, alpha);
 
     // Top
     g.fillPoints(
@@ -449,7 +583,7 @@ export class MainScene extends Phaser.Scene {
       true,
     );
 
-    // Crop
+    // Crop rendering
     if (config.type === ItemType.PLANTER) {
       g.fillStyle(0x3d2817, alpha); // Soil
       g.fillPoints(
@@ -481,13 +615,37 @@ export class MainScene extends Phaser.Scene {
           );
           const cx = screen.x;
           const cy = screen.y - height - 5;
+
+          // Try sprite-based crop rendering
+          const cropSprite = this.getCropSprite(cropConfig, progress);
+          if (cropSprite) {
+            const cropSpriteH = 20 + progress * 25;
+            const drawn = this.drawSpriteImage(
+              cropSprite,
+              cx,
+              cy - cropSpriteH / 2,
+              24,
+              cropSpriteH,
+              alpha,
+              depth + 0.1,
+            );
+            if (drawn) {
+              // Sparkle effect for ready crops (on top of sprite)
+              if (progress >= 1 && !this.isVisiting) {
+                g.lineStyle(2, 0xffff00, alpha);
+                g.strokeCircle(cx, cy - cropSpriteH - 5, 8);
+              }
+              return; // Skip procedural crop drawing
+            }
+          }
+
+          // Procedural crop fallback
           g.fillStyle(progress < 1 ? 0x88aa88 : cropConfig.color, alpha);
           const growH = 5 + progress * 25;
           g.fillRect(cx - 3, cy - growH, 6, growH);
           if (progress >= 1) {
             g.fillCircle(cx, cy - growH, 6);
             if (!this.isVisiting) {
-              // Sparkle
               g.lineStyle(2, 0xffff00, alpha);
               g.strokeCircle(cx, cy - growH - 5, 8);
             }

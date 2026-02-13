@@ -1,3 +1,4 @@
+// DiscordSDKMock is intentionally kept — used for local dev outside Discord iframe
 import { DiscordSDK, DiscordSDKMock } from "@discord/embedded-app-sdk";
 
 // Client ID injected by Vite at build time, or fallback for local dev
@@ -12,7 +13,7 @@ let discordSdk: DiscordSDK;
 if (isEmbedded) {
   discordSdk = new DiscordSDK(CLIENT_ID);
 } else {
-  discordSdk = new DiscordSDKMock(CLIENT_ID, null, "123456");
+  discordSdk = new DiscordSDKMock(CLIENT_ID, null, "123456", null) as any;
 }
 
 export interface DiscordUser {

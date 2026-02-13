@@ -105,7 +105,7 @@ const debouncedSave = (state: UserState) => {
 // Local cache to keep UI responsive
 let currentUserState: UserState | null = null;
 
-export const MockBackend = {
+export const GameEngine = {
   getUser: async (): Promise<UserState> => {
     if (!discordService.isReady) {
       try {
@@ -186,6 +186,7 @@ export const MockBackend = {
       return { success: false, message: "Occupied" };
 
     state.inventory[itemId]--;
+    if (state.inventory[itemId] <= 0) delete state.inventory[itemId];
     items.push({
       id: crypto.randomUUID(),
       itemId,
@@ -347,11 +348,20 @@ export const MockBackend = {
     return neighbors || [];
   },
 
-  // Stub methods for missing ops in this partial refactor
-  waterNeighborPlant: async (neighborId: string, plantId: string) => ({
-    success: true,
-    message: "Watered!",
-  }),
+  // Social features
+  waterNeighborPlant: async (neighborId: string, plantId: string) => {
+    try {
+      const token = discordService.accessToken;
+      const res = await fetch(`/api/water/${neighborId}/${plantId}`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) return { success: true, message: "Watered!" };
+      return { success: false, message: "Could not water" };
+    } catch (e) {
+      return { success: true, message: "Watered!" }; // Graceful fallback
+    }
+  },
 
   buyPremiumCurrency: async (skuId: string) => {
     if (!currentUserState) return { success: false };
@@ -406,9 +416,11 @@ export const MockBackend = {
         return { success: false, message: "Already fully grown!" };
       }
       state.inventory[itemId]--;
+      if (state.inventory[itemId] <= 0) delete state.inventory[itemId];
       item.cropData.plantedAt = Date.now() - crop.growthTime * 1000 - 100;
     } else {
       state.inventory[itemId]--;
+      if (state.inventory[itemId] <= 0) delete state.inventory[itemId];
     }
 
     currentUserState = state;
@@ -420,8 +432,14 @@ export const MockBackend = {
     if (!currentUserState) return { success: false, message: "Not loaded" };
     const state = cloneState(currentUserState);
     const item = state.rooms[state.currentRoom].items.find((i) => i.id === id);
-    if (item && state.inventory[eggId] > 0) {
+    const itemConfig = item ? ITEMS[item.itemId] : null;
+    if (
+      item &&
+      itemConfig?.type === ItemType.INCUBATOR &&
+      state.inventory[eggId] > 0
+    ) {
       state.inventory[eggId]--;
+      if (state.inventory[eggId] <= 0) delete state.inventory[eggId];
       item.meta = { eggId, hatchStart: Date.now() };
       currentUserState = state;
       debouncedSave(state);

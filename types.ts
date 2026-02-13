@@ -40,8 +40,9 @@ export interface CropConfig {
   growthTime: number; // in seconds
   xpReward: number;
   levelReq: number;
-  color: number; // For procedural drawing
-  sprite?: string | null;
+  color: number; // For procedural drawing fallback
+  sprite?: string | null; // Fully-grown sprite (legacy single-sprite)
+  growthSprites?: { stage: number; sprite: string }[]; // Multi-stage growth (stage = 0-100 %)
 }
 
 export interface PetConfig {

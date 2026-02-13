@@ -49,6 +49,7 @@ function parseCrop(raw: any): CropConfig {
     growthTime: Number(raw.growthTime),
     xpReward: Number(raw.xpReward),
     levelReq: Number(raw.levelReq),
+    growthSprites: Array.isArray(raw.growthSprites) ? raw.growthSprites : [],
   };
 }
 

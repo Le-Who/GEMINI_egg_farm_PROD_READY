@@ -9,7 +9,7 @@ import { PetsModal } from "./components/ui/PetsModal";
 import { QuestsPanel } from "./components/ui/QuestsPanel";
 import { TutorialOverlay } from "./components/ui/TutorialOverlay";
 import { ConfirmationModal } from "./components/ui/ConfirmationModal";
-import { MockBackend } from "./services/mockBackend";
+import { GameEngine } from "./services/gameEngine";
 import { discordService } from "./services/discord"; // REAL Service
 import { UserState, ItemType, RoomType } from "./types";
 import {
@@ -66,7 +66,7 @@ const App: React.FC = () => {
         await loadContent(); // Load dynamic content from API
         refreshArrayRefs(); // Update array-based constants
         await discordService.init(); // Wait for Discord SDK
-        const u = await MockBackend.getUser();
+        const u = await GameEngine.getUser();
         setCurrentUser(u);
         setDisplayUser(u);
 
@@ -113,7 +113,7 @@ const App: React.FC = () => {
       if (!isEditMode && currentUser) {
         // Don't overwrite optimistic updates from recent actions
         if (Date.now() - lastActionRef.current < 3000) return;
-        const u = await MockBackend.getUser();
+        const u = await GameEngine.getUser();
         setCurrentUser(u);
         if (!isVisiting) setDisplayUser(u);
       }
@@ -175,14 +175,14 @@ const App: React.FC = () => {
   const handleOpenShop = async () => {
     setIsShopOpen(true);
     if (currentUser && !currentUser.completedTutorial) {
-      const updatedUser = await MockBackend.triggerTutorial("OPEN_SHOP");
+      const updatedUser = await GameEngine.triggerTutorial("OPEN_SHOP");
       setCurrentUser(updatedUser);
     }
   };
 
   const handleBuy = async (itemId: string) => {
     if (!currentUser) return;
-    const result = await MockBackend.buyItem(itemId);
+    const result = await GameEngine.buyItem(itemId);
     if (result.success && result.newState) {
       setCurrentUser(result.newState);
       if (!isVisiting) setDisplayUser(result.newState);
@@ -200,7 +200,7 @@ const App: React.FC = () => {
 
   const confirmBuyGem = async () => {
     if (!pendingSku) return;
-    const result = await MockBackend.buyPremiumCurrency(pendingSku);
+    const result = await GameEngine.buyPremiumCurrency(pendingSku);
     if (result.success && result.newState) {
       setCurrentUser(result.newState);
       showNotification(result.message || "Purchase successful!", "success");
@@ -212,7 +212,7 @@ const App: React.FC = () => {
 
   const handlePlant = async (cropId: string) => {
     if (!targetPlanterId) return;
-    const result = await MockBackend.plantSeed(targetPlanterId, cropId);
+    const result = await GameEngine.plantSeed(targetPlanterId, cropId);
     if (result.success && result.newState) {
       setCurrentUser(result.newState);
       if (!isVisiting) setDisplayUser(result.newState);
@@ -227,7 +227,7 @@ const App: React.FC = () => {
 
   const handleVisit = async (neighborId: string) => {
     setNotification({ msg: "Traveling...", type: "success" });
-    const neighborState = await MockBackend.visitNeighbor(neighborId);
+    const neighborState = await GameEngine.visitNeighbor(neighborId);
     setDisplayUser(neighborState);
     setIsNeighborsOpen(false);
     setIsEditMode(false);
@@ -247,7 +247,7 @@ const App: React.FC = () => {
   };
 
   const handleEquipPet = async (petId: string) => {
-    const result = await MockBackend.equipPet(petId);
+    const result = await GameEngine.equipPet(petId);
     if (result.success && result.newState) {
       setCurrentUser(result.newState);
       if (!isVisiting) setDisplayUser(result.newState);
@@ -256,7 +256,7 @@ const App: React.FC = () => {
   };
 
   const handleSwitchRoom = async (type: RoomType) => {
-    const result = await MockBackend.switchRoom(type);
+    const result = await GameEngine.switchRoom(type);
     if (result.success && result.newState) {
       setCurrentUser(result.newState);
       setDisplayUser(result.newState);
@@ -287,7 +287,7 @@ const App: React.FC = () => {
             return;
           }
 
-          const res = await MockBackend.waterNeighborPlant(
+          const res = await GameEngine.waterNeighborPlant(
             displayUser.id,
             item.id,
           );
@@ -309,7 +309,7 @@ const App: React.FC = () => {
       if (isEditMode && selectedItemId) {
         const itemConfig = ITEMS[selectedItemId];
         if (itemConfig && itemConfig.type === ItemType.CONSUMABLE) {
-          const result = await MockBackend.useConsumable(selectedItemId, x, y);
+          const result = await GameEngine.useConsumable(selectedItemId, x, y);
           if (result.success && result.newState) {
             setCurrentUser(result.newState);
             setDisplayUser(result.newState);
@@ -324,7 +324,7 @@ const App: React.FC = () => {
 
       // 2. PLACE MODE
       if (isEditMode && selectedItemId) {
-        const result = await MockBackend.placeItem(
+        const result = await GameEngine.placeItem(
           selectedItemId,
           x,
           y,
@@ -357,7 +357,7 @@ const App: React.FC = () => {
             );
 
             if (eggId) {
-              const res = await MockBackend.placeEgg(item.id, eggId);
+              const res = await GameEngine.placeEgg(item.id, eggId);
               if (res.success && res.newState) {
                 setCurrentUser(res.newState);
                 setDisplayUser(res.newState);
@@ -385,7 +385,7 @@ const App: React.FC = () => {
         }
 
         // GENERIC INTERACT
-        const result = await MockBackend.harvestOrPickup(x, y);
+        const result = await GameEngine.harvestOrPickup(x, y);
         if (result.success && result.newState) {
           setCurrentUser(result.newState);
           setDisplayUser(result.newState);

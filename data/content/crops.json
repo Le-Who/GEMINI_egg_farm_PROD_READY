@@ -8,7 +8,8 @@
     "xpReward": 2,
     "levelReq": 1,
     "color": "0x00ff88",
-    "sprite": null
+    "sprite": null,
+    "growthSprites": []
   },
   "wheat": {
     "id": "wheat",
@@ -19,7 +20,8 @@
     "xpReward": 5,
     "levelReq": 2,
     "color": "0xffdd00",
-    "sprite": null
+    "sprite": null,
+    "growthSprites": []
   },
   "basil": {
     "id": "basil",
@@ -30,6 +32,7 @@
     "xpReward": 12,
     "levelReq": 3,
     "color": "0x228822",
-    "sprite": null
+    "sprite": null,
+    "growthSprites": []
   }
 }
