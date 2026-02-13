@@ -194,7 +194,7 @@ export const HUD: React.FC<HUDProps> = ({
         {!isVisiting && (
           <SidebarButton
             id="btn-edit"
-            onClick={onToggleEditMode}
+            onClick={onToggleEdit}
             icon={Pencil}
             label="Edit Mode"
             colorClass="text-yellow-300"

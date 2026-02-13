@@ -75,17 +75,20 @@ test.describe("Gameplay Loop", () => {
 
     // 3. Open Shop
     // Use ID selector for robustness
-    const shopBtn = page.locator("#btn-shop");
-    await expect(shopBtn).toBeVisible();
-    await shopBtn.click();
+    const shopButton = page.locator("#btn-shop");
+    await expect(shopButton).toBeVisible();
+    await shopButton.click();
 
     // 4. Buy Item
     const buyBtn = page.locator("#shop-item-planter_basic button").first();
     await expect(buyBtn).toBeVisible();
-    await buyBtn.click({ force: true });
-
     // 5. Verify Inventory Update & Close Shop
+    // Wait for buy animation
+    await page.waitForTimeout(1000);
+
+    // Close shop with ESC
     await page.keyboard.press("Escape");
+    await page.waitForTimeout(1000); // Wait for shop to close and HUD to fade in
 
     // 6. Enter Edit Mode (via HUD button)
     const editBtn = page.locator("#btn-edit");
