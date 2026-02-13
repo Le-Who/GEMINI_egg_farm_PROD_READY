@@ -5,6 +5,7 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { Storage } from "@google-cloud/storage";
+import { UserStateSchema } from "./schemas.js";
 
 dotenv.config();
 
@@ -80,7 +81,8 @@ async function gcsList(prefix) {
 // Player Data Persistence
 // ═══════════════════════════════════════════════════════════
 
-const LOCAL_DB_PATH = path.join(__dirname, "data", "db.json");
+const LOCAL_DB_PATH =
+  process.env.DB_PATH || path.join(__dirname, "data", "db.json");
 const db = new Map();
 
 async function loadDb() {
@@ -212,7 +214,7 @@ async function saveContent(type) {
 // Startup (load data before serving)
 // ═══════════════════════════════════════════════════════════
 
-async function startServer() {
+async function startServer(port = PORT) {
   await loadDb();
   await loadContent();
 
@@ -517,7 +519,17 @@ async function startServer() {
 
   app.post("/api/state", requireAuth, (req, res) => {
     const userId = req.discordUser.id;
-    const state = req.body;
+    const validation = UserStateSchema.safeParse(req.body);
+
+    if (!validation.success) {
+      return res.status(400).json({
+        error: "Invalid state",
+        details: validation.error.errors,
+      });
+    }
+
+    const state = validation.data;
+
     if (state.id !== userId)
       return res.status(400).json({ error: "User ID mismatch" });
     db.set(userId, state);
@@ -671,9 +683,9 @@ async function startServer() {
     res.sendFile(indexPath);
   });
 
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-    console.log(`Admin panel: http://localhost:${PORT}/admin`);
+  return app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
+    console.log(`Admin panel: http://localhost:${port}/admin`);
     console.log(
       `Storage: ${bucket ? "GCS (" + GCS_BUCKET + ")" : "LOCAL (ephemeral)"}`,
     );
