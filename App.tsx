@@ -140,12 +140,27 @@ const App: React.FC = () => {
           setIsPetsModalOpen(false);
         } else if (isQuestsOpen) {
           setIsQuestsOpen(false);
+        } else if (isNeighborsOpen) {
+          setIsNeighborsOpen(false);
+        } else if (isSeedBagOpen) {
+          setIsSeedBagOpen(false);
+        } else if (isStickerPickerOpen) {
+          setIsStickerPickerOpen(false);
         }
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedItemId, isEditMode, isShopOpen, isPetsModalOpen, isQuestsOpen]);
+  }, [
+    selectedItemId,
+    isEditMode,
+    isShopOpen,
+    isPetsModalOpen,
+    isQuestsOpen,
+    isNeighborsOpen,
+    isSeedBagOpen,
+    isStickerPickerOpen,
+  ]);
 
   const showNotification = useCallback(
     (msg: string, type: "success" | "error") => {
@@ -542,6 +557,10 @@ const App: React.FC = () => {
   );
 
   const toggleEditMode = () => {
+    if (isVisiting) {
+      showNotification("Cannot edit neighbor's farm!", "error");
+      return;
+    }
     setIsEditMode(!isEditMode);
     setSelectedItemId(null);
     setRotation(0);
@@ -623,16 +642,18 @@ const App: React.FC = () => {
         onVisit={handleVisit}
       />
 
-      <InventoryDrawer
-        user={currentUser}
-        selectedItemId={selectedItemId}
-        rotation={rotation}
-        onSelect={setSelectedItemId}
-        onRotate={() => setRotation((r) => (r + 1) % 4)}
-        onClose={toggleEditMode}
-        isEditMode={isEditMode}
-        onToggleEditMode={toggleEditMode}
-      />
+      {!isVisiting && (
+        <InventoryDrawer
+          user={currentUser}
+          selectedItemId={selectedItemId}
+          rotation={rotation}
+          onSelect={setSelectedItemId}
+          onRotate={() => setRotation((r) => (r + 1) % 4)}
+          onClose={toggleEditMode}
+          isEditMode={isEditMode}
+          onToggleEditMode={toggleEditMode}
+        />
+      )}
 
       <ShopModal
         isOpen={isShopOpen}

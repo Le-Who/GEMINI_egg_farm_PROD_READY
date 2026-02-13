@@ -317,6 +317,18 @@ npm start
 
 ---
 
+### 🎨 **UX/UI Overhaul**
+
+- **Fantasy Garden Theme**: A polished Emerald/Fuchsia aesthetic with glassmorphism effects.
+- **Smart Layout**:
+  - **Room Switcher**: Moved to Top-Left to avoid overlap with inventory.
+  - **Floating Inventory**: A compact, expandable dock at the bottom center.
+- **Visiting Protocol**: Restricted actions (no building/inventory) when visiting neighbors.
+- **Accessibility**: Global **ESC** key support to close all modals.
+- **Pet Scaling**: Optimized pet sprite sizes for better map visibility.
+
+---
+
 ## 🧪 Testing
 
 The project employs a comprehensive testing strategy using **Vitest** for unit/integration and **Playwright** for end-to-end testing.

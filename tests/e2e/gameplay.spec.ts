@@ -74,37 +74,37 @@ test.describe("Gameplay Loop", () => {
     await expect(canvas).toBeVisible({ timeout: 10000 });
 
     // 3. Open Shop
-    // NOTE: This relies on UI having accessible buttons or we click by coordinates/visuals
-    // Since this is a Phaser game, DOM elements might be limited to the UI layer overlay.
-    // Assuming UI is React overlaid on Phaser (based on App.tsx structure)
-    // const shopBtn was already checked above
-
-    // If UI text is not accessible, we might need a test-id
-    // Retrying with a more generic selector if specific one fails,
-    // but for now let's assume standard React UI elements
+    // Use ID selector for robustness
+    const shopBtn = page.locator("#btn-shop");
     await expect(shopBtn).toBeVisible();
     await shopBtn.click();
 
-    // 3. Buy Item
-    // Use ID selector for robustness
+    // 4. Buy Item
     const buyBtn = page.locator("#shop-item-planter_basic button").first();
     await expect(buyBtn).toBeVisible();
     await buyBtn.click({ force: true });
 
-    // 4. Verify Inventory Update
+    // 5. Verify Inventory Update & Close Shop
     await page.keyboard.press("Escape");
 
-    // 5. Enter Edit Mode
-    const editBtn = page.getByRole("button", { name: /edit/i });
+    // 6. Enter Edit Mode (via HUD button)
+    const editBtn = page.locator("#btn-edit");
     await expect(editBtn).toBeVisible();
-    await editBtn.click({ force: true });
+    await editBtn.click();
 
-    // 6. Select Item to Place
-    // Target the first item in the carousel (likely the one we just bought)
-    // We can look for the "x1" badge or similar, or just the first button in the bottom bar
-    const inventoryItem = page.locator("button:has-text('x1')").first();
-    // Or better: filter by text if we know the name "Basic Planter"
-    // const inventoryItem = page.getByRole("button", { name: "Basic Planter" }).first();
+    // 7. Open Inventory Drawer
+    const inventoryToggle = page.locator("#btn-inventory-toggle");
+    await expect(inventoryToggle).toBeVisible();
+    await inventoryToggle.click();
+
+    // 8. Select Item to Place
+    // Use data-testid for robustness
+    // Note: Inventory items might filter based on tabs, but 'All' is default.
+    // We just bought a planter, so we look for it.
+    // If we only have 1 item, we can pick the first one.
+    const inventoryItem = page
+      .locator("[data-testid^='inventory-item-']")
+      .first();
     await expect(inventoryItem).toBeVisible({ timeout: 5000 });
     await inventoryItem.click({ force: true });
 

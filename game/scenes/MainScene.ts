@@ -785,9 +785,9 @@ export class MainScene extends Phaser.Scene {
       const drawn = this.drawSpriteImage(
         config.sprite,
         screen.x,
-        screen.y - 24 + bounce, // Adjusted Y for larger size
-        48, // Width 48
-        48, // Height 48
+        screen.y - 18 + bounce, // Adjusted Y for smaller size (was 24)
+        36, // Width 36 (was 48)
+        36, // Height 36 (was 48)
         1,
         depth,
       );

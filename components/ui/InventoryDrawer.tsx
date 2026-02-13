@@ -74,76 +74,74 @@ export const InventoryDrawer: React.FC<InventoryDrawerProps> = ({
       .map(([id, count]) => ({ ...ITEMS[id], count }));
   }, [user.inventory, activeTab, searchQuery]);
 
+  // Updated Theme: Emerald/Fuchsia
   return (
     <>
-      {/* Handle */}
+      {/* Handle - Floating Center Button at Bottom */}
       <div
-        className={`absolute left-1/2 -translate-x-1/2 transition-all duration-500 ease-in-out z-30 ${
-          isExpanded ? "bottom-[340px]" : "bottom-6"
+        className={`absolute left-1/2 -translate-x-1/2 transition-all duration-300 ease-out z-30 ${
+          isExpanded
+            ? "bottom-[240px] opacity-0 pointer-events-none"
+            : "bottom-6"
         }`}
       >
         <button
+          id="btn-inventory-toggle"
           onClick={() => setIsExpanded(!isExpanded)}
           className={`
-            relative px-8 py-3 rounded-full font-bold shadow-[0_0_20px_rgba(0,0,0,0.3)]
-            backdrop-blur-xl border border-white/10 transition-all hover:scale-105 active:scale-95
-            flex items-center gap-3 group overflow-hidden
-            ${
-              isExpanded
-                ? "bg-gray-900/80 text-white"
-                : "bg-white/90 text-gray-900 data-[visited=true]:bg-green-500"
-            }
+            relative px-8 py-3 rounded-2xl font-bold shadow-[0_0_20px_rgba(16,185,129,0.3)]
+            backdrop-blur-xl border border-white/20 transition-all hover:scale-105 active:scale-95
+            flex items-center gap-3 group overflow-hidden bg-emerald-950/80 text-white ring-1 ring-emerald-500/30
           `}
         >
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-          {isExpanded ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
-          <span className="uppercase tracking-widest text-xs font-black">
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+          <ChevronUp size={20} className="text-emerald-400" />
+          <span className="uppercase tracking-widest text-xs font-black text-emerald-100">
             Inventory
           </span>
-          <span className="bg-gray-800 text-white text-[10px] px-2 py-0.5 rounded-full font-mono">
+          <span className="bg-emerald-800 text-white text-[10px] px-2 py-0.5 rounded-full font-mono border border-emerald-600">
             {Object.keys(user.inventory).length}
           </span>
         </button>
       </div>
 
-      {/* Main Drawer Panel */}
+      {/* Main Drawer Panel - Compact Floating Dock */}
       <div
-        className={`fixed bottom-0 left-0 w-full z-20 transition-all duration-500 ease-out shadow-2xl backdrop-blur-2xl
-          ${isExpanded ? "h-[320px] translate-y-0" : "h-[320px] translate-y-full opacity-0"}
+        className={`fixed left-1/2 -translate-x-1/2 z-20 transition-all duration-300 ease-out shadow-2xl backdrop-blur-2xl rounded-3xl overflow-hidden border border-emerald-500/30
+          ${
+            isExpanded
+              ? "bottom-6 w-[95%] max-w-2xl h-[280px] opacity-100 translate-y-0"
+              : "bottom-0 w-[90%] max-w-xl h-[0px] opacity-0 translate-y-10 pointer-events-none"
+          }
         `}
       >
         {/* Glass Background Layer */}
-        <div className="absolute inset-0 bg-gray-900/85 border-t border-white/10" />
+        <div className="absolute inset-0 bg-emerald-950/90" />
 
         {/* Decorative Glow */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-2/3 h-1 bg-gradient-to-r from-transparent via-green-500/50 to-transparent blur-sm" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-2/3 h-32 bg-emerald-500/10 blur-3xl rounded-full pointer-events-none" />
 
-        <div className="relative h-full flex flex-col p-6 max-w-5xl mx-auto">
+        <div className="relative h-full flex flex-col p-4">
           {/* Header Controls */}
-          <div className="flex justify-between items-center mb-6 shrink-0">
-            {/* Edit Mode Toggle */}
+          <div className="flex justify-between items-center mb-4 shrink-0">
+            {/* Close Button (Left) */}
             <button
-              onClick={onToggleEditMode}
-              className={`flex items-center gap-3 px-5 py-2.5 rounded-xl font-bold transition-all border ${
-                isEditMode
-                  ? "bg-green-500/20 border-green-500/50 text-green-300 shadow-[0_0_15px_rgba(34,197,94,0.2)]"
-                  : "bg-gray-800/50 border-white/5 text-gray-400 hover:bg-gray-700/50 hover:text-white"
-              }`}
+              onClick={() => setIsExpanded(false)}
+              className="p-2 bg-emerald-900/50 hover:bg-emerald-800 rounded-xl text-emerald-200 transition-colors border border-emerald-700/30"
             >
-              <Hammer size={18} className={isEditMode ? "animate-pulse" : ""} />
-              {isEditMode ? "Build Mode Active" : "Build Mode"}
+              <ChevronDown size={18} />
             </button>
 
-            {/* Tabs */}
-            <div className="flex bg-gray-800/50 p-1 rounded-xl border border-white/5">
+            {/* Tabs (Center - Scrollable) */}
+            <div className="flex bg-black/40 p-1 rounded-xl border border-white/5 overflow-x-auto scrollbar-hide flex-1 mx-3 justify-center">
               {TABS.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  className={`px-3 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all whitespace-nowrap ${
                     activeTab === tab.id
-                      ? "bg-gray-600 text-white shadow-sm"
-                      : "text-gray-400 hover:text-white hover:bg-gray-700/50"
+                      ? "bg-emerald-600 text-white shadow-lg shadow-emerald-900/50"
+                      : "text-emerald-400/70 hover:text-emerald-200 hover:bg-white/5"
                   }`}
                 >
                   {tab.label}
@@ -151,22 +149,36 @@ export const InventoryDrawer: React.FC<InventoryDrawerProps> = ({
               ))}
             </div>
 
-            {/* Selected Item Actions */}
-            <div className="flex gap-3">
+            {/* Selected Item Actions (Right) */}
+            <div className="flex gap-2">
+              {/* Build Mode Toggle */}
+              <button
+                onClick={onToggleEditMode}
+                className={`p-2 rounded-xl transition-all border ${
+                  isEditMode
+                    ? "bg-fuchsia-500/20 border-fuchsia-500/50 text-fuchsia-300 shadow-[0_0_10px_rgba(217,70,239,0.3)] animate-pulse-slow"
+                    : "bg-emerald-900/50 border-white/5 text-emerald-400 hover:bg-emerald-800 hover:text-white"
+                }`}
+                title="Build Mode"
+              >
+                <Hammer size={18} />
+              </button>
+
               {selectedItemId && (
-                <div className="flex items-center gap-3 animate-slide-in">
-                  <div className="h-8 w-[1px] bg-white/10" />
+                <div className="flex items-center gap-2 animate-slide-in">
                   <button
                     onClick={onRotate}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600/80 hover:bg-blue-500 text-white rounded-xl font-bold text-xs backdrop-blur-sm transition-all active:scale-95"
+                    className="p-2 bg-blue-600/80 hover:bg-blue-500 text-white rounded-xl shadow-lg active:scale-95 transition-transform"
+                    title="Rotate"
                   >
-                    <RotateCw size={16} /> Rotate
+                    <RotateCw size={18} />
                   </button>
                   <button
                     onClick={() => onSelect(null)}
-                    className="flex items-center gap-2 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-200 border border-red-500/30 rounded-xl font-bold text-xs backdrop-blur-sm transition-all"
+                    className="p-2 bg-red-500/80 hover:bg-red-500 text-white rounded-xl shadow-lg active:scale-95 transition-transform"
+                    title="Deselect"
                   >
-                    <X size={16} /> Cancel
+                    <X size={18} />
                   </button>
                 </div>
               )}
@@ -174,59 +186,60 @@ export const InventoryDrawer: React.FC<InventoryDrawerProps> = ({
           </div>
 
           {/* Grid Container */}
-          <div className="flex-1 min-h-0 bg-gray-900/30 rounded-2xl border border-white/5 p-4 overflow-hidden relative">
-            {/* Search Input */}
-            <div className="absolute top-4 right-4 z-10 w-48">
+          <div className="flex-1 min-h-0 bg-black/20 rounded-2xl border border-white/5 p-3 overflow-hidden relative">
+            {/* Search Input Floating */}
+            <div className="absolute top-3 right-3 z-10 w-32 sm:w-40 transition-all focus-within:w-48">
               <div className="relative group">
                 <Search
-                  size={14}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-white transition-colors"
+                  size={12}
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-emerald-500/70"
                 />
                 <input
                   type="text"
-                  placeholder="Filter items..."
+                  placeholder="Search..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-black/40 border border-white/5 rounded-full pl-9 pr-3 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-white/20 focus:bg-black/60 transition-all"
+                  className="w-full bg-emerald-950/80 border border-emerald-500/20 rounded-full pl-8 pr-3 py-1 text-[10px] text-emerald-100 placeholder-emerald-700/50 focus:outline-none focus:border-emerald-400/50 focus:bg-black/40 transition-all shadow-lg backdrop-blur-sm"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3 overflow-y-auto h-full pr-1 pb-1 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+            <div className="grid grid-cols-5 sm:grid-cols-7 md:grid-cols-8 lg:grid-cols-10 gap-2 overflow-y-auto h-full pr-1 pb-1 scrollbar-thin scrollbar-thumb-emerald-700/50 scrollbar-track-transparent">
               {filteredItems.length === 0 ? (
-                <div className="col-span-full h-full flex flex-col items-center justify-center text-gray-500 gap-2">
-                  <Search size={32} className="opacity-20" />
-                  <p className="text-sm">No items found.</p>
+                <div className="col-span-full h-full flex flex-col items-center justify-center text-emerald-500/50 gap-2">
+                  <Search size={24} className="opacity-30" />
+                  <p className="text-xs">Nothing here.</p>
                 </div>
               ) : (
                 filteredItems.map((item) => (
                   <button
                     key={item.id}
+                    data-testid={`inventory-item-${item.id}`}
                     onClick={() => {
                       if (!isEditMode) onToggleEditMode();
                       onSelect(item.id);
                     }}
                     className={`
-                      relative aspect-square rounded-xl flex flex-col items-center justify-center gap-2 group transition-all duration-200
+                      relative aspect-square rounded-xl flex flex-col items-center justify-center gap-1 group transition-all duration-200
                       ${
                         selectedItemId === item.id
-                          ? "bg-white/10 border-2 border-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.2)] scale-105"
+                          ? "bg-fuchsia-500/20 border-2 border-fuchsia-400 shadow-[0_0_15px_rgba(232,121,249,0.3)] scale-105 z-10"
                           : "bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/20 hover:scale-105"
                       }
                     `}
                   >
                     {/* Item Preview */}
-                    <div className="relative z-10 p-2 transition-transform group-hover:-translate-y-1">
+                    <div className="relative z-10 p-1.5 transition-transform group-hover:-translate-y-1">
                       {item.sprite ? (
                         <img
                           src={item.sprite}
                           alt={item.name}
-                          className="w-10 h-10 object-contain drop-shadow-lg"
+                          className="w-8 h-8 object-contain drop-shadow-lg"
                           style={{ imageRendering: "pixelated" }}
                         />
                       ) : (
                         <div
-                          className="w-8 h-8 rounded-lg shadow-lg shadow-black/30"
+                          className="w-6 h-6 rounded-md shadow-lg shadow-black/30"
                           style={{
                             backgroundColor: `#${item.color.toString(16).padStart(6, "0")}`,
                           }}
@@ -235,13 +248,13 @@ export const InventoryDrawer: React.FC<InventoryDrawerProps> = ({
                     </div>
 
                     {/* Badge */}
-                    <div className="absolute top-2 right-2 bg-black/60 text-white text-[9px] font-mono px-1.5 py-0.5 rounded shadow backdrop-blur-sm border border-white/10">
+                    <div className="absolute top-1 right-1 bg-black/60 text-white text-[8px] font-mono px-1 rounded shadow backdrop-blur-sm border border-white/10">
                       x{item.count}
                     </div>
 
                     {/* Name Label */}
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-2 pt-4 rounded-b-xl opacity-0 group-hover:opacity-100 transition-opacity">
-                      <p className="text-[10px] text-center text-gray-200 font-medium truncate leading-none">
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-emerald-950 to-transparent p-1 pt-3 rounded-b-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                      <p className="text-[8px] text-center text-emerald-100 font-medium truncate leading-none pb-0.5">
                         {item.name}
                       </p>
                     </div>
