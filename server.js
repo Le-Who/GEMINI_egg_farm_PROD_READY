@@ -162,36 +162,37 @@ let contentCache = {};
 let contentVersion = 0;
 
 async function loadContent() {
-  contentCache = {};
-  for (const type of CONTENT_TYPES) {
-    // Try GCS first
-    const gcsData = await gcsRead(`content/${type}.json`);
-    if (gcsData) {
-      try {
-        contentCache[type] = JSON.parse(gcsData);
-        continue;
-      } catch (e) {}
-    }
-
-    // Fallback to local file
-    const localPath = path.join(LOCAL_CONTENT_DIR, `${type}.json`);
-    try {
-      if (fs.existsSync(localPath)) {
-        contentCache[type] = JSON.parse(fs.readFileSync(localPath, "utf-8"));
-
-        // Seed GCS with local data on first run
-        if (bucket) {
-          await gcsWrite(
-            `content/${type}.json`,
-            fs.readFileSync(localPath, "utf-8"),
-          );
-          console.log(`  → seeded GCS: content/${type}.json`);
-        }
+  const newCache = {};
+  await Promise.all(
+    CONTENT_TYPES.map(async (type) => {
+      // Try GCS first
+      const gcsData = await gcsRead(`content/${type}.json`);
+      if (gcsData) {
+        try {
+          newCache[type] = JSON.parse(gcsData);
+          return;
+        } catch (e) {}
       }
-    } catch (e) {
-      console.error(`Failed to load content ${type}:`, e);
-    }
-  }
+
+      // Fallback to local file
+      const localPath = path.join(LOCAL_CONTENT_DIR, `${type}.json`);
+      try {
+        if (fs.existsSync(localPath)) {
+          const content = fs.readFileSync(localPath, "utf-8");
+          newCache[type] = JSON.parse(content);
+
+          // Seed GCS with local data on first run
+          if (bucket) {
+            await gcsWrite(`content/${type}.json`, content);
+            console.log(`  → seeded GCS: content/${type}.json`);
+          }
+        }
+      } catch (e) {
+        console.error(`Failed to load content ${type}:`, e);
+      }
+    }),
+  );
+  contentCache = newCache;
   console.log(`Content loaded: ${Object.keys(contentCache).join(", ")}`);
 }
 
