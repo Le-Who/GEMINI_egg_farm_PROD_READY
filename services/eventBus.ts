@@ -5,7 +5,7 @@
  */
 type Handler = (...args: any[]) => void;
 
-class EventBus {
+export class EventBus {
   private handlers: Map<string, Set<Handler>> = new Map();
 
   on(event: string, handler: Handler): void {
