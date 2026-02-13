@@ -1,171 +1,454 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Egg Farm — Admin Dashboard</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    :root {
-      --bg: #1a1b1e; --surface: #25262b; --surface2: #2c2e33;
-      --border: #373a40; --text: #c1c2c5; --text-bright: #e9ecef;
-      --primary: #7c5cfc; --primary-hover: #6a4de0;
-      --danger: #ff6b6b; --success: #51cf66; --warning: #fcc419;
-      --radius: 8px;
-    }
-    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
-
-    /* Layout */
-    .app { display: flex; min-height: 100vh; }
-    .sidebar { width: 220px; background: var(--surface); border-right: 1px solid var(--border); padding: 20px 0; flex-shrink: 0; }
-    .sidebar h1 { font-size: 16px; color: var(--primary); padding: 0 20px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
-    .sidebar h1::before { content: '🥚'; font-size: 20px; }
-    .sidebar nav { padding: 10px 0; }
-    .sidebar nav button {
-      display: block; width: 100%; padding: 10px 20px; border: none; background: none;
-      color: var(--text); font-size: 14px; text-align: left; cursor: pointer;
-      transition: all 0.15s;
-    }
-    .sidebar nav button:hover { background: var(--surface2); color: var(--text-bright); }
-    .sidebar nav button.active { background: var(--primary); color: white; font-weight: 600; }
-    .main { flex: 1; padding: 24px; overflow-y: auto; }
-
-    /* Auth */
-    .auth-overlay {
-      position: fixed; inset: 0; background: var(--bg); z-index: 100;
-      display: flex; align-items: center; justify-content: center;
-    }
-    .auth-box { background: var(--surface); padding: 32px; border-radius: 12px; width: 360px; text-align: center; }
-    .auth-box h2 { color: var(--text-bright); margin-bottom: 16px; }
-    .auth-box input { width: 100%; padding: 10px 14px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface2); color: var(--text-bright); font-size: 14px; margin-bottom: 12px; }
-    .auth-box button { width: 100%; }
-
-    /* Header */
-    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-    .page-header h2 { color: var(--text-bright); font-size: 22px; }
-
-    /* Buttons */
-    .btn {
-      padding: 8px 16px; border: none; border-radius: var(--radius); font-size: 13px;
-      cursor: pointer; font-weight: 500; transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px;
-    }
-    .btn-primary { background: var(--primary); color: white; }
-    .btn-primary:hover { background: var(--primary-hover); }
-    .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
-    .btn-danger:hover { background: var(--danger); color: white; }
-    .btn-sm { padding: 5px 10px; font-size: 12px; }
-    .btn-group { display: flex; gap: 8px; }
-
-    /* Table */
-    .table-wrap { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; }
-    table { width: 100%; border-collapse: collapse; }
-    th { background: var(--surface2); color: var(--text-bright); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 14px; text-align: left; white-space: nowrap; }
-    td { padding: 8px 14px; border-top: 1px solid var(--border); font-size: 13px; }
-    tr:hover td { background: rgba(124, 92, 252, 0.05); }
-    td input, td select {
-      background: var(--surface2); border: 1px solid var(--border); border-radius: 4px;
-      color: var(--text-bright); padding: 4px 8px; font-size: 13px; width: 100%; min-width: 60px;
-    }
-    td input:focus, td select:focus { border-color: var(--primary); outline: none; }
-
-    /* Color preview */
-    .color-preview { display: inline-flex; align-items: center; gap: 6px; }
-    .color-dot { width: 16px; height: 16px; border-radius: 4px; border: 1px solid var(--border); }
-
-    /* Toast */
-    .toast {
-      position: fixed; bottom: 20px; right: 20px; padding: 12px 20px;
-      background: var(--success); color: #000; border-radius: var(--radius);
-      font-weight: 500; font-size: 13px; z-index: 200;
-      animation: slideUp 0.3s ease-out;
-    }
-    .toast.error { background: var(--danger); color: white; }
-    @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-
-    /* Modal */
-    .modal-overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100;
-      display: flex; align-items: center; justify-content: center;
-    }
-    .modal { background: var(--surface); padding: 24px; border-radius: 12px; width: 480px; max-height: 80vh; overflow-y: auto; }
-    .modal h3 { color: var(--text-bright); margin-bottom: 16px; }
-    .form-group { margin-bottom: 12px; }
-    .form-group label { display: block; font-size: 12px; color: var(--text); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
-    .form-group input, .form-group select, .form-group textarea {
-      width: 100%; padding: 8px 12px; background: var(--surface2); border: 1px solid var(--border);
-      border-radius: var(--radius); color: var(--text-bright); font-size: 14px;
-    }
-    .form-group textarea { min-height: 60px; resize: vertical; }
-    .form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
-
-    /* Stats */
-    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
-    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
-    .stat-card .value { font-size: 28px; font-weight: 700; color: var(--text-bright); }
-    .stat-card .label { font-size: 12px; color: var(--text); margin-top: 4px; text-transform: uppercase; }
-
-    /* Sprite upload */
-    .upload-zone {
-      border: 2px dashed var(--border); border-radius: var(--radius); padding: 32px;
-      text-align: center; cursor: pointer; transition: 0.15s;
-    }
-    .upload-zone:hover { border-color: var(--primary); background: rgba(124,92,252,0.05); }
-    .sprite-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 8px; margin-top: 16px; }
-    .sprite-item { background: var(--surface2); border-radius: var(--radius); padding: 8px; text-align: center; }
-    .sprite-item img { width: 48px; height: 48px; object-fit: contain; image-rendering: pixelated; }
-    .sprite-item .name { font-size: 10px; margin-top: 4px; word-break: break-all; color: var(--text); }
-  </style>
-</head>
-<body>
-  <div id="app"></div>
-  <script>
-    let password = '';
-    let content = {};
-    let activeTab = 'overview';
-    let modal = null;
-    let toastTimeout = null;
-
-    const RECORD_TYPES = ['items', 'crops', 'pets', 'eggs'];
-    const ARRAY_TYPES = ['levels', 'tutorial', 'skus'];
-    const ITEM_TYPES = ['CONSUMABLE', 'PLANTER', 'INCUBATOR', 'EGG', 'FURNITURE', 'DECORATION'];
-    const CURRENCIES = ['coins', 'gems'];
-    const RARITIES = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
-
-    // --- API Helpers ---
-    async function api(method, url, body) {
-      const opts = { method, headers: { 'Authorization': `Bearer ${password}`, 'Content-Type': 'application/json' } };
-      if (body) opts.body = JSON.stringify(body);
-      const res = await fetch(url, opts);
-      if (!res.ok) throw new Error((await res.json()).error || res.statusText);
-      return res.json();
-    }
-
-    function showToast(msg, isError = false) {
-      if (toastTimeout) clearTimeout(toastTimeout);
-      const existing = document.querySelector('.toast');
-      if (existing) existing.remove();
-      const el = document.createElement('div');
-      el.className = `toast${isError ? ' error' : ''}`;
-      el.textContent = msg;
-      document.body.appendChild(el);
-      toastTimeout = setTimeout(() => el.remove(), 3000);
-    }
-
-    // --- Auth ---
-    async function tryLogin(pw) {
-      password = pw;
-      try {
-        content = await api('GET', '/admin/api/content');
-        render();
-      } catch (e) {
-        password = '';
-        showToast('Wrong password', true);
-        renderAuth();
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Egg Farm — Admin Dashboard</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
       }
-    }
+      :root {
+        --bg: #1a1b1e;
+        --surface: #25262b;
+        --surface2: #2c2e33;
+        --border: #373a40;
+        --text: #c1c2c5;
+        --text-bright: #e9ecef;
+        --primary: #7c5cfc;
+        --primary-hover: #6a4de0;
+        --danger: #ff6b6b;
+        --success: #51cf66;
+        --warning: #fcc419;
+        --radius: 8px;
+      }
+      body {
+        font-family: "Segoe UI", system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+      }
 
-    function renderAuth() {
-      document.getElementById('app').innerHTML = `
+      /* Layout */
+      .app {
+        display: flex;
+        min-height: 100vh;
+      }
+      .sidebar {
+        width: 220px;
+        background: var(--surface);
+        border-right: 1px solid var(--border);
+        padding: 20px 0;
+        flex-shrink: 0;
+      }
+      .sidebar h1 {
+        font-size: 16px;
+        color: var(--primary);
+        padding: 0 20px 20px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .sidebar h1::before {
+        content: "🥚";
+        font-size: 20px;
+      }
+      .sidebar nav {
+        padding: 10px 0;
+      }
+      .sidebar nav button {
+        display: block;
+        width: 100%;
+        padding: 10px 20px;
+        border: none;
+        background: none;
+        color: var(--text);
+        font-size: 14px;
+        text-align: left;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .sidebar nav button:hover {
+        background: var(--surface2);
+        color: var(--text-bright);
+      }
+      .sidebar nav button.active {
+        background: var(--primary);
+        color: white;
+        font-weight: 600;
+      }
+      .main {
+        flex: 1;
+        padding: 24px;
+        overflow-y: auto;
+      }
+
+      /* Auth */
+      .auth-overlay {
+        position: fixed;
+        inset: 0;
+        background: var(--bg);
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .auth-box {
+        background: var(--surface);
+        padding: 32px;
+        border-radius: 12px;
+        width: 360px;
+        text-align: center;
+      }
+      .auth-box h2 {
+        color: var(--text-bright);
+        margin-bottom: 16px;
+      }
+      .auth-box input {
+        width: 100%;
+        padding: 10px 14px;
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        background: var(--surface2);
+        color: var(--text-bright);
+        font-size: 14px;
+        margin-bottom: 12px;
+      }
+      .auth-box button {
+        width: 100%;
+      }
+
+      /* Header */
+      .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+      }
+      .page-header h2 {
+        color: var(--text-bright);
+        font-size: 22px;
+      }
+
+      /* Buttons */
+      .btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: var(--radius);
+        font-size: 13px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.15s;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .btn-primary {
+        background: var(--primary);
+        color: white;
+      }
+      .btn-primary:hover {
+        background: var(--primary-hover);
+      }
+      .btn-danger {
+        background: transparent;
+        color: var(--danger);
+        border: 1px solid var(--danger);
+      }
+      .btn-danger:hover {
+        background: var(--danger);
+        color: white;
+      }
+      .btn-sm {
+        padding: 5px 10px;
+        font-size: 12px;
+      }
+      .btn-group {
+        display: flex;
+        gap: 8px;
+      }
+
+      /* Table */
+      .table-wrap {
+        background: var(--surface);
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        overflow: hidden;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th {
+        background: var(--surface2);
+        color: var(--text-bright);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 10px 14px;
+        text-align: left;
+        white-space: nowrap;
+      }
+      td {
+        padding: 8px 14px;
+        border-top: 1px solid var(--border);
+        font-size: 13px;
+      }
+      tr:hover td {
+        background: rgba(124, 92, 252, 0.05);
+      }
+      td input,
+      td select {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: var(--text-bright);
+        padding: 4px 8px;
+        font-size: 13px;
+        width: 100%;
+        min-width: 60px;
+      }
+      td input:focus,
+      td select:focus {
+        border-color: var(--primary);
+        outline: none;
+      }
+
+      /* Color preview */
+      .color-preview {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .color-dot {
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+        border: 1px solid var(--border);
+      }
+
+      /* Toast */
+      .toast {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        background: var(--success);
+        color: #000;
+        border-radius: var(--radius);
+        font-weight: 500;
+        font-size: 13px;
+        z-index: 200;
+        animation: slideUp 0.3s ease-out;
+      }
+      .toast.error {
+        background: var(--danger);
+        color: white;
+      }
+      @keyframes slideUp {
+        from {
+          transform: translateY(20px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+
+      /* Modal */
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .modal {
+        background: var(--surface);
+        padding: 24px;
+        border-radius: 12px;
+        width: 480px;
+        max-height: 80vh;
+        overflow-y: auto;
+      }
+      .modal h3 {
+        color: var(--text-bright);
+        margin-bottom: 16px;
+      }
+      .form-group {
+        margin-bottom: 12px;
+      }
+      .form-group label {
+        display: block;
+        font-size: 12px;
+        color: var(--text);
+        margin-bottom: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .form-group input,
+      .form-group select,
+      .form-group textarea {
+        width: 100%;
+        padding: 8px 12px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        color: var(--text-bright);
+        font-size: 14px;
+      }
+      .form-group textarea {
+        min-height: 60px;
+        resize: vertical;
+      }
+      .form-actions {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+        margin-top: 16px;
+      }
+
+      /* Stats */
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 12px;
+        margin-bottom: 24px;
+      }
+      .stat-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 16px;
+      }
+      .stat-card .value {
+        font-size: 28px;
+        font-weight: 700;
+        color: var(--text-bright);
+      }
+      .stat-card .label {
+        font-size: 12px;
+        color: var(--text);
+        margin-top: 4px;
+        text-transform: uppercase;
+      }
+
+      /* Sprite upload */
+      .upload-zone {
+        border: 2px dashed var(--border);
+        border-radius: var(--radius);
+        padding: 32px;
+        text-align: center;
+        cursor: pointer;
+        transition: 0.15s;
+      }
+      .upload-zone:hover {
+        border-color: var(--primary);
+        background: rgba(124, 92, 252, 0.05);
+      }
+      .sprite-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+        gap: 8px;
+        margin-top: 16px;
+      }
+      .sprite-item {
+        background: var(--surface2);
+        border-radius: var(--radius);
+        padding: 8px;
+        text-align: center;
+      }
+      .sprite-item img {
+        width: 48px;
+        height: 48px;
+        object-fit: contain;
+        image-rendering: pixelated;
+      }
+      .sprite-item .name {
+        font-size: 10px;
+        margin-top: 4px;
+        word-break: break-all;
+        color: var(--text);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script>
+      let password = "";
+      let content = {};
+      let activeTab = "overview";
+      let modal = null;
+      let toastTimeout = null;
+
+      const RECORD_TYPES = ["items", "crops", "pets", "eggs", "quests"];
+      const ARRAY_TYPES = ["levels", "tutorial", "skus"];
+      const ITEM_TYPES = [
+        "CONSUMABLE",
+        "PLANTER",
+        "INCUBATOR",
+        "EGG",
+        "FURNITURE",
+        "DECORATION",
+      ];
+      const CURRENCIES = ["coins", "gems"];
+      const RARITIES = ["common", "uncommon", "rare", "epic", "legendary"];
+      const QUEST_ACTIONS = [
+        "PLANT_SEED",
+        "HARVEST",
+        "BUY_ITEM",
+        "PLACE_ITEM",
+        "HATCH_EGG",
+      ];
+
+      // --- API Helpers ---
+      async function api(method, url, body) {
+        const opts = {
+          method,
+          headers: {
+            Authorization: `Bearer ${password}`,
+            "Content-Type": "application/json",
+          },
+        };
+        if (body) opts.body = JSON.stringify(body);
+        const res = await fetch(url, opts);
+        if (!res.ok)
+          throw new Error((await res.json()).error || res.statusText);
+        return res.json();
+      }
+
+      function showToast(msg, isError = false) {
+        if (toastTimeout) clearTimeout(toastTimeout);
+        const existing = document.querySelector(".toast");
+        if (existing) existing.remove();
+        const el = document.createElement("div");
+        el.className = `toast${isError ? " error" : ""}`;
+        el.textContent = msg;
+        document.body.appendChild(el);
+        toastTimeout = setTimeout(() => el.remove(), 3000);
+      }
+
+      // --- Auth ---
+      async function tryLogin(pw) {
+        password = pw;
+        try {
+          content = await api("GET", "/admin/api/content");
+          render();
+        } catch (e) {
+          password = "";
+          showToast("Wrong password", true);
+          renderAuth();
+        }
+      }
+
+      function renderAuth() {
+        document.getElementById("app").innerHTML = `
         <div class="auth-overlay">
           <div class="auth-box">
             <h2>🥚 Admin Panel</h2>
@@ -174,55 +457,81 @@
             <button class="btn btn-primary" onclick="tryLogin(document.getElementById('pw-input').value)">Login</button>
           </div>
         </div>`;
-    }
+      }
 
-    // --- Main Render ---
-    function render() {
-      const tabs = [
-        { id: 'overview', label: '📊 Overview' },
-        { id: 'items', label: '🎒 Items' },
-        { id: 'crops', label: '🌱 Crops' },
-        { id: 'pets', label: '🐾 Pets' },
-        { id: 'eggs', label: '🥚 Eggs' },
-        { id: 'levels', label: '⬆️ Levels' },
-        { id: 'tutorial', label: '📖 Tutorial' },
-        { id: 'skus', label: '💎 SKUs' },
-        { id: 'sprites', label: '🎨 Sprites' },
-      ];
+      // --- Main Render ---
+      function render() {
+        const tabs = [
+          { id: "overview", label: "📊 Overview" },
+          { id: "items", label: "🎒 Items" },
+          { id: "crops", label: "🌱 Crops" },
+          { id: "pets", label: "🐾 Pets" },
+          { id: "eggs", label: "🥚 Eggs" },
+          { id: "levels", label: "⬆️ Levels" },
+          { id: "tutorial", label: "📖 Tutorial" },
+          { id: "skus", label: "💎 SKUs" },
+          { id: "quests", label: "🏆 Quests" },
+          { id: "sprites", label: "🎨 Sprites" },
+        ];
 
-      document.getElementById('app').innerHTML = `
+        document.getElementById("app").innerHTML = `
         <div class="app">
           <div class="sidebar">
             <h1>Egg Farm</h1>
-            <nav>${tabs.map(t =>
-              `<button class="${activeTab === t.id ? 'active' : ''}" onclick="activeTab='${t.id}';render()">${t.label}</button>`
-            ).join('')}</nav>
+            <nav>${tabs
+              .map(
+                (t) =>
+                  `<button class="${activeTab === t.id ? "active" : ""}" onclick="activeTab='${t.id}';render()">${t.label}</button>`,
+              )
+              .join("")}</nav>
           </div>
           <div class="main" id="main-content"></div>
         </div>`;
 
-      const main = document.getElementById('main-content');
-      switch (activeTab) {
-        case 'overview': renderOverview(main); break;
-        case 'items': renderItems(main); break;
-        case 'crops': renderCrops(main); break;
-        case 'pets': renderPets(main); break;
-        case 'eggs': renderEggs(main); break;
-        case 'levels': renderLevels(main); break;
-        case 'tutorial': renderTutorial(main); break;
-        case 'skus': renderSkus(main); break;
-        case 'sprites': renderSprites(main); break;
+        const main = document.getElementById("main-content");
+        switch (activeTab) {
+          case "overview":
+            renderOverview(main);
+            break;
+          case "items":
+            renderItems(main);
+            break;
+          case "crops":
+            renderCrops(main);
+            break;
+          case "pets":
+            renderPets(main);
+            break;
+          case "eggs":
+            renderEggs(main);
+            break;
+          case "levels":
+            renderLevels(main);
+            break;
+          case "tutorial":
+            renderTutorial(main);
+            break;
+          case "skus":
+            renderSkus(main);
+            break;
+          case "quests":
+            renderQuests(main);
+            break;
+          case "sprites":
+            renderSprites(main);
+            break;
+        }
       }
-    }
 
-    // --- Overview ---
-    function renderOverview(el) {
-      const items = content.items ? Object.keys(content.items).length : 0;
-      const crops = content.crops ? Object.keys(content.crops).length : 0;
-      const pets = content.pets ? Object.keys(content.pets).length : 0;
-      const eggs = content.eggs ? Object.keys(content.eggs).length : 0;
-      const levels = content.levels ? content.levels.length : 0;
-      el.innerHTML = `
+      // --- Overview ---
+      function renderOverview(el) {
+        const items = content.items ? Object.keys(content.items).length : 0;
+        const crops = content.crops ? Object.keys(content.crops).length : 0;
+        const pets = content.pets ? Object.keys(content.pets).length : 0;
+        const eggs = content.eggs ? Object.keys(content.eggs).length : 0;
+        const levels = content.levels ? content.levels.length : 0;
+        const quests = content.quests ? Object.keys(content.quests).length : 0;
+        el.innerHTML = `
         <div class="page-header"><h2>Dashboard</h2>
           <button class="btn btn-primary" onclick="reloadContent()">↻ Reload from Disk</button>
         </div>
@@ -232,6 +541,7 @@
           <div class="stat-card"><div class="value">${pets}</div><div class="label">Pets</div></div>
           <div class="stat-card"><div class="value">${eggs}</div><div class="label">Eggs</div></div>
           <div class="stat-card"><div class="value">${levels}</div><div class="label">Levels</div></div>
+          <div class="stat-card"><div class="value">${quests}</div><div class="label">Quests</div></div>
         </div>
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px">
           <h3 style="color:var(--text-bright);margin-bottom:12px">Quick Start</h3>
@@ -243,47 +553,50 @@
             <li>🎨 <strong>Sprites</strong> — Upload PNG/WebP images for items</li>
           </ul>
         </div>`;
-    }
+      }
 
-    // --- Items ---
-    function renderItems(el) {
-      const items = content.items || {};
-      const ids = Object.keys(items);
-      el.innerHTML = `
+      // --- Items ---
+      function renderItems(el) {
+        const items = content.items || {};
+        const ids = Object.keys(items);
+        el.innerHTML = `
         <div class="page-header"><h2>Items (${ids.length})</h2>
           <button class="btn btn-primary" onclick="openAddItem()">+ Add Item</button>
         </div>
         <div class="table-wrap"><table>
           <tr><th>ID</th><th>Name</th><th>Type</th><th>Price</th><th>Currency</th><th>Color</th><th>Size</th><th>Actions</th></tr>
-          ${ids.map(id => {
-            const it = items[id];
-            return `<tr>
+          ${ids
+            .map((id) => {
+              const it = items[id];
+              return `<tr>
               <td><code>${id}</code></td>
               <td><input value="${it.name}" onchange="updateField('items','${id}','name',this.value)"></td>
-              <td><select onchange="updateField('items','${id}','type',this.value)">${ITEM_TYPES.map(t=>`<option${t===it.type?' selected':''}>${t}</option>`).join('')}</select></td>
+              <td><select onchange="updateField('items','${id}','type',this.value)">${ITEM_TYPES.map((t) => `<option${t === it.type ? " selected" : ""}>${t}</option>`).join("")}</select></td>
               <td><input type="number" value="${it.price}" style="width:70px" onchange="updateField('items','${id}','price',+this.value)"></td>
-              <td><select onchange="updateField('items','${id}','currency',this.value)">${CURRENCIES.map(c=>`<option${c===(it.currency||'coins')?' selected':''}>${c}</option>`).join('')}</select></td>
-              <td><span class="color-preview"><span class="color-dot" style="background:#${(it.color||'').replace('0x','')}"></span>${it.color}</span></td>
+              <td><select onchange="updateField('items','${id}','currency',this.value)">${CURRENCIES.map((c) => `<option${c === (it.currency || "coins") ? " selected" : ""}>${c}</option>`).join("")}</select></td>
+              <td><span class="color-preview"><span class="color-dot" style="background:#${(it.color || "").replace("0x", "")}"></span>${it.color}</span></td>
               <td>${it.width}×${it.height}</td>
               <td><button class="btn btn-danger btn-sm" onclick="deleteItem('items','${id}')">✕</button></td>
             </tr>`;
-          }).join('')}
+            })
+            .join("")}
         </table></div>`;
-    }
+      }
 
-    // --- Crops ---
-    function renderCrops(el) {
-      const crops = content.crops || {};
-      const ids = Object.keys(crops);
-      el.innerHTML = `
+      // --- Crops ---
+      function renderCrops(el) {
+        const crops = content.crops || {};
+        const ids = Object.keys(crops);
+        el.innerHTML = `
         <div class="page-header"><h2>Crops (${ids.length})</h2>
           <button class="btn btn-primary" onclick="openAddCrop()">+ Add Crop</button>
         </div>
         <div class="table-wrap"><table>
           <tr><th>ID</th><th>Name</th><th>Seed $</th><th>Sell $</th><th>Growth (s)</th><th>XP</th><th>Level</th><th>Color</th><th>Actions</th></tr>
-          ${ids.map(id => {
-            const c = crops[id];
-            return `<tr>
+          ${ids
+            .map((id) => {
+              const c = crops[id];
+              return `<tr>
               <td><code>${id}</code></td>
               <td><input value="${c.name}" onchange="updateField('crops','${id}','name',this.value)"></td>
               <td><input type="number" value="${c.seedPrice}" style="width:60px" onchange="updateField('crops','${id}','seedPrice',+this.value)"></td>
@@ -291,115 +604,136 @@
               <td><input type="number" value="${c.growthTime}" style="width:60px" onchange="updateField('crops','${id}','growthTime',+this.value)"></td>
               <td><input type="number" value="${c.xpReward}" style="width:50px" onchange="updateField('crops','${id}','xpReward',+this.value)"></td>
               <td><input type="number" value="${c.levelReq}" style="width:50px" onchange="updateField('crops','${id}','levelReq',+this.value)"></td>
-              <td><span class="color-preview"><span class="color-dot" style="background:#${(c.color||'').replace('0x','')}"></span></span></td>
+              <td><span class="color-preview"><span class="color-dot" style="background:#${(c.color || "").replace("0x", "")}"></span></span></td>
               <td><button class="btn btn-danger btn-sm" onclick="deleteItem('crops','${id}')">✕</button></td>
             </tr>`;
-          }).join('')}
+            })
+            .join("")}
         </table></div>`;
-    }
+      }
 
-    // --- Pets ---
-    function renderPets(el) {
-      const pets = content.pets || {};
-      const ids = Object.keys(pets);
-      el.innerHTML = `
+      // --- Pets ---
+      function renderPets(el) {
+        const pets = content.pets || {};
+        const ids = Object.keys(pets);
+        el.innerHTML = `
         <div class="page-header"><h2>Pets (${ids.length})</h2>
           <button class="btn btn-primary" onclick="openAddPet()">+ Add Pet</button>
         </div>
         <div class="table-wrap"><table>
           <tr><th>ID</th><th>Name</th><th>Rarity</th><th>Bonus</th><th>Color</th><th>Actions</th></tr>
-          ${ids.map(id => {
-            const p = pets[id];
-            return `<tr>
+          ${ids
+            .map((id) => {
+              const p = pets[id];
+              return `<tr>
               <td><code>${id}</code></td>
               <td><input value="${p.name}" onchange="updateField('pets','${id}','name',this.value)"></td>
-              <td><select onchange="updateField('pets','${id}','rarity',this.value)">${RARITIES.map(r=>`<option${r===p.rarity?' selected':''}>${r}</option>`).join('')}</select></td>
+              <td><select onchange="updateField('pets','${id}','rarity',this.value)">${RARITIES.map((r) => `<option${r === p.rarity ? " selected" : ""}>${r}</option>`).join("")}</select></td>
               <td><input value="${p.bonusDescription}" onchange="updateField('pets','${id}','bonusDescription',this.value)"></td>
-              <td><span class="color-preview"><span class="color-dot" style="background:#${(p.color||'').replace('0x','')}"></span></span></td>
+              <td><span class="color-preview"><span class="color-dot" style="background:#${(p.color || "").replace("0x", "")}"></span></span></td>
               <td><button class="btn btn-danger btn-sm" onclick="deleteItem('pets','${id}')">✕</button></td>
             </tr>`;
-          }).join('')}
+            })
+            .join("")}
         </table></div>`;
-    }
+      }
 
-    // --- Eggs ---
-    function renderEggs(el) {
-      const eggs = content.eggs || {};
-      const ids = Object.keys(eggs);
-      el.innerHTML = `
+      // --- Eggs ---
+      function renderEggs(el) {
+        const eggs = content.eggs || {};
+        const ids = Object.keys(eggs);
+        el.innerHTML = `
         <div class="page-header"><h2>Eggs (${ids.length})</h2>
           <button class="btn btn-primary" onclick="openAddEgg()">+ Add Egg</button>
         </div>
         <div class="table-wrap"><table>
           <tr><th>ID</th><th>Hatch Time (s)</th><th>Pool</th><th>Actions</th></tr>
-          ${ids.map(id => {
-            const e = eggs[id];
-            const poolStr = (e.pool||[]).map(p=>`${p.petId} (${p.weight}%)`).join(', ');
-            return `<tr>
+          ${ids
+            .map((id) => {
+              const e = eggs[id];
+              const poolStr = (e.pool || [])
+                .map((p) => `${p.petId} (${p.weight}%)`)
+                .join(", ");
+              return `<tr>
               <td><code>${id}</code></td>
               <td><input type="number" value="${e.hatchTime}" style="width:80px" onchange="updateField('eggs','${id}','hatchTime',+this.value)"></td>
               <td>${poolStr}</td>
               <td><button class="btn btn-danger btn-sm" onclick="deleteItem('eggs','${id}')">✕</button></td>
             </tr>`;
-          }).join('')}
+            })
+            .join("")}
         </table></div>`;
-    }
+      }
 
-    // --- Levels ---
-    function renderLevels(el) {
-      const levels = content.levels || [];
-      el.innerHTML = `
+      // --- Levels ---
+      function renderLevels(el) {
+        const levels = content.levels || [];
+        el.innerHTML = `
         <div class="page-header"><h2>Levels (${levels.length})</h2>
           <button class="btn btn-primary" onclick="addLevel()">+ Add Level</button>
         </div>
         <div class="table-wrap"><table>
           <tr><th>Level</th><th>XP Required</th><th>Unlocks</th></tr>
-          ${levels.map((l, i) => `<tr>
+          ${levels
+            .map(
+              (l, i) => `<tr>
             <td>${l.level}</td>
             <td><input type="number" value="${l.xpRequired}" style="width:80px" onchange="updateArrayField('levels',${i},'xpRequired',+this.value)"></td>
-            <td><input value="${(l.unlocks||[]).join(', ')}" onchange="updateArrayField('levels',${i},'unlocks',this.value.split(',').map(s=>s.trim()).filter(Boolean))"></td>
-          </tr>`).join('')}
+            <td><input value="${(l.unlocks || []).join(", ")}" onchange="updateArrayField('levels',${i},'unlocks',this.value.split(',').map(s=>s.trim()).filter(Boolean))"></td>
+          </tr>`,
+            )
+            .join("")}
         </table></div>`;
-    }
+      }
 
-    // --- Tutorial ---
-    function renderTutorial(el) {
-      const steps = content.tutorial || [];
-      el.innerHTML = `
+      // --- Tutorial ---
+      function renderTutorial(el) {
+        const steps = content.tutorial || [];
+        el.innerHTML = `
         <div class="page-header"><h2>Tutorial Steps (${steps.length})</h2></div>
         <div class="table-wrap"><table>
           <tr><th>Step</th><th>Text</th><th>Trigger</th><th>Target</th></tr>
-          ${steps.map((s, i) => `<tr>
+          ${steps
+            .map(
+              (s, i) => `<tr>
             <td>${s.id}</td>
             <td><input value="${s.text}" style="min-width:300px" onchange="updateArrayField('tutorial',${i},'text',this.value)"></td>
             <td><input value="${s.trigger}" style="width:120px" onchange="updateArrayField('tutorial',${i},'trigger',this.value)"></td>
-            <td><input value="${s.targetId||''}" style="width:120px" onchange="updateArrayField('tutorial',${i},'targetId',this.value||undefined)"></td>
-          </tr>`).join('')}
+            <td><input value="${s.targetId || ""}" style="width:120px" onchange="updateArrayField('tutorial',${i},'targetId',this.value||undefined)"></td>
+          </tr>`,
+            )
+            .join("")}
         </table></div>`;
-    }
+      }
 
-    // --- SKUs ---
-    function renderSkus(el) {
-      const skus = content.skus || [];
-      el.innerHTML = `
+      // --- SKUs ---
+      function renderSkus(el) {
+        const skus = content.skus || [];
+        el.innerHTML = `
         <div class="page-header"><h2>In-App Purchases (${skus.length})</h2></div>
         <div class="table-wrap"><table>
           <tr><th>SKU ID</th><th>Name</th><th>Price</th><th>Gems</th><th>Icon</th></tr>
-          ${skus.map((s, i) => `<tr>
+          ${skus
+            .map(
+              (s, i) => `<tr>
             <td><code>${s.id}</code></td>
             <td><input value="${s.name}" onchange="updateArrayField('skus',${i},'name',this.value)"></td>
             <td><input value="${s.price}" style="width:80px" onchange="updateArrayField('skus',${i},'price',this.value)"></td>
             <td><input type="number" value="${s.amount}" style="width:60px" onchange="updateArrayField('skus',${i},'amount',+this.value)"></td>
             <td>${s.icon}</td>
-          </tr>`).join('')}
+          </tr>`,
+            )
+            .join("")}
         </table></div>`;
-    }
+      }
 
-    // --- Sprites ---
-    async function renderSprites(el) {
-      let sprites = [];
-      try { sprites = await api('GET', '/admin/api/sprites'); } catch(e) {}
-      el.innerHTML = `
+      // --- Sprites ---
+      async function renderSprites(el) {
+        let sprites = [];
+        try {
+          sprites = await api("GET", "/admin/api/sprites");
+        } catch (e) {}
+        el.innerHTML = `
         <div class="page-header"><h2>Sprites (${sprites.length})</h2></div>
         <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
           <input type="file" id="file-input" accept=".png,.webp,.jpg,.gif" multiple hidden onchange="uploadFiles(this.files)">
@@ -407,77 +741,255 @@
           <p style="font-size:12px">PNG, WebP, JPG, GIF</p>
         </div>
         <div class="sprite-grid">
-          ${sprites.map(s => `<div class="sprite-item"><img src="${s.path}"><div class="name">${s.name}</div></div>`).join('')}
+          ${sprites
+            .map(
+              (s) => `<div class="sprite-item">
+            <img src="${s.path}">
+            <div class="name">${s.name}</div>
+            <div style="display:flex;gap:4px;margin-top:4px">
+              <button class="btn btn-primary btn-sm" style="font-size:10px;padding:2px 6px" onclick="openApplySprite('${s.path}')">Apply</button>
+              <button class="btn btn-danger btn-sm" style="font-size:10px;padding:2px 6px" onclick="deleteSprite('${s.name}')">Del</button>
+            </div>
+          </div>`,
+            )
+            .join("")}
         </div>`;
 
-      const zone = document.getElementById('upload-zone');
-      zone.ondragover = e => { e.preventDefault(); zone.style.borderColor = 'var(--primary)'; };
-      zone.ondragleave = () => zone.style.borderColor = '';
-      zone.ondrop = e => { e.preventDefault(); zone.style.borderColor = ''; uploadFiles(e.dataTransfer.files); };
-    }
-
-    async function uploadFiles(files) {
-      for (const file of files) {
-        const reader = new FileReader();
-        reader.onload = async () => {
-          const base64 = reader.result.split(',')[1];
-          try {
-            await api('POST', '/admin/api/sprites', { filename: file.name, data: base64 });
-            showToast(`Uploaded ${file.name}`);
-          } catch(e) { showToast(`Failed: ${e.message}`, true); }
+        const zone = document.getElementById("upload-zone");
+        zone.ondragover = (e) => {
+          e.preventDefault();
+          zone.style.borderColor = "var(--primary)";
         };
-        reader.readAsDataURL(file);
+        zone.ondragleave = () => (zone.style.borderColor = "");
+        zone.ondrop = (e) => {
+          e.preventDefault();
+          zone.style.borderColor = "";
+          uploadFiles(e.dataTransfer.files);
+        };
       }
-      setTimeout(() => renderSprites(document.getElementById('main-content')), 1000);
-    }
 
-    // --- CRUD Operations ---
-    async function updateField(type, id, field, value) {
-      content[type][id][field] = value;
-      try {
-        await api('PUT', `/admin/api/content/${type}/${id}`, content[type][id]);
-        showToast(`Updated ${id}.${field}`);
-      } catch(e) { showToast(e.message, true); }
-    }
+      async function deleteSprite(name) {
+        if (!confirm(`Delete sprite "${name}"?`)) return;
+        try {
+          await api("DELETE", `/admin/api/sprites/${encodeURIComponent(name)}`);
+          showToast(`Deleted ${name}`);
+          renderSprites(document.getElementById("main-content"));
+        } catch (e) {
+          showToast(e.message, true);
+        }
+      }
 
-    async function updateArrayField(type, index, field, value) {
-      content[type][index][field] = value;
-      try {
-        await api('PUT', `/admin/api/content/${type}`, content[type]);
-        showToast(`Updated ${type}[${index}].${field}`);
-      } catch(e) { showToast(e.message, true); }
-    }
+      function openApplySprite(spritePath) {
+        const allEntities = [];
+        for (const [id, it] of Object.entries(content.items || {}))
+          allEntities.push({
+            type: "items",
+            id,
+            name: it.name,
+            current: it.sprite,
+          });
+        for (const [id, cr] of Object.entries(content.crops || {}))
+          allEntities.push({
+            type: "crops",
+            id,
+            name: cr.name,
+            current: cr.sprite,
+          });
+        for (const [id, pe] of Object.entries(content.pets || {}))
+          allEntities.push({
+            type: "pets",
+            id,
+            name: pe.name,
+            current: pe.sprite,
+          });
 
-    async function deleteItem(type, id) {
-      if (!confirm(`Delete "${id}" from ${type}?`)) return;
-      try {
-        await api('DELETE', `/admin/api/content/${type}/${id}`);
-        delete content[type][id];
-        showToast(`Deleted ${id}`);
-        render();
-      } catch(e) { showToast(e.message, true); }
-    }
+        const html = `
+        <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+          <div class="modal">
+            <h3>Apply Sprite</h3>
+            <p style="margin-bottom:12px;color:var(--text)">Select entity to assign <code>${spritePath}</code>:</p>
+            <div style="max-height:300px;overflow-y:auto">
+              ${allEntities
+                .map(
+                  (e) => `
+                <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:1px solid var(--border);cursor:pointer" 
+                  onclick="applySprite('${e.type}','${e.id}','${spritePath}')" 
+                  onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+                  <span style="font-size:11px;color:var(--text);min-width:50px">${e.type}</span>
+                  <code style="font-size:12px">${e.id}</code>
+                  <span style="flex:1;font-size:13px;color:var(--text-bright)">${e.name}</span>
+                  ${e.current ? '<span style="font-size:10px;color:var(--success)">✓ has sprite</span>' : ""}
+                </div>
+              `,
+                )
+                .join("")}
+            </div>
+            <div class="form-actions"><button class="btn" onclick="closeModal()">Cancel</button></div>
+          </div>
+        </div>`;
+        document.body.insertAdjacentHTML("beforeend", html);
+      }
 
-    async function reloadContent() {
-      try {
-        await api('POST', '/admin/api/reload');
-        content = await api('GET', '/admin/api/content');
-        showToast('Content reloaded from disk');
-        render();
-      } catch(e) { showToast(e.message, true); }
-    }
+      async function applySprite(type, id, spritePath) {
+        content[type][id].sprite = spritePath;
+        try {
+          await api(
+            "PUT",
+            `/admin/api/content/${type}/${id}`,
+            content[type][id],
+          );
+          closeModal();
+          showToast(`Applied sprite to ${id}`);
+        } catch (e) {
+          showToast(e.message, true);
+        }
+      }
 
-    // --- Add Modals ---
-    function openAddItem() {
-      const html = `
+      // --- Quests ---
+      function renderQuests(el) {
+        const quests = content.quests || {};
+        const ids = Object.keys(quests);
+        el.innerHTML = `
+        <div class="page-header"><h2>Quests (${ids.length})</h2>
+          <button class="btn btn-primary" onclick="openAddQuest()">+ Add Quest</button>
+        </div>
+        <div class="table-wrap"><table>
+          <tr><th>ID</th><th>Title</th><th>Condition</th><th>Count</th><th>Min Lvl</th><th>Rewards</th><th>Repeat</th><th>Actions</th></tr>
+          ${ids
+            .map((id) => {
+              const q = quests[id];
+              const cond = q.condition || {};
+              const req = q.requirements || {};
+              const rew = q.rewards || {};
+              const rewardsStr = [
+                rew.coins ? rew.coins + "G" : "",
+                rew.gems ? rew.gems + "💎" : "",
+                rew.xp ? rew.xp + "XP" : "",
+              ]
+                .filter(Boolean)
+                .join(" ");
+              return `<tr>
+              <td><code>${id}</code></td>
+              <td><input value="${q.title || ""}" onchange="updateField('quests','${id}','title',this.value)"></td>
+              <td><select onchange="updateQuestCondType('${id}',this.value)">${QUEST_ACTIONS.map((a) => `<option${a === cond.type ? " selected" : ""}>${a}</option>`).join("")}</select></td>
+              <td><input type="number" value="${cond.count || 1}" style="width:50px" onchange="updateQuestCondCount('${id}',+this.value)"></td>
+              <td><input type="number" value="${req.minLevel || 1}" style="width:50px" onchange="updateQuestReq('${id}','minLevel',+this.value)"></td>
+              <td>${rewardsStr}</td>
+              <td>${q.repeatable ? "✓" : "—"}</td>
+              <td><button class="btn btn-danger btn-sm" onclick="deleteItem('quests','${id}')">✕</button></td>
+            </tr>`;
+            })
+            .join("")}
+        </table></div>`;
+      }
+
+      function updateQuestCondType(id, value) {
+        if (!content.quests[id].condition)
+          content.quests[id].condition = { type: "PLANT_SEED", count: 1 };
+        content.quests[id].condition.type = value;
+        api("PUT", `/admin/api/content/quests/${id}`, content.quests[id])
+          .then(() => showToast("Updated"))
+          .catch((e) => showToast(e.message, true));
+      }
+      function updateQuestCondCount(id, value) {
+        if (!content.quests[id].condition)
+          content.quests[id].condition = { type: "PLANT_SEED", count: 1 };
+        content.quests[id].condition.count = value;
+        api("PUT", `/admin/api/content/quests/${id}`, content.quests[id])
+          .then(() => showToast("Updated"))
+          .catch((e) => showToast(e.message, true));
+      }
+      function updateQuestReq(id, field, value) {
+        if (!content.quests[id].requirements)
+          content.quests[id].requirements = {};
+        content.quests[id].requirements[field] = value;
+        api("PUT", `/admin/api/content/quests/${id}`, content.quests[id])
+          .then(() => showToast("Updated"))
+          .catch((e) => showToast(e.message, true));
+      }
+
+      async function uploadFiles(files) {
+        for (const file of files) {
+          const reader = new FileReader();
+          reader.onload = async () => {
+            const base64 = reader.result.split(",")[1];
+            try {
+              await api("POST", "/admin/api/sprites", {
+                filename: file.name,
+                data: base64,
+              });
+              showToast(`Uploaded ${file.name}`);
+            } catch (e) {
+              showToast(`Failed: ${e.message}`, true);
+            }
+          };
+          reader.readAsDataURL(file);
+        }
+        setTimeout(
+          () => renderSprites(document.getElementById("main-content")),
+          1000,
+        );
+      }
+
+      // --- CRUD Operations ---
+      async function updateField(type, id, field, value) {
+        content[type][id][field] = value;
+        try {
+          await api(
+            "PUT",
+            `/admin/api/content/${type}/${id}`,
+            content[type][id],
+          );
+          showToast(`Updated ${id}.${field}`);
+        } catch (e) {
+          showToast(e.message, true);
+        }
+      }
+
+      async function updateArrayField(type, index, field, value) {
+        content[type][index][field] = value;
+        try {
+          await api("PUT", `/admin/api/content/${type}`, content[type]);
+          showToast(`Updated ${type}[${index}].${field}`);
+        } catch (e) {
+          showToast(e.message, true);
+        }
+      }
+
+      async function deleteItem(type, id) {
+        if (!confirm(`Delete "${id}" from ${type}?`)) return;
+        try {
+          await api("DELETE", `/admin/api/content/${type}/${id}`);
+          delete content[type][id];
+          showToast(`Deleted ${id}`);
+          render();
+        } catch (e) {
+          showToast(e.message, true);
+        }
+      }
+
+      async function reloadContent() {
+        try {
+          await api("POST", "/admin/api/reload");
+          content = await api("GET", "/admin/api/content");
+          showToast("Content reloaded from disk");
+          render();
+        } catch (e) {
+          showToast(e.message, true);
+        }
+      }
+
+      // --- Add Modals ---
+      function openAddItem() {
+        const html = `
         <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
           <div class="modal">
             <h3>Add New Item</h3>
             <div class="form-group"><label>ID (unique key)</label><input id="f-id" placeholder="golden_chair"></div>
             <div class="form-group"><label>Name</label><input id="f-name" placeholder="Golden Chair"></div>
-            <div class="form-group"><label>Type</label><select id="f-type">${ITEM_TYPES.map(t=>`<option>${t}</option>`).join('')}</select></div>
+            <div class="form-group"><label>Type</label><select id="f-type">${ITEM_TYPES.map((t) => `<option>${t}</option>`).join("")}</select></div>
             <div class="form-group"><label>Price</label><input id="f-price" type="number" value="100"></div>
-            <div class="form-group"><label>Currency</label><select id="f-currency">${CURRENCIES.map(c=>`<option>${c}</option>`).join('')}</select></div>
+            <div class="form-group"><label>Currency</label><select id="f-currency">${CURRENCIES.map((c) => `<option>${c}</option>`).join("")}</select></div>
             <div class="form-group"><label>Color (hex)</label><input id="f-color" placeholder="0xff8800" value="0xcccccc"></div>
             <div class="form-group"><label>Width</label><input id="f-w" type="number" value="1"></div>
             <div class="form-group"><label>Height</label><input id="f-h" type="number" value="1"></div>
@@ -488,34 +1000,37 @@
             </div>
           </div>
         </div>`;
-      document.body.insertAdjacentHTML('beforeend', html);
-    }
+        document.body.insertAdjacentHTML("beforeend", html);
+      }
 
-    async function submitAddItem() {
-      const item = {
-        id: document.getElementById('f-id').value,
-        name: document.getElementById('f-name').value,
-        type: document.getElementById('f-type').value,
-        price: +document.getElementById('f-price').value,
-        currency: document.getElementById('f-currency').value,
-        color: document.getElementById('f-color').value,
-        width: +document.getElementById('f-w').value,
-        height: +document.getElementById('f-h').value,
-        sprite: null,
-        description: document.getElementById('f-desc').value
-      };
-      if (!item.id || !item.name) return showToast('ID and Name required', true);
-      try {
-        await api('PUT', `/admin/api/content/items/${item.id}`, item);
-        content.items[item.id] = item;
-        closeModal();
-        showToast(`Added item: ${item.name}`);
-        render();
-      } catch(e) { showToast(e.message, true); }
-    }
+      async function submitAddItem() {
+        const item = {
+          id: document.getElementById("f-id").value,
+          name: document.getElementById("f-name").value,
+          type: document.getElementById("f-type").value,
+          price: +document.getElementById("f-price").value,
+          currency: document.getElementById("f-currency").value,
+          color: document.getElementById("f-color").value,
+          width: +document.getElementById("f-w").value,
+          height: +document.getElementById("f-h").value,
+          sprite: null,
+          description: document.getElementById("f-desc").value,
+        };
+        if (!item.id || !item.name)
+          return showToast("ID and Name required", true);
+        try {
+          await api("PUT", `/admin/api/content/items/${item.id}`, item);
+          content.items[item.id] = item;
+          closeModal();
+          showToast(`Added item: ${item.name}`);
+          render();
+        } catch (e) {
+          showToast(e.message, true);
+        }
+      }
 
-    function openAddCrop() {
-      const html = `
+      function openAddCrop() {
+        const html = `
         <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
           <div class="modal">
             <h3>Add New Crop</h3>
@@ -533,39 +1048,42 @@
             </div>
           </div>
         </div>`;
-      document.body.insertAdjacentHTML('beforeend', html);
-    }
+        document.body.insertAdjacentHTML("beforeend", html);
+      }
 
-    async function submitAddCrop() {
-      const crop = {
-        id: document.getElementById('f-id').value,
-        name: document.getElementById('f-name').value,
-        seedPrice: +document.getElementById('f-seed').value,
-        sellPrice: +document.getElementById('f-sell').value,
-        growthTime: +document.getElementById('f-grow').value,
-        xpReward: +document.getElementById('f-xp').value,
-        levelReq: +document.getElementById('f-lvl').value,
-        color: document.getElementById('f-color').value,
-        sprite: null
-      };
-      if (!crop.id || !crop.name) return showToast('ID and Name required', true);
-      try {
-        await api('PUT', `/admin/api/content/crops/${crop.id}`, crop);
-        content.crops[crop.id] = crop;
-        closeModal();
-        showToast(`Added crop: ${crop.name}`);
-        render();
-      } catch(e) { showToast(e.message, true); }
-    }
+      async function submitAddCrop() {
+        const crop = {
+          id: document.getElementById("f-id").value,
+          name: document.getElementById("f-name").value,
+          seedPrice: +document.getElementById("f-seed").value,
+          sellPrice: +document.getElementById("f-sell").value,
+          growthTime: +document.getElementById("f-grow").value,
+          xpReward: +document.getElementById("f-xp").value,
+          levelReq: +document.getElementById("f-lvl").value,
+          color: document.getElementById("f-color").value,
+          sprite: null,
+        };
+        if (!crop.id || !crop.name)
+          return showToast("ID and Name required", true);
+        try {
+          await api("PUT", `/admin/api/content/crops/${crop.id}`, crop);
+          content.crops[crop.id] = crop;
+          closeModal();
+          showToast(`Added crop: ${crop.name}`);
+          render();
+        } catch (e) {
+          showToast(e.message, true);
+        }
+      }
 
-    function openAddPet() {
-      const html = `
+      function openAddPet() {
+        const html = `
         <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
           <div class="modal">
             <h3>Add New Pet</h3>
             <div class="form-group"><label>ID</label><input id="f-id" placeholder="bunny_pink"></div>
             <div class="form-group"><label>Name</label><input id="f-name" placeholder="Pink Bunny"></div>
-            <div class="form-group"><label>Rarity</label><select id="f-rarity">${RARITIES.map(r=>`<option>${r}</option>`).join('')}</select></div>
+            <div class="form-group"><label>Rarity</label><select id="f-rarity">${RARITIES.map((r) => `<option>${r}</option>`).join("")}</select></div>
             <div class="form-group"><label>Bonus Description</label><input id="f-bonus" placeholder="+5% Growth Speed"></div>
             <div class="form-group"><label>Color</label><input id="f-color" value="0xff88cc"></div>
             <div class="form-actions">
@@ -574,84 +1092,165 @@
             </div>
           </div>
         </div>`;
-      document.body.insertAdjacentHTML('beforeend', html);
-    }
+        document.body.insertAdjacentHTML("beforeend", html);
+      }
 
-    async function submitAddPet() {
-      const pet = {
-        id: document.getElementById('f-id').value,
-        name: document.getElementById('f-name').value,
-        rarity: document.getElementById('f-rarity').value,
-        bonusDescription: document.getElementById('f-bonus').value,
-        color: document.getElementById('f-color').value,
-        sprite: null
-      };
-      if (!pet.id || !pet.name) return showToast('ID and Name required', true);
-      try {
-        await api('PUT', `/admin/api/content/pets/${pet.id}`, pet);
-        content.pets[pet.id] = pet;
-        closeModal();
-        showToast(`Added pet: ${pet.name}`);
-        render();
-      } catch(e) { showToast(e.message, true); }
-    }
+      async function submitAddPet() {
+        const pet = {
+          id: document.getElementById("f-id").value,
+          name: document.getElementById("f-name").value,
+          rarity: document.getElementById("f-rarity").value,
+          bonusDescription: document.getElementById("f-bonus").value,
+          color: document.getElementById("f-color").value,
+          sprite: null,
+        };
+        if (!pet.id || !pet.name)
+          return showToast("ID and Name required", true);
+        try {
+          await api("PUT", `/admin/api/content/pets/${pet.id}`, pet);
+          content.pets[pet.id] = pet;
+          closeModal();
+          showToast(`Added pet: ${pet.name}`);
+          render();
+        } catch (e) {
+          showToast(e.message, true);
+        }
+      }
 
-    function openAddEgg() {
-      const petIds = Object.keys(content.pets || {});
-      const html = `
+      function openAddEgg() {
+        const petIds = Object.keys(content.pets || {});
+        const html = `
         <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
           <div class="modal">
             <h3>Add New Egg</h3>
             <div class="form-group"><label>ID</label><input id="f-id" placeholder="egg_rare"></div>
             <div class="form-group"><label>Hatch Time (seconds)</label><input id="f-hatch" type="number" value="30"></div>
             <div class="form-group"><label>Pool (pet:weight, comma-separated)</label>
-              <input id="f-pool" placeholder="${petIds[0]||'pet_id'}:80, ${petIds[1]||'pet_id2'}:20"></div>
+              <input id="f-pool" placeholder="${petIds[0] || "pet_id"}:80, ${petIds[1] || "pet_id2"}:20"></div>
             <div class="form-actions">
               <button class="btn" onclick="closeModal()">Cancel</button>
               <button class="btn btn-primary" onclick="submitAddEgg()">Add Egg</button>
             </div>
           </div>
         </div>`;
-      document.body.insertAdjacentHTML('beforeend', html);
-    }
+        document.body.insertAdjacentHTML("beforeend", html);
+      }
 
-    async function submitAddEgg() {
-      const id = document.getElementById('f-id').value;
-      const pool = document.getElementById('f-pool').value.split(',').map(s => {
-        const [petId, weight] = s.trim().split(':');
-        return { petId: petId.trim(), weight: +(weight||50) };
-      }).filter(p => p.petId);
-      const egg = { id, hatchTime: +document.getElementById('f-hatch').value, pool };
-      if (!id) return showToast('ID required', true);
-      try {
-        await api('PUT', `/admin/api/content/eggs/${id}`, egg);
-        content.eggs[id] = egg;
-        closeModal();
-        showToast(`Added egg: ${id}`);
-        render();
-      } catch(e) { showToast(e.message, true); }
-    }
+      async function submitAddEgg() {
+        const id = document.getElementById("f-id").value;
+        const pool = document
+          .getElementById("f-pool")
+          .value.split(",")
+          .map((s) => {
+            const [petId, weight] = s.trim().split(":");
+            return { petId: petId.trim(), weight: +(weight || 50) };
+          })
+          .filter((p) => p.petId);
+        const egg = {
+          id,
+          hatchTime: +document.getElementById("f-hatch").value,
+          pool,
+        };
+        if (!id) return showToast("ID required", true);
+        try {
+          await api("PUT", `/admin/api/content/eggs/${id}`, egg);
+          content.eggs[id] = egg;
+          closeModal();
+          showToast(`Added egg: ${id}`);
+          render();
+        } catch (e) {
+          showToast(e.message, true);
+        }
+      }
 
-    async function addLevel() {
-      const levels = content.levels || [];
-      const lastLevel = levels.length > 0 ? levels[levels.length - 1].level : 0;
-      const lastXp = levels.length > 0 ? levels[levels.length - 1].xpRequired : 0;
-      levels.push({ level: lastLevel + 1, xpRequired: lastXp * 2 || 100, unlocks: [] });
-      content.levels = levels;
-      try {
-        await api('PUT', '/admin/api/content/levels', levels);
-        showToast(`Added level ${lastLevel + 1}`);
-        render();
-      } catch(e) { showToast(e.message, true); }
-    }
+      async function addLevel() {
+        const levels = content.levels || [];
+        const lastLevel =
+          levels.length > 0 ? levels[levels.length - 1].level : 0;
+        const lastXp =
+          levels.length > 0 ? levels[levels.length - 1].xpRequired : 0;
+        levels.push({
+          level: lastLevel + 1,
+          xpRequired: lastXp * 2 || 100,
+          unlocks: [],
+        });
+        content.levels = levels;
+        try {
+          await api("PUT", "/admin/api/content/levels", levels);
+          showToast(`Added level ${lastLevel + 1}`);
+          render();
+        } catch (e) {
+          showToast(e.message, true);
+        }
+      }
 
-    function closeModal() {
-      const overlay = document.querySelector('.modal-overlay');
-      if (overlay) overlay.remove();
-    }
+      // --- Add Quest Modal ---
+      function openAddQuest() {
+        const html = `
+        <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+          <div class="modal">
+            <h3>Add New Quest</h3>
+            <div class="form-group"><label>ID</label><input id="f-id" placeholder="quest_plant_10"></div>
+            <div class="form-group"><label>Title</label><input id="f-name" placeholder="Budding Farmer"></div>
+            <div class="form-group"><label>Description</label><input id="f-desc" placeholder="Plant 10 seeds"></div>
+            <div class="form-group"><label>Condition Type</label><select id="f-cond">${QUEST_ACTIONS.map((a) => `<option>${a}</option>`).join("")}</select></div>
+            <div class="form-group"><label>Count</label><input id="f-count" type="number" value="1"></div>
+            <div class="form-group"><label>Min Level</label><input id="f-minlvl" type="number" value="1"></div>
+            <div class="form-group"><label>Coin Reward</label><input id="f-coins" type="number" value="50"></div>
+            <div class="form-group"><label>XP Reward</label><input id="f-xp" type="number" value="10"></div>
+            <div class="form-group"><label>Gem Reward</label><input id="f-gems" type="number" value="0"></div>
+            <div class="form-group"><label>Repeatable</label><select id="f-repeat"><option value="false">No</option><option value="true">Yes</option></select></div>
+            <div class="form-actions">
+              <button class="btn" onclick="closeModal()">Cancel</button>
+              <button class="btn btn-primary" onclick="submitAddQuest()">Add Quest</button>
+            </div>
+          </div>
+        </div>`;
+        document.body.insertAdjacentHTML("beforeend", html);
+      }
 
-    // --- Init ---
-    renderAuth();
-  </script>
-</body>
+      async function submitAddQuest() {
+        const quest = {
+          id: document.getElementById("f-id").value,
+          title: document.getElementById("f-name").value,
+          description: document.getElementById("f-desc").value,
+          condition: {
+            type: document.getElementById("f-cond").value,
+            count: +document.getElementById("f-count").value,
+          },
+          requirements: {
+            minLevel: +document.getElementById("f-minlvl").value,
+          },
+          rewards: {},
+          repeatable: document.getElementById("f-repeat").value === "true",
+        };
+        const coins = +document.getElementById("f-coins").value;
+        const xp = +document.getElementById("f-xp").value;
+        const gems = +document.getElementById("f-gems").value;
+        if (coins) quest.rewards.coins = coins;
+        if (xp) quest.rewards.xp = xp;
+        if (gems) quest.rewards.gems = gems;
+        if (!quest.id || !quest.title)
+          return showToast("ID and Title required", true);
+        try {
+          if (!content.quests) content.quests = {};
+          await api("PUT", `/admin/api/content/quests/${quest.id}`, quest);
+          content.quests[quest.id] = quest;
+          closeModal();
+          showToast(`Added quest: ${quest.title}`);
+          render();
+        } catch (e) {
+          showToast(e.message, true);
+        }
+      }
+
+      function closeModal() {
+        const overlay = document.querySelector(".modal-overlay");
+        if (overlay) overlay.remove();
+      }
+
+      // --- Init ---
+      renderAuth();
+    </script>
+  </body>
 </html>

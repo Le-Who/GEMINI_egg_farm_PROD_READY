@@ -7,6 +7,7 @@ import {
   LevelConfig,
   SkuConfig,
   TutorialStepConfig,
+  QuestConfig,
 } from "../types";
 
 // --- Content Store (loaded from server API) ---
@@ -17,6 +18,7 @@ let _eggs: Record<string, EggConfig> = {};
 let _levels: LevelConfig[] = [];
 let _tutorial: TutorialStepConfig[] = [];
 let _skus: SkuConfig[] = [];
+let _quests: Record<string, QuestConfig> = {};
 let _loaded = false;
 
 // Parse color strings ("0xff00ff") back to numbers
@@ -88,6 +90,11 @@ export async function loadContent(): Promise<boolean> {
     if (data.levels) _levels = data.levels;
     if (data.tutorial) _tutorial = data.tutorial;
     if (data.skus) _skus = data.skus;
+    if (data.quests) {
+      _quests = {};
+      for (const [id, raw] of Object.entries(data.quests))
+        _quests[id] = raw as QuestConfig;
+    }
 
     _loaded = true;
     console.log("Content loaded from API:", {
@@ -136,6 +143,11 @@ export async function loadContent(): Promise<boolean> {
         if (data.levels) _levels = data.levels;
         if (data.tutorial) _tutorial = data.tutorial;
         if (data.skus) _skus = data.skus;
+        if (data.quests) {
+          _quests = {};
+          for (const [id, raw] of Object.entries(data.quests))
+            _quests[id] = raw as QuestConfig;
+        }
         _loaded = true;
         console.log("Content loaded from localStorage cache");
         return true;
@@ -166,6 +178,9 @@ export function getTutorial(): TutorialStepConfig[] {
 }
 export function getSkus(): SkuConfig[] {
   return _skus;
+}
+export function getQuests(): Record<string, QuestConfig> {
+  return _quests;
 }
 export function isContentLoaded(): boolean {
   return _loaded;

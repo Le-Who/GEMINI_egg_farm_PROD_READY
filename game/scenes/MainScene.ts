@@ -499,11 +499,57 @@ export class MainScene extends Phaser.Scene {
     // Incubator
     if (config.type === ItemType.INCUBATOR) {
       if (item.meta?.eggId) {
+        const egg = EGGS[item.meta.eggId];
+
+        // Egg body
         g.fillStyle(0xffeebb, alpha);
         g.fillEllipse(screen.x, screen.y - height - 10, 14, 18);
         // Spots
         g.fillStyle(0xccaa88, alpha);
         g.fillCircle(screen.x - 3, screen.y - height - 12, 2);
+
+        if (egg) {
+          const elapsed = (Date.now() - (item.meta.hatchStart || 0)) / 1000;
+          const progress = Math.min(1, elapsed / egg.hatchTime);
+
+          // Progress bar background
+          const barWidth = 30;
+          const barHeight = 4;
+          const barX = screen.x - barWidth / 2;
+          const barY = screen.y - height + 8;
+
+          g.fillStyle(0x333333, 0.8);
+          g.fillRect(barX, barY, barWidth, barHeight);
+
+          // Progress bar fill
+          const fillColor = progress >= 1 ? 0x00ff88 : 0xffaa00;
+          g.fillStyle(fillColor, alpha);
+          g.fillRect(barX, barY, barWidth * progress, barHeight);
+
+          // Border
+          g.lineStyle(1, 0x666666, alpha);
+          g.strokeRect(barX, barY, barWidth, barHeight);
+
+          if (progress >= 1) {
+            // Ready sparkle effect
+            if (!this.isVisiting) {
+              const sparkle = Math.sin(this.time.now / 150) * 0.5 + 0.5;
+              g.lineStyle(2, 0x00ff88, sparkle);
+              g.strokeCircle(screen.x, screen.y - height - 10, 14);
+              g.lineStyle(1, 0xffff00, sparkle * 0.6);
+              g.strokeCircle(screen.x, screen.y - height - 10, 18);
+            }
+          } else {
+            // Time remaining text
+            const remaining = Math.ceil(egg.hatchTime - elapsed);
+            const mins = Math.floor(remaining / 60);
+            const secs = remaining % 60;
+            const timeText = mins > 0 ? `${mins}m${secs}s` : `${secs}s`;
+
+            // We draw a small "%" indicator near the bar since Phaser graphics can't draw text
+            // The progress bar itself visually indicates time left
+          }
+        }
       }
     }
 

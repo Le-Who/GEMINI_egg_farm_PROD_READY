@@ -5,6 +5,7 @@
     "rarity": "common",
     "color": "0x77dd77",
     "bonusDescription": "+5% Growth Speed",
+    "bonus": { "type": "growth_speed", "value": 0.05 },
     "sprite": null
   },
   "cat_lucky": {
@@ -13,6 +14,7 @@
     "rarity": "rare",
     "color": "0xffaa00",
     "bonusDescription": "+10% Coin Reward",
+    "bonus": { "type": "coin_reward", "value": 0.1 },
     "sprite": null
   }
 }

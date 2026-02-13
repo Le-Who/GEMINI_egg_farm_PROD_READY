@@ -5,6 +5,8 @@ import {
   PetData,
   NeighborProfile,
   RoomType,
+  QuestConfig,
+  QuestProgress,
 } from "../types";
 import {
   ITEMS,
@@ -14,6 +16,7 @@ import {
   PETS,
   SKUS,
   TUTORIAL_STEPS,
+  QUESTS,
 } from "../constants";
 import { discordService } from "./discord";
 
@@ -51,7 +54,18 @@ const INITIAL_STATE_TEMPLATE: UserState = {
   equippedPetId: null,
   tutorialStep: 0,
   completedTutorial: false,
+  quests: [],
 };
+
+// --- Pet Bonus Helper ---
+function getEquippedPetBonus(state: UserState, bonusType: string): number {
+  if (!state.equippedPetId) return 0;
+  const pet = state.pets.find((p) => p.id === state.equippedPetId);
+  if (!pet) return 0;
+  const config = PETS[pet.configId];
+  if (!config?.bonus || config.bonus.type !== bonusType) return 0;
+  return config.bonus.value;
+}
 
 // --- API Helpers ---
 const api = {
@@ -150,6 +164,7 @@ export const MockBackend = {
       } else return { success: false, message: "Not enough Coins" };
     }
 
+    checkQuests(state, "BUY_ITEM", itemId);
     currentUserState = state;
     debouncedSave(state);
     return { success: true, newState: state };
@@ -203,12 +218,28 @@ export const MockBackend = {
       return { success: false, message: "Error" };
 
     state.coins -= crop.seedPrice;
+    // Apply pet growth_speed bonus: reduce effective growth time
+    const growthBonus = getEquippedPetBonus(state, "growth_speed");
+    const effectiveGrowthTime = crop.growthTime * (1 - growthBonus);
     planter.cropData = { cropId, plantedAt: Date.now(), isReady: false };
+    // Store effective growth time as offset if pet bonus applies
+    if (growthBonus > 0) {
+      planter.cropData.plantedAt =
+        Date.now() - (crop.growthTime - effectiveGrowthTime) * 1000;
+    }
 
     checkTutorial(state, "PLANT_SEED");
+    checkQuests(state, "PLANT_SEED", cropId);
     currentUserState = state;
     debouncedSave(state);
-    return { success: true, newState: state, message: "Planted!" };
+    return {
+      success: true,
+      newState: state,
+      message:
+        growthBonus > 0
+          ? `Planted! (${Math.round(growthBonus * 100)}% faster)`
+          : "Planted!",
+    };
   },
 
   harvestOrPickup: async (x: number, y: number): Promise<any> => {
@@ -257,18 +288,24 @@ export const MockBackend = {
       const crop = CROPS[item.cropData.cropId];
       const elapsed = Date.now() - item.cropData.plantedAt;
       if (elapsed >= crop.growthTime * 1000) {
-        state.coins += crop.sellPrice;
-        state.xp += crop.xpReward;
+        // Apply pet coin_reward and xp_reward bonuses
+        const coinBonus = getEquippedPetBonus(state, "coin_reward");
+        const xpBonus = getEquippedPetBonus(state, "xp_reward");
+        const coinReward = Math.round(crop.sellPrice * (1 + coinBonus));
+        const xpReward = Math.round(crop.xpReward * (1 + xpBonus));
+        state.coins += coinReward;
+        state.xp += xpReward;
         item.cropData = null;
         checkLevelUp(state);
         checkTutorial(state, "HARVEST");
+        checkQuests(state, "HARVEST", item.cropData?.cropId);
         currentUserState = state;
         debouncedSave(state);
         return {
           success: true,
           newState: state,
           action: "harvest",
-          reward: crop.sellPrice,
+          reward: coinReward,
         };
       }
       return { success: false, message: "Not ready" };
@@ -361,8 +398,13 @@ export const MockBackend = {
       if (!item?.cropData) {
         return { success: false, message: "No plant here to fertilize!" };
       }
-      state.inventory[itemId]--;
+      // Check if crop is already fully grown
       const crop = CROPS[item.cropData.cropId];
+      const elapsed = Date.now() - item.cropData.plantedAt;
+      if (elapsed >= crop.growthTime * 1000) {
+        return { success: false, message: "Already fully grown!" };
+      }
+      state.inventory[itemId]--;
       item.cropData.plantedAt = Date.now() - crop.growthTime * 1000 - 100;
     } else {
       state.inventory[itemId]--;
@@ -406,5 +448,71 @@ const checkTutorial = (state: UserState, action: string, targetId?: string) => {
     state.tutorialStep++;
     if (state.tutorialStep >= TUTORIAL_STEPS.length)
       state.completedTutorial = true;
+  }
+};
+
+// --- Quest System ---
+const checkQuests = (state: UserState, action: string, targetId?: string) => {
+  if (!state.quests) state.quests = [];
+  const allQuests = QUESTS;
+  if (!allQuests || typeof allQuests !== "object") return;
+
+  for (const quest of Object.values(allQuests) as any[]) {
+    if (!quest?.id || !quest?.condition) continue;
+
+    // Skip completed non-repeatable quests
+    const existing = state.quests.find((q) => q.questId === quest.id);
+    if (existing?.completed && !quest.repeatable) continue;
+
+    // Check requirements (level >= minLevel, level <= maxLevel if set)
+    if (quest.requirements) {
+      if (
+        quest.requirements.minLevel &&
+        state.level < quest.requirements.minLevel
+      )
+        continue;
+      if (
+        quest.requirements.maxLevel &&
+        state.level > quest.requirements.maxLevel
+      )
+        continue;
+    }
+
+    // Check if action matches condition
+    if (quest.condition.type !== action) continue;
+    if (quest.condition.targetId && quest.condition.targetId !== targetId)
+      continue;
+
+    // Update progress
+    let progress: QuestProgress = existing || {
+      questId: quest.id,
+      progress: 0,
+      completed: false,
+    };
+    if (!existing) state.quests.push(progress);
+
+    progress.progress++;
+
+    // Check completion
+    if (progress.progress >= quest.condition.count && !progress.completed) {
+      progress.completed = true;
+      progress.completedAt = Date.now();
+
+      // Grant rewards
+      if (quest.rewards) {
+        if (quest.rewards.coins) state.coins += quest.rewards.coins;
+        if (quest.rewards.gems) state.gems += quest.rewards.gems;
+        if (quest.rewards.xp) {
+          state.xp += quest.rewards.xp;
+          checkLevelUp(state);
+        }
+        if (quest.rewards.items) {
+          for (const [itemId, count] of Object.entries(quest.rewards.items)) {
+            state.inventory[itemId] =
+              (state.inventory[itemId] || 0) + (count as number);
+          }
+        }
+      }
+    }
   }
 };

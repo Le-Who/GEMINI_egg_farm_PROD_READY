@@ -6,6 +6,7 @@ import { EditorBar } from "./components/ui/EditorBar";
 import { SeedBagModal } from "./components/ui/SeedBagModal";
 import { NeighborsPanel } from "./components/ui/NeighborsPanel";
 import { PetsModal } from "./components/ui/PetsModal";
+import { QuestsPanel } from "./components/ui/QuestsPanel";
 import { TutorialOverlay } from "./components/ui/TutorialOverlay";
 import { ConfirmationModal } from "./components/ui/ConfirmationModal";
 import { MockBackend } from "./services/mockBackend";
@@ -30,6 +31,7 @@ const App: React.FC = () => {
   const [isSeedBagOpen, setIsSeedBagOpen] = useState(false);
   const [isNeighborsOpen, setIsNeighborsOpen] = useState(false);
   const [isPetsModalOpen, setIsPetsModalOpen] = useState(false);
+  const [isQuestsOpen, setIsQuestsOpen] = useState(false);
 
   // IAP Confirmation
   const [pendingSku, setPendingSku] = useState<string | null>(null);
@@ -131,12 +133,14 @@ const App: React.FC = () => {
           setIsShopOpen(false);
         } else if (isPetsModalOpen) {
           setIsPetsModalOpen(false);
+        } else if (isQuestsOpen) {
+          setIsQuestsOpen(false);
         }
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedItemId, isEditMode, isShopOpen, isPetsModalOpen]);
+  }, [selectedItemId, isEditMode, isShopOpen, isPetsModalOpen, isQuestsOpen]);
 
   const showNotification = useCallback(
     (msg: string, type: "success" | "error") => {
@@ -471,6 +475,7 @@ const App: React.FC = () => {
         user={currentUser}
         onOpenShop={handleOpenShop}
         onOpenPets={() => setIsPetsModalOpen(true)}
+        onOpenQuests={() => setIsQuestsOpen(true)}
         onToggleEdit={toggleEditMode}
         onToggleNeighbors={() => setIsNeighborsOpen(!isNeighborsOpen)}
         onSwitchRoom={handleSwitchRoom}
@@ -518,6 +523,12 @@ const App: React.FC = () => {
         isOpen={isPetsModalOpen}
         onClose={() => setIsPetsModalOpen(false)}
         onEquip={handleEquipPet}
+        user={currentUser}
+      />
+
+      <QuestsPanel
+        isOpen={isQuestsOpen}
+        onClose={() => setIsQuestsOpen(false)}
         user={currentUser}
       />
 

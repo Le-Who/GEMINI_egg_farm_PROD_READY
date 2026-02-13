@@ -156,6 +156,7 @@ const CONTENT_TYPES = [
   "levels",
   "tutorial",
   "skus",
+  "quests",
 ];
 let contentCache = {};
 let contentVersion = 0;

@@ -1,15 +1,14 @@
-
 export enum ItemType {
-  FURNITURE = 'FURNITURE',
-  PLANT = 'PLANT', // Legacy direct plant
-  DECORATION = 'DECORATION',
-  PLANTER = 'PLANTER', // New container type
-  INCUBATOR = 'INCUBATOR', // New for Sprint 3
-  EGG = 'EGG', // New for Sprint 3
-  CONSUMABLE = 'CONSUMABLE' // New for Fertilizer
+  FURNITURE = "FURNITURE",
+  PLANT = "PLANT", // Legacy direct plant
+  DECORATION = "DECORATION",
+  PLANTER = "PLANTER", // New container type
+  INCUBATOR = "INCUBATOR", // New for Sprint 3
+  EGG = "EGG", // New for Sprint 3
+  CONSUMABLE = "CONSUMABLE", // New for Fertilizer
 }
 
-export type RoomType = 'interior' | 'garden';
+export type RoomType = "interior" | "garden";
 
 export interface Room {
   type: RoomType;
@@ -22,7 +21,7 @@ export interface ItemConfig {
   name: string;
   type: ItemType;
   price: number;
-  currency?: 'coins' | 'gems'; // Default coins
+  currency?: "coins" | "gems"; // Default coins
   premiumPrice?: number;
   color: number;
   width: number; // Grid width
@@ -30,6 +29,7 @@ export interface ItemConfig {
   growthTime?: number; // Legacy
   sellPrice?: number; // Legacy
   description: string;
+  sprite?: string | null;
 }
 
 export interface CropConfig {
@@ -41,14 +41,17 @@ export interface CropConfig {
   xpReward: number;
   levelReq: number;
   color: number; // For procedural drawing
+  sprite?: string | null;
 }
 
 export interface PetConfig {
   id: string;
   name: string;
-  rarity: 'common' | 'rare' | 'legendary';
+  rarity: "common" | "rare" | "legendary";
   color: number;
   bonusDescription: string;
+  bonus?: { type: "growth_speed" | "coin_reward" | "xp_reward"; value: number };
+  sprite?: string | null;
 }
 
 export interface EggConfig {
@@ -99,18 +102,43 @@ export interface UserState {
   xp: number;
   level: number;
   inventory: Record<string, number>;
-  
+
   // Room System
   currentRoom: RoomType;
   rooms: Record<RoomType, Room>;
   placedItems: PlacedItem[]; // Deprecated, kept for interface compat during migration logic but unused in logic
 
-  pets: PetData[]; 
-  equippedPetId?: string | null; 
-  
+  pets: PetData[];
+  equippedPetId?: string | null;
+
   // Tutorial
   tutorialStep: number;
   completedTutorial: boolean;
+
+  // Quest System
+  quests?: QuestProgress[];
+}
+
+export interface QuestConfig {
+  id: string;
+  title: string;
+  description: string;
+  condition: { type: string; count: number; targetId?: string };
+  requirements: { minLevel?: number; maxLevel?: number };
+  rewards: {
+    coins?: number;
+    gems?: number;
+    xp?: number;
+    items?: Record<string, number>;
+  };
+  repeatable: boolean;
+}
+
+export interface QuestProgress {
+  questId: string;
+  progress: number;
+  completed: boolean;
+  completedAt?: number;
 }
 
 export interface NeighborProfile {

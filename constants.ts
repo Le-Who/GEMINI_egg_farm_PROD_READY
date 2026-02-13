@@ -7,6 +7,7 @@ import {
   EggConfig,
   SkuConfig,
   TutorialStepConfig,
+  QuestConfig,
 } from "./types";
 import {
   getItems,
@@ -16,6 +17,7 @@ import {
   getLevels,
   getTutorial,
   getSkus,
+  getQuests,
 } from "./services/contentLoader";
 
 // Re-export content loader for direct usage
@@ -124,6 +126,29 @@ export const EGGS: Record<string, EggConfig> = new Proxy(
     },
     getOwnPropertyDescriptor(_, prop: string) {
       const data = getEggs();
+      if (prop in data)
+        return { configurable: true, enumerable: true, value: data[prop] };
+      return undefined;
+    },
+  },
+);
+
+export const QUESTS: Record<string, QuestConfig> = new Proxy(
+  {} as Record<string, QuestConfig>,
+  {
+    get(_, prop: string) {
+      const data = getQuests();
+      if (prop in data) return data[prop];
+      return undefined;
+    },
+    ownKeys() {
+      return Object.keys(getQuests());
+    },
+    has(_, prop: string) {
+      return prop in getQuests();
+    },
+    getOwnPropertyDescriptor(_, prop: string) {
+      const data = getQuests();
       if (prop in data)
         return { configurable: true, enumerable: true, value: data[prop] };
       return undefined;
