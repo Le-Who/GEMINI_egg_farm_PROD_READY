@@ -474,6 +474,31 @@ describe("GameEngine", () => {
     });
   });
 
+  describe("Optimization", () => {
+    it("should return the cached state reference if the server response is identical", async () => {
+      // 1. Initial Load (already done in beforeEach)
+      const user1 = await GameEngine.getUser();
+
+      // 2. Second Load (Server returns same JSON because mock is consistent)
+      const user2 = await GameEngine.getUser();
+
+      // 3. Should be same reference (not just equal value)
+      expect(user1).toBe(user2);
+    });
+
+    it("should return a new reference if the server response changes", async () => {
+      const user1 = await GameEngine.getUser();
+
+      // Change mock response
+      (global.fetch as any).mockResolvedValue({
+        ok: true,
+        json: async () => ({ ...MOCK_USER, coins: 99999 }),
+      });
+
+      const user2 = await GameEngine.getUser();
+
+      expect(user2).not.toBe(user1);
+      expect(user2.coins).toBe(99999);
   describe("applyDye", () => {
     it("should apply dye to furniture", async () => {
       // 1. Place a chair
