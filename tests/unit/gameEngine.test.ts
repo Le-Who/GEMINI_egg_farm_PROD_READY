@@ -15,12 +15,70 @@ vi.mock("../../services/discord", () => ({
 // Mock Content Loader
 vi.mock("../../services/contentLoader", () => ({
   getItems: () => ({
-    planter_basic: { id: "planter_basic", type: "PLANTER", price: 50 },
-    chair_wood: { id: "chair_wood", type: "FURNITURE", price: 100 },
-    seed_strawberry: { id: "seed_strawberry", type: "PLANTER", price: 10 },
-    incubator_basic: { id: "incubator_basic", type: "INCUBATOR", price: 200 },
-    egg_common: { id: "egg_common", type: "EGG", price: 100 },
-    water_can: { id: "water_can", type: "CONSUMABLE", price: 0 },
+    planter_basic: {
+      id: "planter_basic",
+      type: "PLANTER",
+      price: 50,
+      width: 1,
+      height: 1,
+      color: 0x996633,
+      description: "Basic Planter",
+    },
+    chair_wood: {
+      id: "chair_wood",
+      type: "FURNITURE",
+      price: 100,
+      width: 1,
+      height: 1,
+      color: 0x664422,
+      description: "Wooden Chair",
+    },
+    seed_strawberry: {
+      id: "seed_strawberry",
+      type: "PLANTER",
+      price: 10,
+      width: 1,
+      height: 1,
+      color: 0xff0000,
+      description: "Strawberry Seed",
+    },
+    incubator_basic: {
+      id: "incubator_basic",
+      type: "INCUBATOR",
+      price: 200,
+      width: 1,
+      height: 1,
+      color: 0xffffff,
+      description: "Incubator",
+    },
+    egg_common: {
+      id: "egg_common",
+      type: "EGG",
+      price: 100,
+      width: 1,
+      height: 1,
+      color: 0xffccaa,
+      description: "Common Egg",
+    },
+    water_can: {
+      id: "water_can",
+      type: "CONSUMABLE",
+      price: 0,
+      width: 1,
+      height: 1,
+      color: 0x0000ff,
+      description: "Water Can",
+    },
+    dye_red: {
+      id: "dye_red",
+      type: "DYE",
+      price: 50,
+      dyeColor: "0xFF0000",
+      width: 1,
+      height: 1,
+      color: 0xff0000,
+      description: "Red Dye",
+    },
   }),
   getCrops: () => ({
     strawberry: {
@@ -70,6 +128,7 @@ const MOCK_USER: UserState = {
     seed_strawberry: 5,
     incubator_basic: 1,
     egg_common: 1,
+    chair_wood: 1,
   },
   rooms: {
     interior: { type: "interior", items: [], unlocked: true },
@@ -245,6 +304,129 @@ describe("GameEngine", () => {
       const res = await GameEngine.equipPet("pet_1");
       expect(res.success).toBe(true);
       expect(res.newState?.equippedPetId).toBe("pet_1");
+    });
+  });
+
+  describe("applyDye", () => {
+    it("should apply dye to furniture", async () => {
+      // 1. Place a chair
+      const placeRes = await GameEngine.placeItem("chair_wood", 2, 2, 0);
+      const chairId = placeRes.newState?.rooms.interior.items.find(
+        (i) => i.gridX === 2 && i.gridY === 2,
+      )?.id;
+
+      if (!chairId) throw new Error("Chair not placed");
+
+      // 2. Add dye to inventory
+      (global.fetch as any).mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          ...MOCK_USER,
+          inventory: { ...MOCK_USER.inventory, dye_red: 1, chair_wood: 0 },
+          rooms: placeRes.newState?.rooms, // Keep placed item
+        }),
+      });
+      // Re-fetch user to update inventory
+      await GameEngine.getUser();
+
+      // 3. Apply Dye
+      const res = await GameEngine.applyDye(chairId, "dye_red");
+
+      expect(res.success).toBe(true);
+      expect(res.message).toBe("Dye applied!");
+
+      const chair = res.newState?.rooms.interior.items.find(
+        (i) => i.id === chairId,
+      );
+      expect(chair?.tint).toBe(0xff0000);
+      expect(res.newState?.inventory["dye_red"]).toBeUndefined(); // Should be consumed
+    });
+
+    it("should remove tint if dyeItemId is null", async () => {
+      // 1. Place a chair
+      const placeRes = await GameEngine.placeItem("chair_wood", 3, 3, 0);
+      const chairId = placeRes.newState?.rooms.interior.items.find(
+        (i) => i.gridX === 3 && i.gridY === 3,
+      )?.id;
+
+      // 2. Manually set tint on the item in state
+      if (placeRes.newState?.rooms.interior.items[0]) {
+        placeRes.newState.rooms.interior.items[0].tint = 0xff0000;
+      }
+
+      // Mock user state with tinted chair
+      (global.fetch as any).mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          ...MOCK_USER,
+          rooms: placeRes.newState?.rooms,
+        }),
+      });
+      await GameEngine.getUser();
+
+      // 3. Remove Tint
+      const res = await GameEngine.applyDye(chairId!, null);
+
+      expect(res.success).toBe(true);
+      const chair = res.newState?.rooms.interior.items.find(
+        (i) => i.id === chairId,
+      );
+      expect(chair?.tint).toBeNull();
+    });
+
+    it("should fail if item not found", async () => {
+      const res = await GameEngine.applyDye("non_existent_id", "dye_red");
+      expect(res.success).toBe(false);
+      expect(res.message).toBe("Item not found");
+    });
+
+    it("should fail if item is not furniture/decoration", async () => {
+      // 1. Place a planter
+      const placeRes = await GameEngine.placeItem("planter_basic", 4, 4, 0);
+      const planterId = placeRes.newState?.rooms.interior.items.find(
+        (i) => i.gridX === 4 && i.gridY === 4,
+      )?.id;
+
+      // 2. Try to dye it
+      const res = await GameEngine.applyDye(planterId!, "dye_red");
+      expect(res.success).toBe(false);
+      expect(res.message).toBe("Can only dye furniture/decorations");
+    });
+
+    it("should fail if no dye in inventory", async () => {
+      // 1. Place a chair
+      const placeRes = await GameEngine.placeItem("chair_wood", 5, 5, 0);
+      const chairId = placeRes.newState?.rooms.interior.items.find(
+        (i) => i.gridX === 5 && i.gridY === 5,
+      )?.id;
+
+      // Ensure no dye
+      (global.fetch as any).mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          ...MOCK_USER,
+          inventory: { ...MOCK_USER.inventory, dye_red: 0 },
+          rooms: placeRes.newState?.rooms,
+        }),
+      });
+      await GameEngine.getUser();
+
+      const res = await GameEngine.applyDye(chairId!, "dye_red");
+      expect(res.success).toBe(false);
+      expect(res.message).toBe("No dye in inventory");
+    });
+
+    it("should fail if dyeItemId is invalid", async () => {
+      // 1. Place a chair
+      const placeRes = await GameEngine.placeItem("chair_wood", 6, 6, 0);
+      const chairId = placeRes.newState?.rooms.interior.items.find(
+        (i) => i.gridX === 6 && i.gridY === 6,
+      )?.id;
+
+      // Try to use a seed as dye
+      const res = await GameEngine.applyDye(chairId!, "seed_strawberry");
+      expect(res.success).toBe(false);
+      expect(res.message).toBe("Invalid dye");
     });
   });
 });
