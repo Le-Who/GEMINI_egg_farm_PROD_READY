@@ -114,10 +114,7 @@ export class MainScene extends Phaser.Scene {
 
     // --- Input for tile clicking ---
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
-      const cam = this.cameras.main;
-      const worldX = pointer.x / cam.zoom + cam.scrollX;
-      const worldY = pointer.y / cam.zoom + cam.scrollY;
-      const iso = this.getIsoFromScreen(worldX, worldY);
+      const iso = this.getIsoFromScreen(pointer.worldX, pointer.worldY);
       if (this.isValidGrid(iso.x, iso.y) && this.onTileClick) {
         this.onTileClick(iso.x, iso.y);
       }

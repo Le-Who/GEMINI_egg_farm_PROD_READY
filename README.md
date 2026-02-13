@@ -13,7 +13,10 @@
 | 🥚 **Pet Hatching**  | Incubate eggs → weighted random pet drops with rarity tiers                    |
 | 🐾 **Pet Abilities** | Equipped pets grant multiple stacking bonuses (growth speed, coin/XP rewards)  |
 | 🏆 **Quest System**  | Progressive quests with conditions, level gates, and rich rewards              |
-| 🛒 **Shop**          | Coins & gems economy with furniture, planters, consumables                     |
+| 🛒 **Shop**          | Coins & gems economy with furniture, planters, consumables, dyes               |
+| 🎨 **Dye System**    | Tint furniture & decorations with 6 colors via Edit Mode                       |
+| 📋 **Billboard**     | Place a visitor guestbook — friends leave sticker reactions when visiting      |
+| 👻 **Echo Ghosts**   | See a pulsing glow at the last action spot when visiting neighbors             |
 | 👥 **Social**        | Visit neighbor farms, water their plants                                       |
 | 🎨 **CMS**           | Admin dashboard for live content editing (items, crops, pets, quests, sprites) |
 
@@ -27,16 +30,19 @@ graph TB
         A[React 19 + Tailwind CSS] --> B[Phaser 3.90 — Isometric Engine]
         A --> C[UI Layer — HUD, Modals, Panels]
         A --> D[Services Layer]
-        D --> D1[mockBackend.ts — Game Logic]
+        D --> D1[gameEngine.ts — Game Logic]
         D --> D2[contentLoader.ts — CMS Client]
         D --> D3[discord.ts — SDK Integration]
+        D --> D4[eventBus.ts — Phaser ↔ React Bridge]
     end
 
     subgraph Server ["Backend (Express.js)"]
         E[REST API] --> F[Player DB — Map + JSON]
-        E --> G[Content CMS — Versioned JSON]
+        E --> G[Content CMS — Versioned JSON + ETag]
         E --> H[Sprite Storage]
         E --> I[Discord OAuth2]
+        E --> E1[Billboard API]
+        E --> E2[Neighbor Cache — 60s TTL]
     end
 
     subgraph Storage ["Persistence"]
@@ -68,7 +74,7 @@ egg-farm/
 │
 ├── game/
 │   └── scenes/
-│       └── MainScene.ts      # Phaser isometric renderer (634 lines)
+│       └── MainScene.ts      # Phaser isometric renderer (920+ lines, object pooling)
 │
 ├── components/
 │   ├── GameCanvas.tsx         # Phaser ↔ React bridge
@@ -77,20 +83,22 @@ egg-farm/
 │       ├── ShopModal.tsx      # Shop with tabs (items, seeds, eggs, gems)
 │       ├── PetsModal.tsx      # Pet list, equip/unequip
 │       ├── QuestsPanel.tsx    # Quest tracker with progress bars
-│       ├── EditorBar.tsx      # Edit-mode toolbar (place, rotate, pick up)
+│       ├── EditorBar.tsx      # Edit-mode toolbar (place, rotate, pick up, dye)
 │       ├── SeedBagModal.tsx   # Seed selection for planters
 │       ├── NeighborsPanel.tsx # Social panel (visit friends)
+│       ├── StickerPicker.tsx  # Billboard sticker picker (6 reactions)
 │       ├── TutorialOverlay.tsx# Step-by-step onboarding
 │       └── ConfirmationModal.tsx # IAP confirmation dialog
 │
 ├── services/
-│   ├── mockBackend.ts         # Client-side game logic (520 lines, 15 actions)
+│   ├── gameEngine.ts          # Client-side game logic (600+ lines, 17 actions)
 │   ├── contentLoader.ts       # API content fetcher + localStorage cache + polling
-│   └── discord.ts             # Discord SDK wrapper (auth, activity, mock mode)
+│   ├── discord.ts             # Discord SDK wrapper (auth, activity, avatar, mock mode)
+│   └── eventBus.ts            # Phaser ↔ React event bridge
 │
 ├── data/
 │   └── content/               # Seed data (CMS-managed)
-│       ├── items.json         # 9 items (furniture, planters, consumables, eggs)
+│       ├── items.json         # 16 items (furniture, planters, consumables, eggs, dyes, billboard)
 │       ├── crops.json         # 4 crops (strawberry → golden flower)
 │       ├── pets.json          # 3 pets with ability bonuses
 │       ├── eggs.json          # Egg pools with weighted drop rates
@@ -134,13 +142,14 @@ egg-farm/
 
 ### Public Endpoints
 
-| Method | Path                   | Description                                     |
-| ------ | ---------------------- | ----------------------------------------------- |
-| `GET`  | `/api/health`          | Health check (status, user count, GCS flag)     |
-| `GET`  | `/api/content`         | All game content (items, crops, pets, etc.)     |
-| `GET`  | `/api/content/version` | Content version number (for cache invalidation) |
-| `GET`  | `/api/content/:type`   | Specific content type                           |
-| `GET`  | `/api/state/:userId`   | Public read-only player state (for visiting)    |
+| Method | Path                     | Description                                     |
+| ------ | ------------------------ | ----------------------------------------------- |
+| `GET`  | `/api/health`            | Health check (status, user count, GCS flag)     |
+| `GET`  | `/api/content`           | All game content (items, crops, pets, etc.)     |
+| `GET`  | `/api/content/version`   | Content version number (for cache invalidation) |
+| `GET`  | `/api/content/:type`     | Specific content type                           |
+| `GET`  | `/api/state/:userId`     | Public read-only player state (for visiting)    |
+| `POST` | `/api/billboard/:userId` | Leave a sticker on player's billboard           |
 
 ### Authenticated Endpoints (Discord OAuth2)
 
@@ -175,9 +184,9 @@ egg-farm/
 Client-side game engine running 15 game actions with optimistic state updates:
 
 ```
-buyItem → placeItem → plantSeed → harvestOrPickup → useConsumable
+buyItem → placeItem → plantSeed → harvestOrPickup → useConsumable → applyDye
 placeEgg → equipPet → switchRoom → visitNeighbor → waterNeighborPlant
-buyPremiumCurrency → triggerTutorial → checkQuests → checkLevelUp
+buyPremiumCurrency → triggerTutorial → checkQuests → checkLevelUp → recordAction
 ```
 
 - **Optimistic updates**: State mutated locally, then debounced-saved to server (3s delay)
@@ -193,7 +202,10 @@ buyPremiumCurrency → triggerTutorial → checkQuests → checkLevelUp
 
 - **Coordinate system**: `getScreenFromIso()` / `getIsoFromScreen()` — standard 2:1 isometric projection
 - **Z-sorting**: Painter's algorithm based on `gridY + gridX` for correct overlap
-- **Entity types**: Items (7 subtypes), Player avatar, Pet follower
+- **Object pooling**: Sprite and text pools via Phaser Groups (max 100/20) — zero GC per frame
+- **Dye rendering**: `setTint()`/`clearTint()` on sprite images driven by `PlacedItem.tint`
+- **Echo ghosts**: Pulsing glow + action emoji at `lastAction` tile when visiting (24h TTL)
+- **Entity types**: Items (8 subtypes), Player avatar, Pet follower
 - **Visual effects**: Crop growth animation, egg incubation progress bar, harvest sparkle, tutorial hints
 - **Ghost placement**: Translucent preview item follows cursor during edit mode
 
@@ -372,7 +384,7 @@ All changes take effect in **~30 seconds** via client-side content version polli
 ## 🧩 Type System
 
 ```typescript
-// Core game state — 25 fields
+// Core game state — 30 fields
 interface UserState {
   id, username, discordId
   coins, gems, xp, level
@@ -383,10 +395,12 @@ interface UserState {
   equippedPetId?: string
   tutorialStep, completedTutorial
   quests?: QuestProgress[]
+  billboard?: BillboardEntry[]  // Visitor sticker guestbook
+  lastAction?: { type, gridX, gridY, timestamp }  // Echo ghost snapshot
 }
 
 // Content configs
-ItemConfig   → 12 fields (type enum: FURNITURE|PLANTER|INCUBATOR|EGG|CONSUMABLE|DECORATION)
+ItemConfig   → 13 fields (type enum: FURNITURE|PLANTER|INCUBATOR|EGG|CONSUMABLE|DECORATION|DYE)
 CropConfig   → 8 fields (seedPrice, sellPrice, growthTime, xpReward, levelReq)
 PetConfig    → 10 fields (rarity tier, bonuses: [{type: growth_speed|coin_reward|xp_reward, value}])
 EggConfig    → 3 fields (hatchTime, pool with weights — editable in CMS)

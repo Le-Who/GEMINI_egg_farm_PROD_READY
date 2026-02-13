@@ -107,6 +107,18 @@
     "sprite": null,
     "description": "A classic garden border."
   },
+  "billboard_wood": {
+    "id": "billboard_wood",
+    "name": "Visitor Billboard",
+    "type": "DECORATION",
+    "price": 150,
+    "currency": "coins",
+    "color": "0xcd853f",
+    "width": 1,
+    "height": 1,
+    "sprite": null,
+    "description": "Friends can leave stickers when visiting!"
+  },
   "dye_red": {
     "id": "dye_red",
     "name": "Crimson Dye",

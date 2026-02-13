@@ -9,9 +9,10 @@ import { PetsModal } from "./components/ui/PetsModal";
 import { QuestsPanel } from "./components/ui/QuestsPanel";
 import { TutorialOverlay } from "./components/ui/TutorialOverlay";
 import { ConfirmationModal } from "./components/ui/ConfirmationModal";
+import { StickerPicker } from "./components/ui/StickerPicker";
 import { GameEngine } from "./services/gameEngine";
 import { discordService } from "./services/discord"; // REAL Service
-import { UserState, ItemType, RoomType } from "./types";
+import { UserState, ItemType, RoomType, StickerType } from "./types";
 import {
   ITEMS,
   CROPS,
@@ -46,6 +47,9 @@ const App: React.FC = () => {
 
   // Visiting State
   const [wateredPlants, setWateredPlants] = useState<Set<string>>(new Set());
+
+  // Billboard
+  const [isStickerPickerOpen, setIsStickerPickerOpen] = useState(false);
 
   // Notification System
   const [notification, setNotification] = useState<{
@@ -310,7 +314,38 @@ const App: React.FC = () => {
 
       // --- OWNER MODE ---
 
-      // 1. CONSUMABLE USAGE (New)
+      // 1. DYE USAGE — select dye in EditorBar → click furniture to tint
+      if (isEditMode && selectedItemId) {
+        const itemConfig = ITEMS[selectedItemId];
+        if (itemConfig && itemConfig.type === ItemType.DYE) {
+          const placedItem = currentRoomItems.find(
+            (i) => i.gridX === x && i.gridY === y,
+          );
+          if (placedItem) {
+            const result = await GameEngine.applyDye(
+              placedItem.id,
+              selectedItemId,
+            );
+            if (result.success && result.newState) {
+              setCurrentUser(result.newState);
+              setDisplayUser(result.newState);
+              const colorHex = itemConfig.dyeColor || "#ffffff";
+              triggerFloatingText(x, y, "DYED! 🎨", colorHex);
+              showNotification(result.message || "Dye applied!", "success");
+            } else {
+              showNotification(
+                result.message || "Can't dye this item",
+                "error",
+              );
+            }
+          } else {
+            showNotification("Click on furniture to apply dye", "error");
+          }
+          return;
+        }
+      }
+
+      // 2. CONSUMABLE USAGE
       // If edit mode is open and an item is selected, check if it is consumable
       if (isEditMode && selectedItemId) {
         const itemConfig = ITEMS[selectedItemId];
@@ -388,6 +423,12 @@ const App: React.FC = () => {
             setIsSeedBagOpen(true);
             return;
           }
+        }
+
+        // BILLBOARD — open sticker picker when visiting
+        if (item.itemId === "billboard_wood") {
+          setIsStickerPickerOpen(true);
+          return;
         }
 
         // GENERIC INTERACT
@@ -481,6 +522,7 @@ const App: React.FC = () => {
       <HUD
         user={currentUser}
         displayUser={displayUser || undefined}
+        avatarUrl={discordService.user?.avatar}
         onOpenShop={handleOpenShop}
         onOpenPets={() => setIsPetsModalOpen(true)}
         onOpenQuests={() => setIsQuestsOpen(true)}
@@ -547,6 +589,36 @@ const App: React.FC = () => {
         onConfirm={confirmBuyGem}
         onCancel={() => setPendingSku(null)}
         confirmText="Purchase"
+      />
+
+      <StickerPicker
+        isOpen={isStickerPickerOpen}
+        onClose={() => setIsStickerPickerOpen(false)}
+        onSend={async (sticker: StickerType) => {
+          if (!displayUser) return;
+          try {
+            const token = discordService.accessToken;
+            const res = await fetch(`/api/billboard/${displayUser.id}`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({ sticker }),
+            });
+            const data = await res.json();
+            if (data.success) {
+              showNotification("Sticker sent! 🎉", "success");
+              setIsStickerPickerOpen(false);
+            } else {
+              showNotification(data.error || "Failed to send sticker", "error");
+            }
+          } catch {
+            showNotification("Network error", "error");
+          }
+        }}
+        billboard={displayUser?.billboard}
+        ownerName={displayUser?.username || ""}
       />
 
       {notification && (

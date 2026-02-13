@@ -1,7 +1,14 @@
 import React, { useState } from "react";
 import { ItemConfig, ItemType } from "../../types";
 import { ITEMS, SKUS } from "../../constants";
-import { X, ShoppingBag, Gem, Package, ChevronRight } from "lucide-react";
+import {
+  X,
+  ShoppingBag,
+  Gem,
+  Package,
+  ChevronRight,
+  Palette,
+} from "lucide-react";
 
 interface ShopModalProps {
   isOpen: boolean;
@@ -22,8 +29,11 @@ export const ShopModal: React.FC<ShopModalProps> = ({
   userGems,
   tutorialStep,
 }) => {
-  const [activeTab, setActiveTab] = useState<"items" | "gems">("items");
-  const itemsList = Object.values(ITEMS);
+  const [activeTab, setActiveTab] = useState<"items" | "dyes" | "gems">(
+    "items",
+  );
+  const itemsList = Object.values(ITEMS).filter((i) => i.type !== ItemType.DYE);
+  const dyesList = Object.values(ITEMS).filter((i) => i.type === ItemType.DYE);
 
   return (
     <>
@@ -67,6 +77,12 @@ export const ShopModal: React.FC<ShopModalProps> = ({
               className={`flex-1 py-2.5 font-bold text-sm flex items-center justify-center gap-1.5 transition-colors ${activeTab === "items" ? "bg-gray-700 text-white border-b-2 border-green-500" : "text-gray-400 hover:text-gray-200"}`}
             >
               <Package size={14} /> Items
+            </button>
+            <button
+              onClick={() => setActiveTab("dyes")}
+              className={`flex-1 py-2.5 font-bold text-sm flex items-center justify-center gap-1.5 transition-colors ${activeTab === "dyes" ? "bg-gray-700 text-pink-300 border-b-2 border-pink-500" : "text-gray-400 hover:text-gray-200"}`}
+            >
+              <Palette size={14} /> Dyes
             </button>
             <button
               onClick={() => setActiveTab("gems")}
@@ -141,6 +157,48 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {activeTab === "dyes" && (
+              <div className="grid grid-cols-3 gap-3">
+                {dyesList.map((dye) => {
+                  const canAfford = userCoins >= dye.price;
+                  const dyeHex = `#${dye.color.toString(16).padStart(6, "0")}`;
+                  return (
+                    <div
+                      key={dye.id}
+                      className="bg-gray-700/80 p-2.5 rounded-lg border border-gray-600 hover:border-gray-500 flex flex-col items-center gap-2 transition-all"
+                    >
+                      <div
+                        className="w-12 h-12 rounded-full shadow-lg border-2 border-white/20 transition-transform hover:scale-110"
+                        style={{ backgroundColor: dyeHex }}
+                      />
+                      <span className="text-xs text-white font-bold text-center leading-tight">
+                        {dye.name}
+                      </span>
+                      <span className="text-[10px] text-gray-400 text-center leading-tight">
+                        {dye.description}
+                      </span>
+                      <button
+                        onClick={() => onBuy(dye.id)}
+                        disabled={!canAfford}
+                        className={`w-full px-2 py-1 rounded text-xs font-bold transition-all active:scale-95 ${
+                          canAfford
+                            ? "bg-pink-600 hover:bg-pink-500 text-white"
+                            : "bg-gray-600 text-gray-400 cursor-not-allowed"
+                        }`}
+                      >
+                        {dye.price} G
+                      </button>
+                    </div>
+                  );
+                })}
+                <div className="col-span-3 mt-1 p-2.5 bg-pink-900/20 rounded-lg border border-pink-800 text-center">
+                  <p className="text-pink-200 text-xs">
+                    Buy dyes, then use Edit Mode to paint furniture! 🎨
+                  </p>
+                </div>
               </div>
             )}
 
