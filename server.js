@@ -45,21 +45,12 @@ async function gcsRead(gcsPath) {
   }
 }
 
-async function gcsWrite(gcsPath, content) {
+async function gcsWrite(gcsPath, content, contentType = "application/json") {
   if (!bucket) return;
   try {
     await bucket
       .file(gcsPath)
-      .save(content, { resumable: false, contentType: "application/json" });
-  } catch (e) {
-    console.error(`GCS write error (${gcsPath}):`, e.message);
-  }
-}
-
-async function gcsWriteBuffer(gcsPath, buffer, contentType) {
-  if (!bucket) return;
-  try {
-    await bucket.file(gcsPath).save(buffer, { resumable: false, contentType });
+      .save(content, { resumable: false, contentType });
   } catch (e) {
     console.error(`GCS write error (${gcsPath}):`, e.message);
   }
@@ -80,7 +71,8 @@ async function gcsList(prefix) {
 // Player Data Persistence
 // ═══════════════════════════════════════════════════════════
 
-const LOCAL_DB_PATH = path.join(__dirname, "data", "db.json");
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
+const LOCAL_DB_PATH = path.join(DATA_DIR, "db.json");
 const db = new Map();
 
 async function loadDb() {
@@ -147,7 +139,7 @@ process.on("SIGINT", gracefulShutdown);
 // Content Management (CMS)
 // ═══════════════════════════════════════════════════════════
 
-const LOCAL_CONTENT_DIR = path.join(__dirname, "data", "content");
+const LOCAL_CONTENT_DIR = path.join(DATA_DIR, "content");
 const CONTENT_TYPES = [
   "items",
   "crops",
@@ -226,7 +218,8 @@ async function startServer() {
   }
 
   // Serve sprites (from GCS via proxy, or local dir)
-  const LOCAL_SPRITES_DIR = path.join(__dirname, "public", "sprites");
+  const LOCAL_SPRITES_DIR =
+    process.env.SPRITES_DIR || path.join(__dirname, "public", "sprites");
   if (!fs.existsSync(LOCAL_SPRITES_DIR))
     fs.mkdirSync(LOCAL_SPRITES_DIR, { recursive: true });
 
@@ -371,7 +364,7 @@ async function startServer() {
       ".jpg": "image/jpeg",
       ".gif": "image/gif",
     };
-    await gcsWriteBuffer(
+    await gcsWrite(
       `sprites/${safeName}`,
       buffer,
       mimeTypes[ext] || "application/octet-stream",
