@@ -11,7 +11,13 @@ import { ConfirmationModal } from "./components/ui/ConfirmationModal";
 import { MockBackend } from "./services/mockBackend";
 import { discordService } from "./services/discord"; // REAL Service
 import { UserState, ItemType, RoomType } from "./types";
-import { ITEMS, CROPS, loadContent, refreshArrayRefs } from "./constants";
+import {
+  ITEMS,
+  CROPS,
+  loadContent,
+  refreshArrayRefs,
+  startContentPolling,
+} from "./constants";
 import { Loader2, ArrowLeft } from "lucide-react";
 import Phaser from "phaser";
 
@@ -64,6 +70,12 @@ const App: React.FC = () => {
 
         // Set Initial Activity
         discordService.setActivity("Tending to the garden", "Lvl " + u.level);
+
+        // Start polling for CMS content updates (every 30s)
+        startContentPolling(() => {
+          refreshArrayRefs();
+          console.log("Content refreshed from CMS");
+        });
       } catch (e) {
         console.error("Game Init Failed", e);
       }
@@ -106,6 +118,25 @@ const App: React.FC = () => {
     }, 5000); // Poll every 5s
     return () => clearInterval(interval);
   }, [isEditMode, isVisiting, currentUser]);
+
+  // ESC key handler: deselect item → exit edit mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (selectedItemId) {
+          setSelectedItemId(null);
+        } else if (isEditMode) {
+          setIsEditMode(false);
+        } else if (isShopOpen) {
+          setIsShopOpen(false);
+        } else if (isPetsModalOpen) {
+          setIsPetsModalOpen(false);
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedItemId, isEditMode, isShopOpen, isPetsModalOpen]);
 
   const showNotification = useCallback(
     (msg: string, type: "success" | "error") => {

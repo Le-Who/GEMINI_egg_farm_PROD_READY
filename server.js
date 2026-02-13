@@ -158,6 +158,7 @@ const CONTENT_TYPES = [
   "skus",
 ];
 let contentCache = {};
+let contentVersion = 0;
 
 async function loadContent() {
   contentCache = {};
@@ -195,6 +196,7 @@ async function loadContent() {
 
 async function saveContent(type) {
   const json = JSON.stringify(contentCache[type], null, 2);
+  contentVersion++; // Increment version so clients know to refresh
   // Save to GCS
   await gcsWrite(`content/${type}.json`, json);
   // Also save locally
@@ -271,11 +273,22 @@ async function startServer() {
 
   // --- Content API (public, read-only) ---
   app.get("/api/content", (req, res) => res.json(contentCache));
+  app.get("/api/content/version", (req, res) =>
+    res.json({ version: contentVersion }),
+  );
   app.get("/api/content/:type", (req, res) => {
     const { type } = req.params;
     if (!CONTENT_TYPES.includes(type))
       return res.status(404).json({ error: `Unknown: ${type}` });
     res.json(contentCache[type] || {});
+  });
+
+  // --- Public: Get any user's state (for visiting) ---
+  app.get("/api/state/:userId", (req, res) => {
+    const data = db.get(req.params.userId);
+    if (!data) return res.status(404).json({ error: "User not found" });
+    // Return sanitized state (no need for auth — this is public read-only)
+    res.json(data);
   });
 
   // --- Admin Auth ---

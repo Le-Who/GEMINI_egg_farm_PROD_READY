@@ -19,7 +19,11 @@ import {
 } from "./services/contentLoader";
 
 // Re-export content loader for direct usage
-export { loadContent, isContentLoaded } from "./services/contentLoader";
+export {
+  loadContent,
+  isContentLoaded,
+  startContentPolling,
+} from "./services/contentLoader";
 
 // --- Static Constants (not data-driven) ---
 export const TILE_WIDTH = 64;

@@ -170,3 +170,44 @@ export function getSkus(): SkuConfig[] {
 export function isContentLoaded(): boolean {
   return _loaded;
 }
+
+// --- Live Content Polling (checks for CMS updates) ---
+let _pollingInterval: any = null;
+let _knownVersion = -1;
+let _onContentRefresh: (() => void) | null = null;
+
+export function startContentPolling(onRefresh?: () => void) {
+  if (_pollingInterval) return; // Already polling
+  _onContentRefresh = onRefresh || null;
+
+  _pollingInterval = setInterval(async () => {
+    try {
+      const res = await fetch("/api/content/version");
+      if (!res.ok) return;
+      const { version } = await res.json();
+
+      if (_knownVersion === -1) {
+        _knownVersion = version; // First check — just store
+        return;
+      }
+
+      if (version !== _knownVersion) {
+        console.log(
+          `Content updated: v${_knownVersion} → v${version}, reloading...`,
+        );
+        _knownVersion = version;
+        await loadContent();
+        if (_onContentRefresh) _onContentRefresh();
+      }
+    } catch (e) {
+      /* silent — network hiccup */
+    }
+  }, 30000); // Check every 30s
+}
+
+export function stopContentPolling() {
+  if (_pollingInterval) {
+    clearInterval(_pollingInterval);
+    _pollingInterval = null;
+  }
+}

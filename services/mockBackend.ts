@@ -292,9 +292,15 @@ export const MockBackend = {
     return state;
   },
 
-  visitNeighbor: async (id: string) => {
-    // In a real app, fetch /api/user?id=xyz
-    // Here we just mock return a profile
+  visitNeighbor: async (id: string): Promise<UserState> => {
+    // Fetch real state from server
+    try {
+      const data = await api.get(`/api/state/${id}`);
+      if (data) return data;
+    } catch (e) {
+      console.error("Failed to fetch neighbor state:", e);
+    }
+    // Fallback: empty state with the ID
     return { ...INITIAL_STATE_TEMPLATE, id: id, username: "Neighbor" };
   },
 
