@@ -22,7 +22,6 @@ import {
   startContentPolling,
 } from "./constants";
 import { Loader2, ArrowLeft } from "lucide-react";
-import Phaser from "phaser";
 import { gameBus } from "./services/eventBus";
 
 const GameContent: React.FC = () => {
