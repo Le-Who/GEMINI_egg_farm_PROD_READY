@@ -49,9 +49,7 @@ async function gcsRead(gcsPath) {
 async function gcsWrite(gcsPath, content, contentType = "application/json") {
   if (!bucket) return;
   try {
-    await bucket
-      .file(gcsPath)
-      .save(content, { resumable: false, contentType });
+    await bucket.file(gcsPath).save(content, { resumable: false, contentType });
   } catch (e) {
     console.error(`GCS write error (${gcsPath}):`, e.message);
   }
@@ -226,6 +224,12 @@ async function startServer(port = PORT) {
 
   app.get("/sprites/:filename", async (req, res) => {
     const { filename } = req.params;
+
+    // Security: Prevent path traversal
+    const safePath = path.resolve(LOCAL_SPRITES_DIR, filename);
+    if (!safePath.startsWith(LOCAL_SPRITES_DIR + path.sep)) {
+      return res.status(403).json({ error: "Access denied" });
+    }
 
     // Try GCS first
     if (bucket) {
@@ -676,9 +680,9 @@ async function startServer(port = PORT) {
     res.sendFile(indexPath);
   });
 
-  return app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
-    console.log(`Admin panel: http://localhost:${port}/admin`);
+  return app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+    console.log(`Admin panel: http://localhost:${PORT}/admin`);
     console.log(
       `Storage: ${bucket ? "GCS (" + GCS_BUCKET + ")" : "LOCAL (ephemeral)"}`,
     );
