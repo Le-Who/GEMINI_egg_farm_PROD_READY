@@ -15,6 +15,7 @@ import {
   Languages, // Import Languages icon
 } from "lucide-react";
 import { useLanguage } from "../../components/LanguageContext";
+import { SidebarButton } from "./SidebarButton";
 
 interface HUDProps {
   user: UserState;
