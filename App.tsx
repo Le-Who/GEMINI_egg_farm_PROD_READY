@@ -11,6 +11,7 @@ import { QuestsPanel } from "./components/ui/QuestsPanel";
 import { TutorialOverlay } from "./components/ui/TutorialOverlay";
 import { ConfirmationModal } from "./components/ui/ConfirmationModal";
 import { GuestbookModal } from "./components/ui/GuestbookModal";
+import { EchoSummaryBanner } from "./components/ui/EchoSummaryBanner";
 import { GameEngine } from "./services/gameEngine";
 import { discordService } from "./services/discord"; // REAL Service
 import { UserState, ItemType, RoomType, StickerType } from "./types";
@@ -61,6 +62,9 @@ const GameContent: React.FC = () => {
   const notificationTimeoutRef = useRef<any>(null);
   const lastActionRef = useRef<number>(0);
 
+  // Echo Ghost banner
+  const [showEchoBanner, setShowEchoBanner] = useState(false);
+
   const prevLevelRef = useRef<number>(1);
 
   // Derived State
@@ -76,6 +80,12 @@ const GameContent: React.FC = () => {
         const u = await GameEngine.getUser();
         setCurrentUser(u);
         setDisplayUser(u);
+
+        // Check for new echo marks on load
+        const newEchoes = (u.echoMarks || []).filter((m) => m.status === "new");
+        if (newEchoes.length > 0) {
+          setShowEchoBanner(true);
+        }
 
         // Set Initial Activity
         discordService.setActivity("Tending to the garden", "Lvl " + u.level);
@@ -255,11 +265,30 @@ const GameContent: React.FC = () => {
     discordService.setActivity("Visiting a neighbor", "Helping out");
   };
 
-  const handleReturnHome = () => {
-    setDisplayUser(currentUser);
-    // setWateredPlants(new Set()); // Removed local clear
+  const handleReturnHome = async () => {
+    // Refresh state to pick up any echoes that happened while we were away
+    const freshUser = await GameEngine.getUser();
+    setCurrentUser(freshUser);
+    setDisplayUser(freshUser);
     setPlayerGridPos({ x: 7, y: 7 });
     showNotification("Returned Home", "success");
+
+    // Check for new echo marks
+    const newEchoes = (freshUser.echoMarks || []).filter(
+      (m) => m.status === "new",
+    );
+    if (newEchoes.length > 0) {
+      setShowEchoBanner(true);
+    }
+  };
+
+  const handleDismissEchoBanner = async () => {
+    setShowEchoBanner(false);
+    await GameEngine.acknowledgeEchoMarks();
+    // Refresh state to update echoMarks status
+    const u = await GameEngine.getUser();
+    setCurrentUser(u);
+    if (!isVisiting) setDisplayUser(u);
   };
 
   const handleEquipPet = async (petId: string) => {
@@ -590,8 +619,16 @@ const GameContent: React.FC = () => {
         wateredPlants={wateredPlants}
         playerGridPos={playerGridPos}
         tutorialStep={currentUser.tutorialStep}
-        lastAction={isVisiting ? displayUser.lastAction : null}
+        echoMarks={!isVisiting ? currentUser.echoMarks || [] : []}
       />
+
+      {/* Echo Ghost Summary Banner */}
+      {showEchoBanner && currentUser && (
+        <EchoSummaryBanner
+          echoMarks={currentUser.echoMarks || []}
+          onDismiss={handleDismissEchoBanner}
+        />
+      )}
 
       {isVisiting && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-blue-600 px-6 py-2 rounded-full shadow-lg z-50 flex items-center gap-4 animate-slide-down">

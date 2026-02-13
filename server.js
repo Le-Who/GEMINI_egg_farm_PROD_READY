@@ -574,13 +574,24 @@ async function startServer(port = PORT) {
           const reduction = 10 * 60 * 1000;
           item.cropData.plantedAt -= reduction;
           found = true;
-          // Record Echo Ghost
-          targetState.lastAction = {
-            type: "WATER",
+
+          // Create EchoMark for the owner
+          if (!targetState.echoMarks) targetState.echoMarks = [];
+          targetState.echoMarks.push({
+            id: `echo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+            objectId: item.id,
+            actorId: req.discordUser.id,
+            actorNick: req.discordUser.username || "Visitor",
+            actionType: "watering",
             gridX: item.gridX,
             gridY: item.gridY,
-            timestamp: Date.now(),
-          };
+            createdAt: Date.now(),
+            status: "new",
+          });
+          // Cap echo marks at 50
+          if (targetState.echoMarks.length > 50) {
+            targetState.echoMarks = targetState.echoMarks.slice(-50);
+          }
           break;
         }
       }
@@ -643,9 +654,87 @@ async function startServer(port = PORT) {
       targetState.billboard = targetState.billboard.slice(-20);
     }
 
+    // Create billboard_post EchoMark
+    if (!targetState.echoMarks) targetState.echoMarks = [];
+    // Find billboard object grid position
+    let billboardGridX = 0,
+      billboardGridY = 0;
+    let billboardObjectId = "billboard";
+    for (const roomKey of ["interior", "garden"]) {
+      const room = targetState.rooms[roomKey];
+      if (!room) continue;
+      const bb = room.items.find((i) => i.itemId === "billboard_wood");
+      if (bb) {
+        billboardGridX = bb.gridX;
+        billboardGridY = bb.gridY;
+        billboardObjectId = bb.id;
+        break;
+      }
+    }
+    targetState.echoMarks.push({
+      id: `echo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      objectId: billboardObjectId,
+      actorId: req.discordUser.id,
+      actorNick: req.discordUser.username || "Visitor",
+      actionType: "billboard_post",
+      gridX: billboardGridX,
+      gridY: billboardGridY,
+      createdAt: Date.now(),
+      status: "new",
+    });
+    if (targetState.echoMarks.length > 50) {
+      targetState.echoMarks = targetState.echoMarks.slice(-50);
+    }
+
     db.set(targetId, targetState);
     debouncedSaveDb();
     res.json({ success: true, billboard: targetState.billboard });
+  });
+
+  // --- Echo Ghost Acknowledgment (owner enters their territory) ---
+  app.post("/api/echo/acknowledge", requireAuth, (req, res) => {
+    const ownerId = req.discordUser.id;
+    const state = db.get(ownerId);
+    if (!state) return res.status(404).json({ error: "User not found" });
+
+    const newMarks = (state.echoMarks || []).filter((m) => m.status === "new");
+    if (newMarks.length === 0) {
+      return res.json({ acknowledged_count: 0, details: [] });
+    }
+
+    // Build summary grouped by actor
+    const summary = {};
+    for (const mark of newMarks) {
+      if (!summary[mark.actorNick]) {
+        summary[mark.actorNick] = { watering: 0, billboard_post: 0 };
+      }
+      summary[mark.actorNick][mark.actionType]++;
+      mark.status = "acknowledged";
+    }
+
+    const details = newMarks.map((m) => ({
+      actorNick: m.actorNick,
+      actionType: m.actionType,
+      objectId: m.objectId,
+      gridX: m.gridX,
+      gridY: m.gridY,
+      createdAt: m.createdAt,
+    }));
+
+    // Remove acknowledged marks older than 7 days to prevent unbounded growth
+    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    state.echoMarks = (state.echoMarks || []).filter(
+      (m) => m.status === "new" || m.createdAt > weekAgo,
+    );
+
+    db.set(ownerId, state);
+    debouncedSaveDb();
+
+    res.json({
+      acknowledged_count: newMarks.length,
+      summary,
+      details,
+    });
   });
 
   // Catch-all for SPA

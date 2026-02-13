@@ -177,6 +177,20 @@ export interface QuestProgress {
   completedAt?: number;
 }
 
+export type EchoActionType = "watering" | "billboard_post";
+
+export interface EchoMark {
+  id: string;
+  objectId: string; // PlacedItem.id the action targeted
+  actorId: string;
+  actorNick: string;
+  actionType: EchoActionType;
+  gridX: number;
+  gridY: number;
+  createdAt: number;
+  status: "new" | "acknowledged";
+}
+
 export interface UserState {
   id: string;
   username: string;
@@ -195,10 +209,5 @@ export interface UserState {
   completedTutorial: boolean;
   quests: QuestProgress[];
   billboard?: BillboardEntry[];
-  lastAction?: {
-    type: string;
-    gridX: number;
-    gridY: number;
-    timestamp: number;
-  };
+  echoMarks?: EchoMark[];
 }

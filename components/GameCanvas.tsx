@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from "react";
 import Phaser from "phaser";
 import { MainScene } from "../game/scenes/MainScene";
 import { CANVAS_BG_COLOR } from "../constants";
-import { PlacedItem, PetData, RoomType } from "../types";
+import { PlacedItem, PetData, RoomType, EchoMark } from "../types";
 import { gameBus } from "../services/eventBus";
 
 interface GameCanvasProps {
@@ -16,12 +16,7 @@ interface GameCanvasProps {
   wateredPlants?: Set<string>;
   playerGridPos?: { x: number; y: number };
   tutorialStep: number;
-  lastAction?: {
-    type: string;
-    gridX: number;
-    gridY: number;
-    timestamp: number;
-  } | null;
+  echoMarks?: EchoMark[];
 }
 
 export const GameCanvas: React.FC<GameCanvasProps> = ({
@@ -35,7 +30,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   wateredPlants,
   playerGridPos,
   tutorialStep,
-  lastAction,
+  echoMarks,
 }) => {
   const gameRef = useRef<Phaser.Game | null>(null);
   const sceneRef = useRef<MainScene | null>(null);
@@ -84,7 +79,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           isVisiting,
           wateredPlants,
           tutorialStep,
-          lastAction,
+          echoMarks,
         );
         scene.onTileClick = onTileClick;
         if (onPetClick) scene.onPetClick = onPetClick;
@@ -101,7 +96,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     };
   }, []);
 
-  // --- Room data (items, room type, visiting, pets, tutorial) ---
+  // --- Room data (items, room type, visiting, pets, tutorial, echoes) ---
   useEffect(() => {
     if (sceneRef.current) {
       sceneRef.current.setRoomData(
@@ -111,7 +106,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         isVisiting,
         wateredPlants,
         tutorialStep,
-        lastAction,
+        echoMarks,
       );
     }
   }, [
@@ -121,7 +116,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     isVisiting,
     wateredPlants,
     tutorialStep,
-    lastAction,
+    echoMarks,
   ]);
 
   // --- Ghost item (editor mode) ---

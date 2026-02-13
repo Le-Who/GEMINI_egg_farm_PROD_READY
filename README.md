@@ -16,7 +16,7 @@
 | 🛒 **Shop**         | Coins & gems economy with furniture, planters, consumables, dyes                |
 | 🎨 **Dye System**   | Tint furniture & decorations with 6 colors via Edit Mode                        |
 | 📋 **Billboard**    | Place a visitor guestbook — friends leave sticker reactions when visiting       |
-| 👻 **Echo Ghosts**  | See a pulsing glow at the last action spot when visiting neighbors              |
+| 👻 **Echo Ghosts**  | Visitor actions (watering, notes) leave pulsing marks + owner summary banner    |
 | 👥 **Social**       | Visit neighbor farms, water their plants                                        |
 | 🌍 **Localization** | **English & Russian** support, extensible custom i18n system                    |
 | 🎨 **CMS**          | Admin dashboard for live content editing (items, crops, pets, quests, sprites)  |
@@ -215,11 +215,11 @@ buyPremiumCurrency → triggerTutorial → checkQuests → checkLevelUp → reco
 634-line Phaser scene with procedural graphics:
 
 - **Coordinate system**: `getScreenFromIso()` / `getIsoFromScreen()` — standard 2:1 isometric projection
-- **Z-sorting**: Painter's algorithm based on `gridY + gridX` for correct overlap
+- **Z-sorting**: Painter's algorithm + dedicated `childOverlayGraphics` layer (depth 50) for crops/eggs
 - **Object pooling**: Sprite and text pools via Phaser Groups (max 100/20) — zero GC per frame
 - **Pet AI**: Client-side state machine (IDLE/WANDER/APPROACH) with smooth lerp movement & emoji reactions
 - **Dye rendering**: `setTint()`/`clearTint()` on sprite images driven by `PlacedItem.tint`
-- **Echo ghosts**: Pulsing glow + action emoji at `lastAction` tile when visiting (24h TTL)
+- **Echo ghosts**: Per-object pulsing icons (💧/✒️) for visitor actions, with tooltips & summary banner
 - **Entity types**: Items (8 subtypes), Player avatar, Pet follower
 - **Visual effects**: Crop growth animation, egg incubation progress bar, harvest sparkle, tutorial hints, pet emoji burst
 - **Ghost placement**: Translucent preview item follows cursor during edit mode
@@ -457,7 +457,7 @@ interface UserState {
   tutorialStep, completedTutorial
   quests?: QuestProgress[]
   billboard?: BillboardEntry[]  // Visitor sticker guestbook
-  lastAction?: { type, gridX, gridY, timestamp }  // Echo ghost snapshot
+  echoMarks?: EchoMark[]        // Visitor interaction history (watering, notes)
 }
 
 // Content configs

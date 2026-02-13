@@ -103,12 +103,20 @@ export const UserStateSchema = z.object({
   completedTutorial: z.boolean().default(false),
   quests: z.array(QuestProgressSchema).default([]),
   billboard: z.array(BillboardEntrySchema).optional(),
-  lastAction: z
-    .object({
-      type: z.string(),
-      gridX: z.number(),
-      gridY: z.number(),
-      timestamp: z.number(),
-    })
-    .optional(),
+  echoMarks: z
+    .array(
+      z.object({
+        id: z.string(),
+        objectId: z.string(),
+        actorId: z.string(),
+        actorNick: z.string(),
+        actionType: z.enum(["watering", "billboard_post"]),
+        gridX: z.number(),
+        gridY: z.number(),
+        createdAt: z.number(),
+        status: z.enum(["new", "acknowledged"]).default("new"),
+      }),
+    )
+    .optional()
+    .default([]),
 });

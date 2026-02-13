@@ -16,6 +16,7 @@ import {
   PetData,
   RoomType,
   CropConfig,
+  EchoMark,
 } from "../../types";
 import {
   PetAIState,
@@ -47,6 +48,7 @@ export class MainScene extends Phaser.Scene {
   private highlightGraphics!: Phaser.GameObjects.Graphics;
   private overlayGraphics!: Phaser.GameObjects.Graphics;
   private itemsGraphics!: Phaser.GameObjects.Graphics; // Persistent: items/player/pet rendering
+  private childOverlayGraphics!: Phaser.GameObjects.Graphics; // Crops/eggs/progress above item textures
 
   // Sprite rendering system — Object Pool
   private spritePool!: Phaser.GameObjects.Group; // Reusable image pool (never destroyed)
@@ -66,13 +68,8 @@ export class MainScene extends Phaser.Scene {
   public playerGridPos = { x: 7, y: 7 };
   public tutorialStep: number = 0;
 
-  // Echo Ghost — last action of visited user
-  public lastAction: {
-    type: string;
-    gridX: number;
-    gridY: number;
-    timestamp: number;
-  } | null = null;
+  // Echo Ghost — visitor interaction marks (owner view)
+  public echoMarks: EchoMark[] = [];
 
   // Free-roaming pet AI state (delegated to game/systems/PetAI)
   private petAI: PetAIState = createPetAIState();
@@ -112,6 +109,8 @@ export class MainScene extends Phaser.Scene {
 
     this.gridGraphics = this.add.graphics();
     this.itemsGraphics = this.add.graphics();
+    this.childOverlayGraphics = this.add.graphics();
+    this.childOverlayGraphics.setDepth(50); // Above max item depth (~26)
     this.highlightGraphics = this.add.graphics();
     this.overlayGraphics = this.add.graphics();
 
@@ -169,12 +168,7 @@ export class MainScene extends Phaser.Scene {
     isVisiting = false,
     wateredPlants?: Set<string>,
     tutorialStep: number = 0,
-    lastAction?: {
-      type: string;
-      gridX: number;
-      gridY: number;
-      timestamp: number;
-    } | null,
+    echoMarks?: EchoMark[],
   ) {
     this.placedItems = items;
     this.currentRoomType = roomType;
@@ -189,8 +183,7 @@ export class MainScene extends Phaser.Scene {
     this.isVisiting = isVisiting;
     this.wateredPlants = wateredPlants || new Set();
     this.tutorialStep = tutorialStep;
-    // Safety: ensure lastAction is strictly null if not visiting, regardless of passed value
-    this.lastAction = isVisiting ? lastAction || null : null;
+    this.echoMarks = echoMarks || [];
 
     const bgColor =
       this.currentRoomType === "garden" ? GARDEN_BG_COLOR : CANVAS_BG_COLOR;
@@ -437,6 +430,7 @@ export class MainScene extends Phaser.Scene {
     this.highlightGraphics.clear();
     this.overlayGraphics.clear();
     this.itemsGraphics.clear();
+    this.childOverlayGraphics.clear();
 
     // Return previous frame's sprites to pool (deactivate, don't destroy)
     for (const img of this.activeSprites) {
@@ -543,59 +537,89 @@ export class MainScene extends Phaser.Scene {
     // 6. Draw Tutorial Hints
     this.drawTutorialHints();
 
-    // 7. Echo Ghost glow (when visiting, show last action of the host)
-    if (this.isVisiting && this.lastAction) {
-      const age = Date.now() - this.lastAction.timestamp;
-      if (age < 24 * 60 * 60 * 1000) {
-        // Only show within 24 hours
-        const screen = this.getScreenFromIso(
-          this.lastAction.gridX,
-          this.lastAction.gridY,
-        );
-        const pulse = 0.3 + 0.2 * Math.sin(Date.now() / 400); // Breathing glow
+    // 7. Echo Ghost marks (owner view — show per-object interaction icons)
+    if (!this.isVisiting && this.echoMarks.length > 0) {
+      const newMarks = this.echoMarks.filter((m) => m.status === "new");
+      // Deduplicate by grid position (show one icon per tile)
+      const byGrid = new Map<string, EchoMark[]>();
+      for (const mark of newMarks) {
+        const key = `${mark.gridX}_${mark.gridY}`;
+        if (!byGrid.has(key)) byGrid.set(key, []);
+        byGrid.get(key)!.push(mark);
+      }
+
+      const echoIcons: Record<string, string> = {
+        watering: "💧",
+        billboard_post: "✒️",
+      };
+
+      byGrid.forEach((marks, gridKey) => {
+        const firstMark = marks[0];
+        const screen = this.getScreenFromIso(firstMark.gridX, firstMark.gridY);
+        const pulse = 0.3 + 0.2 * Math.sin(Date.now() / 400);
         const g = this.overlayGraphics;
+
+        // Pulsing glow
         g.fillStyle(0x88ccff, pulse);
         g.fillCircle(screen.x, screen.y, 18);
         g.fillStyle(0xffffff, pulse + 0.1);
         g.fillCircle(screen.x, screen.y, 8);
 
-        // Action type icon hint
-        const icons: Record<string, string> = {
-          PLANT: "🌱",
-          HARVEST: "🌾",
-          PLACE: "📦",
-          PICKUP: "🔄",
-          WATER: "💧", // Added WATER icon
-        };
-        const icon = icons[this.lastAction.type] || "✨";
-        const textKey = `ghost_${this.lastAction.gridX}_${this.lastAction.gridY}`;
+        // Count badge
+        const count = marks.length;
+        const icon = echoIcons[firstMark.actionType] || "✨";
+        const textKey = `echo_${gridKey}`;
         let label = this.children.getByName(
           textKey,
         ) as Phaser.GameObjects.Text | null;
 
         if (!label) {
+          const badge = count > 1 ? `${icon} ×${count}` : icon;
           label = this.add
-            .text(screen.x, screen.y - 28, icon, {
+            .text(screen.x, screen.y - 28, badge, {
               fontSize: "16px",
             })
             .setOrigin(0.5)
             .setName(textKey)
             .setDepth(9999)
-            .setInteractive(); // Make interactive
+            .setInteractive();
 
-          // Tooltip/Status on hover
+          // Tooltip on hover: "Nick · 2h ago"
           label.on("pointerover", () => {
+            const newest = marks[marks.length - 1];
+            const ago = this.formatTimeAgo(newest.createdAt);
+            const tip = `${newest.actorNick} · ${ago}`;
             this.showFloatingText(
-              this.lastAction!.gridX,
-              this.lastAction!.gridY,
-              `${this.lastAction!.type} here`,
-              "#ffffff",
+              firstMark.gridX,
+              firstMark.gridY,
+              tip,
+              "#88ccff",
             );
           });
+        } else {
+          // Update badge text for potential count changes
+          const badge = count > 1 ? `${icon} ×${count}` : icon;
+          label.setText(badge);
         }
         label.setPosition(screen.x, screen.y - 28);
         label.setAlpha(pulse + 0.3);
-      }
+      });
+
+      // Clean up labels for marks that no longer exist
+      this.children.getAll().forEach((child) => {
+        if (child.name?.startsWith("echo_")) {
+          if (!byGrid.has(child.name.replace("echo_", ""))) {
+            child.destroy();
+          }
+        }
+      });
+    } else {
+      // Clean up all echo labels when not applicable
+      this.children.getAll().forEach((child) => {
+        if (child.name?.startsWith("echo_")) {
+          child.destroy();
+        }
+      });
     }
   }
 
@@ -782,7 +806,7 @@ export class MainScene extends Phaser.Scene {
       );
     }
 
-    // Crop rendering
+    // Crop rendering (uses childOverlayGraphics to ensure crops render above planter textures)
     if (config.type === ItemType.PLANTER) {
       if (item.cropData) {
         const cropConfig = CROPS[item.cropData.cropId];
@@ -794,6 +818,7 @@ export class MainScene extends Phaser.Scene {
           );
           const cx = screen.x;
           const cy = screen.y - height - 5;
+          const cg = this.childOverlayGraphics; // Overlay layer (depth 50)
 
           // Try sprite-based crop rendering
           const cropSprite = this.getCropSprite(cropConfig, progress);
@@ -826,34 +851,36 @@ export class MainScene extends Phaser.Scene {
             if (drawn) {
               // Sparkle effect for ready crops (above the plant top)
               if (progress >= 1 && !this.isVisiting) {
-                g.lineStyle(2, 0xffff00, alpha);
-                g.strokeCircle(cx, soilY - cropH - 5, 8);
+                cg.lineStyle(2, 0xffff00, alpha);
+                cg.strokeCircle(cx, soilY - cropH - 5, 8);
               }
               return; // Skip procedural crop drawing
             }
           }
 
-          // Procedural crop fallback
-          g.fillStyle(progress < 1 ? 0x88aa88 : cropConfig.color, alpha);
+          // Procedural crop fallback (on overlay layer so it's above planter texture)
+          cg.fillStyle(progress < 1 ? 0x88aa88 : cropConfig.color, alpha);
           const growH = 5 + progress * 25;
-          g.fillRect(cx - 3, cy - growH, 6, growH);
+          cg.fillRect(cx - 3, cy - growH, 6, growH);
           if (progress >= 1) {
-            g.fillCircle(cx, cy - growH, 6);
+            cg.fillCircle(cx, cy - growH, 6);
             if (!this.isVisiting) {
-              g.lineStyle(2, 0xffff00, alpha);
-              g.strokeCircle(cx, cy - growH - 5, 8);
+              cg.lineStyle(2, 0xffff00, alpha);
+              cg.strokeCircle(cx, cy - growH - 5, 8);
             }
           }
         }
       }
     }
 
-    // Incubator
+    // Incubator (uses childOverlayGraphics to ensure egg/progress render above incubator texture)
     if (config.type === ItemType.INCUBATOR) {
       if (item.meta?.eggId) {
         const egg = EGGS[item.meta.eggId];
 
         if (egg) {
+          const cg = this.childOverlayGraphics; // Overlay layer (depth 50)
+
           // Try Egg Sprite
           const eggSpriteDrawn = egg.sprite
             ? this.drawSpriteImage(
@@ -868,52 +895,43 @@ export class MainScene extends Phaser.Scene {
             : false;
 
           if (!eggSpriteDrawn) {
-            // Procedural Egg Fallback
-            g.fillStyle(0xffeebb, alpha);
-            g.fillEllipse(screen.x, screen.y - height - 10, 14, 18);
+            // Procedural Egg Fallback (on overlay layer)
+            cg.fillStyle(0xffeebb, alpha);
+            cg.fillEllipse(screen.x, screen.y - height - 10, 14, 18);
             // Spots
-            g.fillStyle(0xccaa88, alpha);
-            g.fillCircle(screen.x - 3, screen.y - height - 12, 2);
+            cg.fillStyle(0xccaa88, alpha);
+            cg.fillCircle(screen.x - 3, screen.y - height - 12, 2);
           }
           const elapsed = (Date.now() - (item.meta.hatchStart || 0)) / 1000;
           const progress = Math.min(1, elapsed / egg.hatchTime);
 
-          // Progress bar background
+          // Progress bar (on overlay layer)
           const barWidth = 30;
           const barHeight = 4;
           const barX = screen.x - barWidth / 2;
           const barY = screen.y - height + 8;
 
-          g.fillStyle(0x333333, 0.8);
-          g.fillRect(barX, barY, barWidth, barHeight);
+          cg.fillStyle(0x333333, 0.8);
+          cg.fillRect(barX, barY, barWidth, barHeight);
 
           // Progress bar fill
           const fillColor = progress >= 1 ? 0x00ff88 : 0xffaa00;
-          g.fillStyle(fillColor, alpha);
-          g.fillRect(barX, barY, barWidth * progress, barHeight);
+          cg.fillStyle(fillColor, alpha);
+          cg.fillRect(barX, barY, barWidth * progress, barHeight);
 
           // Border
-          g.lineStyle(1, 0x666666, alpha);
-          g.strokeRect(barX, barY, barWidth, barHeight);
+          cg.lineStyle(1, 0x666666, alpha);
+          cg.strokeRect(barX, barY, barWidth, barHeight);
 
           if (progress >= 1) {
             // Ready sparkle effect
             if (!this.isVisiting) {
               const sparkle = Math.sin(this.time.now / 150) * 0.5 + 0.5;
-              g.lineStyle(2, 0x00ff88, sparkle);
-              g.strokeCircle(screen.x, screen.y - height - 10, 14);
-              g.lineStyle(1, 0xffff00, sparkle * 0.6);
-              g.strokeCircle(screen.x, screen.y - height - 10, 18);
+              cg.lineStyle(2, 0x00ff88, sparkle);
+              cg.strokeCircle(screen.x, screen.y - height - 10, 14);
+              cg.lineStyle(1, 0xffff00, sparkle * 0.6);
+              cg.strokeCircle(screen.x, screen.y - height - 10, 18);
             }
-          } else {
-            // Time remaining text
-            const remaining = Math.ceil(egg.hatchTime - elapsed);
-            const mins = Math.floor(remaining / 60);
-            const secs = remaining % 60;
-            const timeText = mins > 0 ? `${mins}m${secs}s` : `${secs}s`;
-
-            // We draw a small "%" indicator near the bar since Phaser graphics can't draw text
-            // The progress bar itself visually indicates time left
           }
         }
       }
@@ -993,6 +1011,18 @@ export class MainScene extends Phaser.Scene {
     // User reported offset: likely need to adjust for tile center vs top-left
     // No change needed to math if TILE_HEIGHT is correct, but let's ensure we aren't rounding aggressively
     return { x, y };
+  }
+
+  private formatTimeAgo(timestamp: number): string {
+    const diffMs = Date.now() - timestamp;
+    const diffSec = Math.floor(diffMs / 1000);
+    if (diffSec < 60) return "just now";
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `${diffHr}h ago`;
+    const diffDay = Math.floor(diffHr / 24);
+    return `${diffDay}d ago`;
   }
 
   private isValidGrid(x: number, y: number) {

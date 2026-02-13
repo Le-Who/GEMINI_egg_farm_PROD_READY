@@ -115,16 +115,6 @@ const debouncedSave = (state: UserState) => {
 // Local cache to keep UI responsive
 let currentUserState: UserState | null = null;
 
-// --- Echo Ghost: record last meaningful action ---
-function recordAction(
-  state: UserState,
-  type: string,
-  gridX: number,
-  gridY: number,
-) {
-  state.lastAction = { type, gridX, gridY, timestamp: Date.now() };
-}
-
 export const GameEngine = {
   getUser: async (): Promise<UserState> => {
     if (!discordService.isReady) {
@@ -227,7 +217,6 @@ export const GameEngine = {
     });
 
     checkTutorial(state, "PLACE_ITEM", itemId);
-    recordAction(state, "PLACE", x, y);
     currentUserState = state;
     debouncedSave(state);
     return { success: true, newState: state };
@@ -260,7 +249,6 @@ export const GameEngine = {
 
     checkTutorial(state, "PLANT_SEED");
     checkQuests(state, "PLANT_SEED", cropId);
-    recordAction(state, "PLANT", planter.gridX, planter.gridY);
     currentUserState = state;
     debouncedSave(state);
     return {
@@ -340,7 +328,6 @@ export const GameEngine = {
         checkLevelUp(state);
         checkTutorial(state, "HARVEST");
         checkQuests(state, "HARVEST", harvestedCropId);
-        recordAction(state, "HARVEST", x, y);
         currentUserState = state;
         debouncedSave(state);
         return {
@@ -363,7 +350,6 @@ export const GameEngine = {
     if (index === -1) return { success: false };
 
     const item = items[index];
-    recordAction(state, "PICKUP", x, y);
     state.inventory[item.itemId] = (state.inventory[item.itemId] || 0) + 1;
     items.splice(index, 1);
     currentUserState = state;
@@ -437,6 +423,27 @@ export const GameEngine = {
       return { success: false, message: data.error || "Could not water" };
     } catch (e) {
       return { success: false, message: "Network error" };
+    }
+  },
+
+  acknowledgeEchoMarks: async (): Promise<{
+    acknowledged_count: number;
+    summary?: Record<string, Record<string, number>>;
+    details?: any[];
+  }> => {
+    try {
+      const token = discordService.accessToken;
+      const res = await fetch("/api/echo/acknowledge", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+      if (res.ok) return await res.json();
+      return { acknowledged_count: 0 };
+    } catch (e) {
+      return { acknowledged_count: 0 };
     }
   },
 
