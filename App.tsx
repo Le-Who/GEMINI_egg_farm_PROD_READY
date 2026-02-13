@@ -256,6 +256,17 @@ const App: React.FC = () => {
   };
 
   const handleSwitchRoom = async (type: RoomType) => {
+    // When visiting, switch the displayed neighbor's room locally (no server call)
+    if (isVisiting && displayUser) {
+      if (!displayUser.rooms[type]?.unlocked) {
+        showNotification("This room is locked", "error");
+        return;
+      }
+      setDisplayUser({ ...displayUser, currentRoom: type });
+      showNotification(`Viewing ${type}`, "success");
+      return;
+    }
+
     const result = await GameEngine.switchRoom(type);
     if (result.success && result.newState) {
       setCurrentUser(result.newState);
@@ -473,6 +484,7 @@ const App: React.FC = () => {
 
       <HUD
         user={currentUser}
+        displayUser={displayUser || undefined}
         onOpenShop={handleOpenShop}
         onOpenPets={() => setIsPetsModalOpen(true)}
         onOpenQuests={() => setIsQuestsOpen(true)}

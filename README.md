@@ -11,7 +11,7 @@
 | 🏠 **Room System**   | Interior house + outdoor garden, switchable in real-time                       |
 | 🌱 **Farming**       | Plant seeds, grow crops, harvest for coins & XP                                |
 | 🥚 **Pet Hatching**  | Incubate eggs → weighted random pet drops with rarity tiers                    |
-| 🐾 **Pet Abilities** | Equipped pets grant passive bonuses (growth speed, coin/XP rewards)            |
+| 🐾 **Pet Abilities** | Equipped pets grant multiple stacking bonuses (growth speed, coin/XP rewards)  |
 | 🏆 **Quest System**  | Progressive quests with conditions, level gates, and rich rewards              |
 | 🛒 **Shop**          | Coins & gems economy with furniture, planters, consumables                     |
 | 👥 **Social**        | Visit neighbor farms, water their plants                                       |
@@ -163,7 +163,7 @@ egg-farm/
 | `POST`   | `/admin/api/reload`            | Reload content from disk/GCS         |
 | `GET`    | `/admin/api/sprites`           | List uploaded sprites                |
 | `POST`   | `/admin/api/sprites`           | Upload sprite (base64)               |
-| `DELETE` | `/admin/api/sprites/:name`     | Delete sprite                        |
+| `DELETE` | `/admin/api/sprites/:name`     | Delete sprite + cascade cleanup      |
 | `GET`    | `/sprites/:filename`           | Serve sprite (GCS → local fallback)  |
 
 ---
@@ -181,7 +181,8 @@ buyPremiumCurrency → triggerTutorial → checkQuests → checkLevelUp
 ```
 
 - **Optimistic updates**: State mutated locally, then debounced-saved to server (3s delay)
-- **Pet bonuses**: `getEquippedPetBonus()` applies `growth_speed`, `coin_reward`, `xp_reward`
+- **Pet bonuses**: `getEquippedPetBonus()` sums `bonuses[]` array (multi-ability), falls back to legacy single `bonus`
+- **SKU rewards**: `buyPremiumCurrency()` grants coins, gems, and items from `rewards` object
 - **Quest tracking**: `checkQuests()` fires on `PLANT_SEED`, `HARVEST`, `BUY_ITEM`
 - **Fertilizer guard**: Prevents waste on fully-grown crops
 - **Weighted hatching**: `weightedRandom()` for egg → pet pool selection
@@ -246,7 +247,7 @@ Shutdown:   SIGTERM/SIGINT → immediate saveDb() → GCS + local
 
 ### 🏆 Quest System
 
-- **Conditions**: `PLANT_SEED`, `HARVEST`, `BUY_ITEM` with target counts
+- **Conditions**: `PLANT_SEED`, `HARVEST`, `BUY_ITEM` with target counts and optional `targetId` for specific entities
 - **Level gates**: `minLevel` / `maxLevel` requirements
 - **Rewards**: Coins, gems, XP, items
 - **Non-repeatable** quests prevent re-completion
@@ -256,6 +257,7 @@ Shutdown:   SIGTERM/SIGINT → immediate saveDb() → GCS + local
 - **Interior**: House decoration, furniture placement, incubators
 - **Garden**: Outdoor farming, crop planters, fences
 - Unlocked at Lv2 with seamless switching
+- Room buttons respect visiting state — switches neighbor's room locally when visiting
 
 ---
 
@@ -355,13 +357,13 @@ Access at `/admin` — a single-page vanilla JS dashboard with:
 - **📊 Overview** → Stats dashboard (items, crops, pets, eggs, levels, quests)
 - **🎒 Items** → CRUD for furniture, planters, incubators, consumables
 - **🌱 Crops** → Seed price, sell price, growth time, XP, level requirement
-- **🐾 Pets** → Rarity, bonus description, color
-- **🥚 Eggs** → Hatch time, weighted pet pool
+- **🐾 Pets** → Rarity, multi-ability bonuses editor, bonus description, color
+- **🥚 Eggs** → Hatch time, interactive weighted pet pool editor
 - **⬆️ Levels** → XP thresholds, unlock items
-- **📖 Tutorial** → Step text, trigger events, target elements
-- **💎 SKUs** → In-app purchase gem packs
-- **🏆 Quests** → Conditions, counts, rewards, level gates, repeatability
-- **🎨 Sprites** → Upload, apply to entities, delete
+- **📖 Tutorial** → Add/delete steps, text, trigger events, target elements
+- **💎 SKUs** → Add/delete purchases with multi-item rewards (coins, gems, items)
+- **🏆 Quests** → Conditions, target entities, counts, rewards, level gates, repeatability
+- **🎨 Sprites** → Upload, apply to entities, delete with cascade cleanup
 
 All changes take effect in **~30 seconds** via client-side content version polling.
 
@@ -386,9 +388,10 @@ interface UserState {
 // Content configs
 ItemConfig   → 12 fields (type enum: FURNITURE|PLANTER|INCUBATOR|EGG|CONSUMABLE|DECORATION)
 CropConfig   → 8 fields (seedPrice, sellPrice, growthTime, xpReward, levelReq)
-PetConfig    → 7 fields (rarity tier, bonus: growth_speed|coin_reward|xp_reward)
-EggConfig    → 3 fields (hatchTime, pool with weights)
-QuestConfig  → 6 fields (condition, requirements, rewards, repeatable)
+PetConfig    → 10 fields (rarity tier, bonuses: [{type: growth_speed|coin_reward|xp_reward, value}])
+EggConfig    → 3 fields (hatchTime, pool with weights — editable in CMS)
+QuestConfig  → 7 fields (condition with targetId, requirements, rewards, repeatable)
+SkuConfig    → 7 fields (price, amount, icon, rewards: {coins, gems, items})
 ```
 
 ---

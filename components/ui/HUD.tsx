@@ -15,6 +15,7 @@ import {
 
 interface HUDProps {
   user: UserState;
+  displayUser?: UserState; // For visiting: neighbor's state
   onOpenShop: () => void;
   onOpenPets: () => void;
   onOpenQuests: () => void;
@@ -27,6 +28,7 @@ interface HUDProps {
 
 export const HUD: React.FC<HUDProps> = ({
   user,
+  displayUser,
   onOpenShop,
   onOpenPets,
   onOpenQuests,
@@ -37,6 +39,8 @@ export const HUD: React.FC<HUDProps> = ({
   isNeighborsOpen,
 }) => {
   if (isEditMode) return null;
+
+  const roomUser = displayUser || user;
 
   // XP Progress Calculation
   const currentLevelConfig = LEVELS.find((l) => l.level === user.level);
@@ -61,7 +65,7 @@ export const HUD: React.FC<HUDProps> = ({
     xpDisplay = `${user.xp} XP (Max)`;
   }
 
-  const isGardenUnlocked = user.rooms.garden.unlocked;
+  const isGardenUnlocked = roomUser.rooms.garden.unlocked;
 
   // Sidebar Button Component to ensure consistency
   const SidebarButton = ({
@@ -146,7 +150,7 @@ export const HUD: React.FC<HUDProps> = ({
           <button
             onClick={() => onSwitchRoom("interior")}
             className={`px-4 py-2 rounded-full font-bold text-sm flex items-center gap-2 transition-colors ${
-              user.currentRoom === "interior"
+              roomUser.currentRoom === "interior"
                 ? "bg-indigo-600 text-white shadow-lg"
                 : "text-gray-400 hover:text-white"
             }`}
@@ -156,7 +160,7 @@ export const HUD: React.FC<HUDProps> = ({
           <button
             onClick={() => onSwitchRoom("garden")}
             className={`px-4 py-2 rounded-full font-bold text-sm flex items-center gap-2 transition-colors ${
-              user.currentRoom === "garden"
+              roomUser.currentRoom === "garden"
                 ? "bg-green-600 text-white shadow-lg"
                 : "text-gray-400 hover:text-white"
             }`}

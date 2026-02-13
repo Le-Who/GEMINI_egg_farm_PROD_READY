@@ -51,7 +51,8 @@ export interface PetConfig {
   rarity: "common" | "rare" | "legendary";
   color: number;
   bonusDescription: string;
-  bonus?: { type: "growth_speed" | "coin_reward" | "xp_reward"; value: number };
+  bonus?: { type: "growth_speed" | "coin_reward" | "xp_reward"; value: number }; // Legacy single bonus
+  bonuses?: { type: string; value: number }[]; // Multi-ability (preferred)
   sprite?: string | null;
 }
 
@@ -154,8 +155,13 @@ export interface SkuConfig {
   id: string;
   name: string;
   price: string; // Display price e.g. "$1.99"
-  amount: number;
+  amount: number; // Legacy: gems amount
   icon: string;
+  rewards?: {
+    coins?: number;
+    gems?: number;
+    items?: Record<string, number>;
+  };
 }
 
 export interface TutorialStepConfig {

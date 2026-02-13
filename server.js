@@ -400,9 +400,10 @@ async function startServer() {
     res.json([...files].map((f) => ({ name: f, path: `/sprites/${f}` })));
   });
 
-  // Admin: Delete sprite
+  // Admin: Delete sprite (with cascade cleanup)
   app.delete("/admin/api/sprites/:name", requireAdmin, async (req, res) => {
     const safeName = req.params.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const spritePath = `/sprites/${safeName}`;
     try {
       // Delete from GCS
       if (bucket) {
@@ -413,7 +414,46 @@ async function startServer() {
       // Delete from local
       const localPath = path.join(LOCAL_SPRITES_DIR, safeName);
       if (fs.existsSync(localPath)) fs.unlinkSync(localPath);
-      res.json({ success: true });
+
+      // Cascade: clear references from all content
+      let cleared = 0;
+      const contentDir = path.join(__dirname, "data", "content");
+      for (const type of ["items", "crops", "pets"]) {
+        const filePath = path.join(contentDir, `${type}.json`);
+        if (!fs.existsSync(filePath)) continue;
+        const data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+        let changed = false;
+        for (const id of Object.keys(data)) {
+          if (data[id].sprite === spritePath) {
+            data[id].sprite = null;
+            changed = true;
+            cleared++;
+          }
+          // Also clear growthSprites entries in crops
+          if (type === "crops" && Array.isArray(data[id].growthSprites)) {
+            const before = data[id].growthSprites.length;
+            data[id].growthSprites = data[id].growthSprites.filter(
+              (gs) => gs.sprite !== spritePath,
+            );
+            if (data[id].growthSprites.length < before) {
+              changed = true;
+              cleared += before - data[id].growthSprites.length;
+            }
+          }
+        }
+        if (changed) {
+          fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+          // Sync to GCS
+          if (bucket) {
+            await gcsWrite(
+              `content/${type}.json`,
+              JSON.stringify(data, null, 2),
+            );
+          }
+        }
+      }
+
+      res.json({ success: true, cleared });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }

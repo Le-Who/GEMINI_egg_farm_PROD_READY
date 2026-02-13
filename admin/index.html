@@ -634,10 +634,11 @@
           <button class="btn btn-primary" onclick="openAddPet()">+ Add Pet</button>
         </div>
         <div class="table-wrap"><table>
-          <tr><th>ID</th><th>Sprite</th><th>Name</th><th>Rarity</th><th>Bonus</th><th>Color</th><th>Actions</th></tr>
+          <tr><th>ID</th><th>Sprite</th><th>Name</th><th>Rarity</th><th>Abilities</th><th>Color</th><th>Actions</th></tr>
           ${ids
             .map((id) => {
               const p = pets[id];
+              const abilities = p.bonuses || (p.bonus ? [p.bonus] : []);
               const spriteCell = p.sprite
                 ? `<div style="display:flex;align-items:center;gap:4px"><img src="${p.sprite}" style="width:28px;height:28px;object-fit:contain;border-radius:4px;background:var(--surface2)"><button class="btn btn-danger btn-sm" style="font-size:9px;padding:1px 4px" onclick="clearSprite('pets','${id}')">✕</button></div>`
                 : `<span style="font-size:11px;color:var(--text)">—</span>`;
@@ -646,7 +647,9 @@
               <td>${spriteCell}</td>
               <td><input value="${p.name}" onchange="updateField('pets','${id}','name',this.value)"></td>
               <td><select onchange="updateField('pets','${id}','rarity',this.value)">${RARITIES.map((r) => `<option${r === p.rarity ? " selected" : ""}>${r}</option>`).join("")}</select></td>
-              <td><input value="${p.bonusDescription}" onchange="updateField('pets','${id}','bonusDescription',this.value)"></td>
+              <td><button class="btn btn-sm" style="font-size:10px" onclick="openPetAbilities('${id}')">
+                🎯 ${abilities.length} bonus${abilities.length !== 1 ? "es" : ""}
+              </button></td>
               <td><span class="color-preview"><span class="color-dot" style="background:#${(p.color || "").replace("0x", "")}"></span></span></td>
               <td><button class="btn btn-danger btn-sm" onclick="deleteItem('pets','${id}')">✕</button></td>
             </tr>`;
@@ -668,13 +671,13 @@
           ${ids
             .map((id) => {
               const e = eggs[id];
-              const poolStr = (e.pool || [])
-                .map((p) => `${p.petId} (${p.weight}%)`)
-                .join(", ");
+              const poolCount = (e.pool || []).length;
               return `<tr>
               <td><code>${id}</code></td>
               <td><input type="number" value="${e.hatchTime}" style="width:80px" onchange="updateField('eggs','${id}','hatchTime',+this.value)"></td>
-              <td>${poolStr}</td>
+              <td><button class="btn btn-sm" style="font-size:10px" onclick="openEggPool('${id}')">
+                🥚 ${poolCount} pet${poolCount !== 1 ? "s" : ""}
+              </button></td>
               <td><button class="btn btn-danger btn-sm" onclick="deleteItem('eggs','${id}')">✕</button></td>
             </tr>`;
             })
@@ -707,9 +710,11 @@
       function renderTutorial(el) {
         const steps = content.tutorial || [];
         el.innerHTML = `
-        <div class="page-header"><h2>Tutorial Steps (${steps.length})</h2></div>
+        <div class="page-header"><h2>Tutorial Steps (${steps.length})</h2>
+          <button class="btn btn-primary" onclick="addTutorialStep()">+ Add Step</button>
+        </div>
         <div class="table-wrap"><table>
-          <tr><th>Step</th><th>Text</th><th>Trigger</th><th>Target</th></tr>
+          <tr><th>Step</th><th>Text</th><th>Trigger</th><th>Target</th><th>Actions</th></tr>
           ${steps
             .map(
               (s, i) => `<tr>
@@ -717,6 +722,7 @@
             <td><input value="${s.text}" style="min-width:300px" onchange="updateArrayField('tutorial',${i},'text',this.value)"></td>
             <td><input value="${s.trigger}" style="width:120px" onchange="updateArrayField('tutorial',${i},'trigger',this.value)"></td>
             <td><input value="${s.targetId || ""}" style="width:120px" onchange="updateArrayField('tutorial',${i},'targetId',this.value||undefined)"></td>
+            <td><button class="btn btn-danger btn-sm" onclick="deleteTutorialStep(${i})">✕</button></td>
           </tr>`,
             )
             .join("")}
@@ -727,19 +733,36 @@
       function renderSkus(el) {
         const skus = content.skus || [];
         el.innerHTML = `
-        <div class="page-header"><h2>In-App Purchases (${skus.length})</h2></div>
+        <div class="page-header"><h2>In-App Purchases (${skus.length})</h2>
+          <button class="btn btn-primary" onclick="openAddSku()">+ Add SKU</button>
+        </div>
         <div class="table-wrap"><table>
-          <tr><th>SKU ID</th><th>Name</th><th>Price</th><th>Gems</th><th>Icon</th></tr>
+          <tr><th>SKU ID</th><th>Name</th><th>Price</th><th>Gems</th><th>Rewards</th><th>Icon</th><th>Actions</th></tr>
           ${skus
-            .map(
-              (s, i) => `<tr>
+            .map((s, i) => {
+              const rew = s.rewards || {};
+              const rewStr =
+                [
+                  rew.coins ? rew.coins + "G" : "",
+                  rew.gems ? rew.gems + "💎" : "",
+                  rew.items
+                    ? Object.entries(rew.items)
+                        .map(([k, v]) => v + "x " + k)
+                        .join(", ")
+                    : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ") || (s.amount ? s.amount + "💎" : "—");
+              return `<tr>
             <td><code>${s.id}</code></td>
             <td><input value="${s.name}" onchange="updateArrayField('skus',${i},'name',this.value)"></td>
             <td><input value="${s.price}" style="width:80px" onchange="updateArrayField('skus',${i},'price',this.value)"></td>
             <td><input type="number" value="${s.amount}" style="width:60px" onchange="updateArrayField('skus',${i},'amount',+this.value)"></td>
+            <td style="font-size:11px">${rewStr}</td>
             <td>${s.icon}</td>
-          </tr>`,
-            )
+            <td><button class="btn btn-danger btn-sm" onclick="deleteSku(${i})">✕</button></td>
+          </tr>`;
+            })
             .join("")}
         </table></div>`;
       }
@@ -786,10 +809,23 @@
       }
 
       async function deleteSprite(name) {
-        if (!confirm(`Delete sprite "${name}"?`)) return;
+        if (
+          !confirm(
+            `Delete sprite "${name}"? References in items/crops/pets will be cleared.`,
+          )
+        )
+          return;
         try {
-          await api("DELETE", `/admin/api/sprites/${encodeURIComponent(name)}`);
-          showToast(`Deleted ${name}`);
+          const result = await api(
+            "DELETE",
+            `/admin/api/sprites/${encodeURIComponent(name)}`,
+          );
+          const msg = result.cleared
+            ? `Deleted ${name} (cleared ${result.cleared} reference${result.cleared !== 1 ? "s" : ""})`
+            : `Deleted ${name}`;
+          showToast(msg);
+          // Reload content to reflect cascade changes
+          content = await api("GET", "/admin/api/content");
           renderSprites(document.getElementById("main-content"));
         } catch (e) {
           showToast(e.message, true);
@@ -886,14 +922,13 @@
         let spritesList = [];
         try {
           const res = await fetch("/admin/api/sprites", {
-            headers: { Authorization: "Bearer " + token },
+            headers: { Authorization: "Bearer " + password },
           });
           spritesList = await res.json();
         } catch (e) {
           /* ignore */
         }
 
-        const modal = document.getElementById("modal");
         const stagesHtml = stages
           .map(
             (s, i) =>
@@ -909,12 +944,13 @@
           .join("");
 
         const optionsHtml = spritesList
-          .map((sp) => `<option value="/sprites/${sp}">${sp}</option>`)
+          .map((sp) => `<option value="${sp.path}">${sp.name}</option>`)
           .join("");
 
-        modal.innerHTML = `
-          <div class="modal-backdrop" onclick="closeModal()"></div>
-          <div class="modal-box" style="max-width:500px">
+        closeModal();
+        const html = `
+        <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+          <div class="modal" style="max-width:500px">
             <h3 style="margin-bottom:16px">🌱 Growth Stages — ${crop.name}</h3>
             <p style="font-size:12px;color:var(--text);margin-bottom:12px">
               Define sprite images for each growth percentage (0% = seed, 100% = fully grown).
@@ -935,11 +971,10 @@
               </div>
               <button class="btn btn-primary" onclick="addGrowthStage('${cropId}')">+ Add</button>
             </div>
-            <div style="margin-top:16px;text-align:right">
-              <button class="btn" onclick="closeModal()">Close</button>
-            </div>
-          </div>`;
-        modal.style.display = "flex";
+            <div class="form-actions"><button class="btn" onclick="closeModal()">Close</button></div>
+          </div>
+        </div>`;
+        document.body.insertAdjacentHTML("beforeend", html);
       }
 
       async function addGrowthStage(cropId) {
@@ -983,6 +1018,302 @@
         }
       }
 
+      // --- Pet Abilities Modal ---
+      const PET_BONUS_TYPES = ["growth_speed", "coin_reward", "xp_reward"];
+
+      function openPetAbilities(petId) {
+        const pet = content.pets[petId];
+        if (!pet) return;
+        const abilities = pet.bonuses || (pet.bonus ? [pet.bonus] : []);
+
+        const abilitiesHtml = abilities
+          .map(
+            (b, i) =>
+              `<div style="display:flex;align-items:center;gap:8px;padding:8px;background:var(--surface2);border-radius:6px;margin-bottom:6px">
+            <div style="flex:1">
+              <span style="font-weight:600;font-size:12px;color:var(--text-bright)">${b.type}</span>
+              <span style="font-size:11px;color:var(--text);margin-left:8px">+${(b.value * 100).toFixed(0)}%</span>
+            </div>
+            <button class="btn btn-danger btn-sm" onclick="removePetAbility('${petId}',${i})">✕</button>
+          </div>`,
+          )
+          .join("");
+
+        closeModal();
+        const html = `
+        <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+          <div class="modal" style="max-width:450px">
+            <h3 style="margin-bottom:16px">🎯 Abilities — ${pet.name}</h3>
+            <div style="margin-bottom:4px">
+              <label style="font-size:11px;color:var(--text)">Bonus Description</label>
+              <input value="${pet.bonusDescription || ""}" style="width:100%;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text-bright)" onchange="updateField('pets','${petId}','bonusDescription',this.value)">
+            </div>
+            <div id="abilities-list" style="margin-top:12px">
+              ${abilitiesHtml || '<p style="color:var(--text);font-size:12px;opacity:0.6">No abilities — pet is purely decorative.</p>'}
+            </div>
+            <div style="margin-top:16px;display:flex;gap:8px;align-items:end">
+              <div style="flex:2">
+                <label style="font-size:11px;color:var(--text)">Type</label>
+                <select id="ab-type" style="width:100%;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text-bright)">
+                  ${PET_BONUS_TYPES.map((t) => `<option value="${t}">${t}</option>`).join("")}
+                </select>
+              </div>
+              <div style="flex:1">
+                <label style="font-size:11px;color:var(--text)">Value (%)</label>
+                <input id="ab-value" type="number" min="1" max="100" value="5" style="width:100%;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text-bright)">
+              </div>
+              <button class="btn btn-primary" onclick="addPetAbility('${petId}')">+ Add</button>
+            </div>
+            <div class="form-actions"><button class="btn" onclick="closeModal()">Close</button></div>
+          </div>
+        </div>`;
+        document.body.insertAdjacentHTML("beforeend", html);
+      }
+
+      async function addPetAbility(petId) {
+        const typeEl = document.getElementById("ab-type");
+        const valueEl = document.getElementById("ab-value");
+        if (!typeEl || !valueEl) return;
+        if (!content.pets[petId].bonuses) content.pets[petId].bonuses = [];
+        content.pets[petId].bonuses.push({
+          type: typeEl.value,
+          value: parseInt(valueEl.value, 10) / 100,
+        });
+        try {
+          await api(
+            "PUT",
+            `/admin/api/content/pets/${petId}`,
+            content.pets[petId],
+          );
+          showToast(`Added ${typeEl.value} to ${petId}`);
+          openPetAbilities(petId);
+        } catch (e) {
+          showToast(e.message, true);
+        }
+      }
+
+      async function removePetAbility(petId, index) {
+        if (!content.pets[petId].bonuses) return;
+        content.pets[petId].bonuses.splice(index, 1);
+        try {
+          await api(
+            "PUT",
+            `/admin/api/content/pets/${petId}`,
+            content.pets[petId],
+          );
+          showToast("Removed ability");
+          openPetAbilities(petId);
+        } catch (e) {
+          showToast(e.message, true);
+        }
+      }
+
+      // --- Egg Pool Modal ---
+      function openEggPool(eggId) {
+        const egg = content.eggs[eggId];
+        if (!egg) return;
+        const pool = egg.pool || [];
+        const petIds = Object.keys(content.pets || {});
+
+        const poolHtml = pool
+          .map(
+            (p, i) =>
+              `<div style="display:flex;align-items:center;gap:8px;padding:8px;background:var(--surface2);border-radius:6px;margin-bottom:6px">
+            <span style="flex:1;font-size:12px;color:var(--text-bright)">${p.petId}</span>
+            <span style="font-size:11px;color:var(--text)">${p.weight}%</span>
+            <button class="btn btn-danger btn-sm" onclick="removePoolEntry('${eggId}',${i})">✕</button>
+          </div>`,
+          )
+          .join("");
+
+        const petOptions = petIds
+          .map(
+            (id) =>
+              `<option value="${id}">${id} (${content.pets[id].name})</option>`,
+          )
+          .join("");
+
+        closeModal();
+        const html = `
+        <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+          <div class="modal" style="max-width:450px">
+            <h3 style="margin-bottom:16px">🥚 Egg Pool — ${eggId}</h3>
+            <div id="pool-list">
+              ${poolHtml || '<p style="color:var(--text);font-size:12px;opacity:0.6">Empty pool — no pets will hatch.</p>'}
+            </div>
+            <div style="margin-top:16px;display:flex;gap:8px;align-items:end">
+              <div style="flex:2">
+                <label style="font-size:11px;color:var(--text)">Pet</label>
+                <select id="pool-pet" style="width:100%;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text-bright)">
+                  ${petOptions || "<option disabled>No pets available</option>"}
+                </select>
+              </div>
+              <div style="flex:1">
+                <label style="font-size:11px;color:var(--text)">Weight (%)</label>
+                <input id="pool-weight" type="number" min="1" max="100" value="50" style="width:100%;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text-bright)">
+              </div>
+              <button class="btn btn-primary" onclick="addPoolEntry('${eggId}')">+ Add</button>
+            </div>
+            <div class="form-actions"><button class="btn" onclick="closeModal()">Close</button></div>
+          </div>
+        </div>`;
+        document.body.insertAdjacentHTML("beforeend", html);
+      }
+
+      async function addPoolEntry(eggId) {
+        const petEl = document.getElementById("pool-pet");
+        const weightEl = document.getElementById("pool-weight");
+        if (!petEl || !weightEl || !petEl.value) return;
+        if (!content.eggs[eggId].pool) content.eggs[eggId].pool = [];
+        content.eggs[eggId].pool.push({
+          petId: petEl.value,
+          weight: parseInt(weightEl.value, 10),
+        });
+        try {
+          await api(
+            "PUT",
+            `/admin/api/content/eggs/${eggId}`,
+            content.eggs[eggId],
+          );
+          showToast(`Added ${petEl.value} to pool`);
+          openEggPool(eggId);
+        } catch (e) {
+          showToast(e.message, true);
+        }
+      }
+
+      async function removePoolEntry(eggId, index) {
+        if (!content.eggs[eggId].pool) return;
+        content.eggs[eggId].pool.splice(index, 1);
+        try {
+          await api(
+            "PUT",
+            `/admin/api/content/eggs/${eggId}`,
+            content.eggs[eggId],
+          );
+          showToast("Removed pool entry");
+          openEggPool(eggId);
+        } catch (e) {
+          showToast(e.message, true);
+        }
+      }
+
+      // --- Tutorial CRUD ---
+      async function addTutorialStep() {
+        const steps = content.tutorial || [];
+        const nextId =
+          steps.length > 0 ? Math.max(...steps.map((s) => s.id)) + 1 : 1;
+        steps.push({
+          id: nextId,
+          text: "New step",
+          trigger: "CLICK",
+          targetId: undefined,
+        });
+        content.tutorial = steps;
+        try {
+          await api("PUT", "/admin/api/content/tutorial", steps);
+          showToast(`Added tutorial step ${nextId}`);
+          render();
+        } catch (e) {
+          showToast(e.message, true);
+        }
+      }
+
+      async function deleteTutorialStep(index) {
+        if (!confirm("Delete this tutorial step?")) return;
+        const steps = content.tutorial || [];
+        steps.splice(index, 1);
+        content.tutorial = steps;
+        try {
+          await api("PUT", "/admin/api/content/tutorial", steps);
+          showToast("Deleted tutorial step");
+          render();
+        } catch (e) {
+          showToast(e.message, true);
+        }
+      }
+
+      // --- SKU CRUD ---
+      async function deleteSku(index) {
+        if (!confirm("Delete this SKU?")) return;
+        const skus = content.skus || [];
+        skus.splice(index, 1);
+        content.skus = skus;
+        try {
+          await api("PUT", "/admin/api/content/skus", skus);
+          showToast("Deleted SKU");
+          render();
+        } catch (e) {
+          showToast(e.message, true);
+        }
+      }
+
+      function openAddSku() {
+        const itemIds = Object.keys(content.items || {});
+        const html = `
+        <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+          <div class="modal">
+            <h3>Add New SKU</h3>
+            <div class="form-group"><label>ID</label><input id="f-id" placeholder="sku_starter_pack"></div>
+            <div class="form-group"><label>Name</label><input id="f-name" placeholder="Starter Pack"></div>
+            <div class="form-group"><label>Display Price</label><input id="f-price" placeholder="$1.99"></div>
+            <div class="form-group"><label>Gems Amount (legacy)</label><input id="f-amount" type="number" value="100"></div>
+            <div class="form-group"><label>Icon</label><input id="f-icon" value="💎"></div>
+            <h4 style="margin-top:12px;font-size:13px;color:var(--text-bright)">Rewards (optional)</h4>
+            <div class="form-group"><label>Coins</label><input id="f-rew-coins" type="number" value="0"></div>
+            <div class="form-group"><label>Gems</label><input id="f-rew-gems" type="number" value="0"></div>
+            <div class="form-group"><label>Items (id:count, comma-sep)</label><input id="f-rew-items" placeholder="fertilizer:5, golden_pot:1"></div>
+            <div class="form-actions">
+              <button class="btn" onclick="closeModal()">Cancel</button>
+              <button class="btn btn-primary" onclick="submitAddSku()">Add SKU</button>
+            </div>
+          </div>
+        </div>`;
+        document.body.insertAdjacentHTML("beforeend", html);
+      }
+
+      async function submitAddSku() {
+        const id = document.getElementById("f-id").value;
+        const name = document.getElementById("f-name").value;
+        if (!id || !name) return showToast("ID and Name required", true);
+
+        const sku = {
+          id,
+          name,
+          price: document.getElementById("f-price").value,
+          amount: +document.getElementById("f-amount").value,
+          icon: document.getElementById("f-icon").value,
+        };
+
+        const rewCoins = +document.getElementById("f-rew-coins").value;
+        const rewGems = +document.getElementById("f-rew-gems").value;
+        const rewItemsStr = document.getElementById("f-rew-items").value;
+        if (rewCoins || rewGems || rewItemsStr) {
+          sku.rewards = {};
+          if (rewCoins) sku.rewards.coins = rewCoins;
+          if (rewGems) sku.rewards.gems = rewGems;
+          if (rewItemsStr) {
+            sku.rewards.items = {};
+            rewItemsStr.split(",").forEach((s) => {
+              const [k, v] = s.trim().split(":");
+              if (k) sku.rewards.items[k.trim()] = +(v || 1);
+            });
+          }
+        }
+
+        const skus = content.skus || [];
+        skus.push(sku);
+        content.skus = skus;
+        try {
+          await api("PUT", "/admin/api/content/skus", skus);
+          closeModal();
+          showToast(`Added SKU: ${name}`);
+          render();
+        } catch (e) {
+          showToast(e.message, true);
+        }
+      }
+
       // --- Quests ---
       function renderQuests(el) {
         const quests = content.quests || {};
@@ -992,13 +1323,21 @@
           <button class="btn btn-primary" onclick="openAddQuest()">+ Add Quest</button>
         </div>
         <div class="table-wrap"><table>
-          <tr><th>ID</th><th>Title</th><th>Condition</th><th>Count</th><th>Min Lvl</th><th>Rewards</th><th>Repeat</th><th>Actions</th></tr>
+          <tr><th>ID</th><th>Title</th><th>Condition</th><th>Target</th><th>Count</th><th>Min Lvl</th><th>Rewards</th><th>Repeat</th><th>Actions</th></tr>
           ${ids
             .map((id) => {
               const q = quests[id];
               const cond = q.condition || {};
               const req = q.requirements || {};
               const rew = q.rewards || {};
+              // Build target options based on condition type
+              const targetEntities = getTargetEntities(cond.type);
+              const targetOptions = targetEntities
+                .map(
+                  (e) =>
+                    `<option value="${e.id}"${e.id === cond.targetId ? " selected" : ""}>${e.id} (${e.name})</option>`,
+                )
+                .join("");
               const rewardsStr = [
                 rew.coins ? rew.coins + "G" : "",
                 rew.gems ? rew.gems + "💎" : "",
@@ -1010,6 +1349,7 @@
               <td><code>${id}</code></td>
               <td><input value="${q.title || ""}" onchange="updateField('quests','${id}','title',this.value)"></td>
               <td><select onchange="updateQuestCondType('${id}',this.value)">${QUEST_ACTIONS.map((a) => `<option${a === cond.type ? " selected" : ""}>${a}</option>`).join("")}</select></td>
+              <td><select onchange="updateQuestCondTarget('${id}',this.value)"><option value="">(any)</option>${targetOptions}</select></td>
               <td><input type="number" value="${cond.count || 1}" style="width:50px" onchange="updateQuestCondCount('${id}',+this.value)"></td>
               <td><input type="number" value="${req.minLevel || 1}" style="width:50px" onchange="updateQuestReq('${id}','minLevel',+this.value)"></td>
               <td>${rewardsStr}</td>
@@ -1021,12 +1361,39 @@
         </table></div>`;
       }
 
+      function getTargetEntities(conditionType) {
+        const type = conditionType || "";
+        if (type === "PLANT_SEED" || type === "HARVEST") {
+          return Object.entries(content.crops || {}).map(([id, c]) => ({
+            id,
+            name: c.name,
+          }));
+        }
+        if (type === "BUY_ITEM" || type === "PLACE_ITEM") {
+          return Object.entries(content.items || {}).map(([id, i]) => ({
+            id,
+            name: i.name,
+          }));
+        }
+        if (type === "HATCH_EGG") {
+          return Object.keys(content.eggs || {}).map((id) => ({
+            id,
+            name: id,
+          }));
+        }
+        return [];
+      }
+
       function updateQuestCondType(id, value) {
         if (!content.quests[id].condition)
           content.quests[id].condition = { type: "PLANT_SEED", count: 1 };
         content.quests[id].condition.type = value;
+        content.quests[id].condition.targetId = undefined; // Reset target when type changes
         api("PUT", `/admin/api/content/quests/${id}`, content.quests[id])
-          .then(() => showToast("Updated"))
+          .then(() => {
+            showToast("Updated");
+            render();
+          })
           .catch((e) => showToast(e.message, true));
       }
       function updateQuestCondCount(id, value) {
@@ -1035,6 +1402,14 @@
         content.quests[id].condition.count = value;
         api("PUT", `/admin/api/content/quests/${id}`, content.quests[id])
           .then(() => showToast("Updated"))
+          .catch((e) => showToast(e.message, true));
+      }
+      function updateQuestCondTarget(id, value) {
+        if (!content.quests[id].condition)
+          content.quests[id].condition = { type: "PLANT_SEED", count: 1 };
+        content.quests[id].condition.targetId = value || undefined;
+        api("PUT", `/admin/api/content/quests/${id}`, content.quests[id])
+          .then(() => showToast("Updated target"))
           .catch((e) => showToast(e.message, true));
       }
       function updateQuestReq(id, field, value) {
@@ -1332,6 +1707,7 @@
             <div class="form-group"><label>Title</label><input id="f-name" placeholder="Budding Farmer"></div>
             <div class="form-group"><label>Description</label><input id="f-desc" placeholder="Plant 10 seeds"></div>
             <div class="form-group"><label>Condition Type</label><select id="f-cond">${QUEST_ACTIONS.map((a) => `<option>${a}</option>`).join("")}</select></div>
+            <div class="form-group"><label>Target ID (optional)</label><input id="f-target" placeholder="(leave empty for any)"></div>
             <div class="form-group"><label>Count</label><input id="f-count" type="number" value="1"></div>
             <div class="form-group"><label>Min Level</label><input id="f-minlvl" type="number" value="1"></div>
             <div class="form-group"><label>Coin Reward</label><input id="f-coins" type="number" value="50"></div>
@@ -1355,6 +1731,7 @@
           condition: {
             type: document.getElementById("f-cond").value,
             count: +document.getElementById("f-count").value,
+            targetId: document.getElementById("f-target").value || undefined,
           },
           requirements: {
             minLevel: +document.getElementById("f-minlvl").value,

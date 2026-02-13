@@ -57,14 +57,24 @@ const INITIAL_STATE_TEMPLATE: UserState = {
   quests: [],
 };
 
-// --- Pet Bonus Helper ---
+// --- Pet Bonus Helper (supports multi-ability) ---
 function getEquippedPetBonus(state: UserState, bonusType: string): number {
   if (!state.equippedPetId) return 0;
   const pet = state.pets.find((p) => p.id === state.equippedPetId);
   if (!pet) return 0;
   const config = PETS[pet.configId];
-  if (!config?.bonus || config.bonus.type !== bonusType) return 0;
-  return config.bonus.value;
+  if (!config) return 0;
+
+  // Prefer new multi-bonus array
+  if (config.bonuses && config.bonuses.length > 0) {
+    return config.bonuses
+      .filter((b: any) => b.type === bonusType)
+      .reduce((sum: number, b: any) => sum + b.value, 0);
+  }
+  // Fallback to legacy single bonus
+  if (config.bonus && config.bonus.type === bonusType)
+    return config.bonus.value;
+  return 0;
 }
 
 // --- API Helpers ---
@@ -367,7 +377,23 @@ export const GameEngine = {
     if (!currentUserState) return { success: false };
     const state = cloneState(currentUserState);
     const sku = SKUS.find((s) => s.id === skuId);
-    if (sku) state.gems += sku.amount;
+    if (!sku) return { success: false, message: "SKU not found" };
+
+    // New rewards system (preferred)
+    if (sku.rewards) {
+      if (sku.rewards.coins) state.coins += sku.rewards.coins;
+      if (sku.rewards.gems) state.gems += sku.rewards.gems;
+      if (sku.rewards.items) {
+        for (const [itemId, count] of Object.entries(sku.rewards.items)) {
+          state.inventory[itemId] =
+            (state.inventory[itemId] || 0) + (count as number);
+        }
+      }
+    } else {
+      // Legacy: amount = gems only
+      state.gems += sku.amount;
+    }
+
     currentUserState = state;
     debouncedSave(state);
     return { success: true, newState: state, message: "Bought!" };
