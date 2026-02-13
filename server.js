@@ -74,13 +74,74 @@ const LOCAL_DB_PATH =
   process.env.DB_PATH || path.join(__dirname, "data", "db.json");
 const db = new Map();
 
+// --- Data Sanitization ---
+const DEFAULT_USER_STATE = {
+  coins: 500,
+  gems: 10,
+  xp: 0,
+  level: 1,
+  inventory: { planter_basic: 2, incubator_basic: 1, egg_common: 1 },
+  placedItems: [],
+  rooms: {
+    interior: { type: "interior", items: [], unlocked: true },
+    garden: { type: "garden", items: [], unlocked: false },
+  },
+  currentRoom: "interior",
+  pets: [],
+  equippedPetId: null,
+  tutorialStep: 0,
+  completedTutorial: false,
+  quests: [],
+  billboard: [],
+};
+
+function sanitizeUser(user) {
+  // Start with a deep clone of defaults to avoid shared state
+  const safeUser = JSON.parse(JSON.stringify(DEFAULT_USER_STATE));
+
+  // Merge user data on top (shallow merge of top-level properties)
+  Object.assign(safeUser, user);
+
+  // Deep merge/checks for objects
+
+  // 1. Inventory
+  // If user provided inventory, safeUser.inventory is now user.inventory (reference).
+  // If user didn't provide it, safeUser.inventory is the deep-cloned default.
+  // We don't strictly require deep cloning user's provided inventory if we assume it's their unique data.
+
+  // 2. Rooms
+  if (!user.rooms) {
+    // safeUser.rooms is already the deep-cloned default.
+  } else {
+    // safeUser.rooms is user.rooms reference.
+    // Ensure both rooms exist
+    if (!safeUser.rooms.interior)
+      safeUser.rooms.interior = { type: "interior", items: [], unlocked: true };
+    if (!safeUser.rooms.garden)
+      safeUser.rooms.garden = { type: "garden", items: [], unlocked: false };
+
+    // Ensure items array exists in rooms
+    if (!safeUser.rooms.interior.items) safeUser.rooms.interior.items = [];
+    if (!safeUser.rooms.garden.items) safeUser.rooms.garden.items = [];
+  }
+
+  // 3. Arrays
+  // If user.pets was undefined, safeUser.pets is default [] (deep cloned).
+  // If user.pets was null (explicitly), Object.assign copied it, so safeUser.pets is null.
+  if (!safeUser.pets) safeUser.pets = [];
+  if (!safeUser.quests) safeUser.quests = [];
+  if (!safeUser.billboard) safeUser.billboard = [];
+
+  return safeUser;
+}
+
 async function loadDb() {
   // Try GCS first
   const gcsData = await gcsRead("db.json");
   if (gcsData) {
     try {
       const parsed = JSON.parse(gcsData);
-      for (const [k, v] of Object.entries(parsed)) db.set(k, v);
+      for (const [k, v] of Object.entries(parsed)) db.set(k, sanitizeUser(v));
       console.log(`DB loaded from GCS: ${db.size} users`);
       return;
     } catch (e) {
@@ -93,7 +154,7 @@ async function loadDb() {
     if (fs.existsSync(LOCAL_DB_PATH)) {
       const raw = fs.readFileSync(LOCAL_DB_PATH, "utf-8");
       const data = JSON.parse(raw);
-      for (const [k, v] of Object.entries(data)) db.set(k, v);
+      for (const [k, v] of Object.entries(data)) db.set(k, sanitizeUser(v));
       console.log(`DB loaded from local file: ${db.size} users`);
       return;
     }
@@ -690,7 +751,7 @@ async function startServer(port = PORT) {
 }
 
 // Export for testing
-export { app, startServer };
+export { app, startServer, sanitizeUser };
 
 // Only start strict if main module
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
