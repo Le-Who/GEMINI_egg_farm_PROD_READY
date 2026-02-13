@@ -467,8 +467,8 @@ export class MainScene extends Phaser.Scene {
     depth: number = 0,
     originY: number = 0.5,
     tint?: number | null,
-  ) {
-    // Acquire from pool or create new
+  ): boolean {
+    // Acquire from pool or create new (only if pool has capacity)
     let img = this.spritePool.getFirstDead(
       false,
     ) as Phaser.GameObjects.Image | null;
@@ -477,6 +477,9 @@ export class MainScene extends Phaser.Scene {
       img.setTexture(key);
       img.setPosition(screenX, screenY);
     } else {
+      if (this.spritePool.isFull()) {
+        return false;
+      }
       img = this.add.image(screenX, screenY, key);
       this.spritePool.add(img);
     }
@@ -491,6 +494,7 @@ export class MainScene extends Phaser.Scene {
       img.clearTint();
     }
     this.activeSprites.push(img);
+    return true;
   }
 
   /** Wrapper for drawing loaded sprites by path */
@@ -510,7 +514,7 @@ export class MainScene extends Phaser.Scene {
       this.ensureSpriteLoaded(spritePath);
       return false; // Not ready yet, caller should fallback
     }
-    this.renderTexture(
+    return this.renderTexture(
       key,
       screenX,
       screenY,
@@ -521,7 +525,108 @@ export class MainScene extends Phaser.Scene {
       originY,
       tint,
     );
-    return true;
+  }
+
+  /** Fallback rendering path for procedural items when sprite pool is saturated. */
+  private drawProceduralItemFallback(
+    config: (typeof ITEMS)[string],
+    screenX: number,
+    screenY: number,
+    alpha: number,
+    tint?: number | null,
+  ) {
+    const g = this.itemsGraphics;
+
+    let itemHeight = 20;
+    if (config.type === ItemType.PLANTER) itemHeight = 15;
+    if (config.type === ItemType.INCUBATOR) itemHeight = 15;
+
+    const baseColor = Phaser.Display.Color.IntegerToColor(config.color);
+    let red = baseColor.red;
+    let green = baseColor.green;
+    let blue = baseColor.blue;
+    if (tint != null) {
+      const tintObj = Phaser.Display.Color.IntegerToColor(tint);
+      red = Math.floor((red * tintObj.red) / 255);
+      green = Math.floor((green * tintObj.green) / 255);
+      blue = Math.floor((blue * tintObj.blue) / 255);
+    }
+
+    const color = Phaser.Display.Color.GetColor(red, green, blue);
+
+    // Top Face
+    g.fillStyle(color, alpha);
+    g.fillPoints(
+      [
+        new Phaser.Geom.Point(screenX, screenY - itemHeight),
+        new Phaser.Geom.Point(
+          screenX + TILE_WIDTH / 2,
+          screenY - TILE_HEIGHT / 2 - itemHeight,
+        ),
+        new Phaser.Geom.Point(screenX, screenY - TILE_HEIGHT - itemHeight),
+        new Phaser.Geom.Point(
+          screenX - TILE_WIDTH / 2,
+          screenY - TILE_HEIGHT / 2 - itemHeight,
+        ),
+      ],
+      true,
+    );
+
+    // Right/left sides
+    g.fillStyle(
+      Phaser.Display.Color.GetColor(
+        Math.floor(red * 0.8),
+        Math.floor(green * 0.8),
+        Math.floor(blue * 0.8),
+      ),
+      alpha,
+    );
+    g.fillPoints(
+      [
+        new Phaser.Geom.Point(screenX + TILE_WIDTH / 2, screenY - TILE_HEIGHT / 2 - itemHeight),
+        new Phaser.Geom.Point(screenX, screenY - itemHeight),
+        new Phaser.Geom.Point(screenX, screenY - TILE_HEIGHT),
+        new Phaser.Geom.Point(screenX + TILE_WIDTH / 2, screenY - TILE_HEIGHT / 2),
+      ],
+      true,
+    );
+
+    g.fillStyle(
+      Phaser.Display.Color.GetColor(
+        Math.floor(red * 0.6),
+        Math.floor(green * 0.6),
+        Math.floor(blue * 0.6),
+      ),
+      alpha,
+    );
+    g.fillPoints(
+      [
+        new Phaser.Geom.Point(screenX - TILE_WIDTH / 2, screenY - TILE_HEIGHT / 2 - itemHeight),
+        new Phaser.Geom.Point(screenX, screenY - itemHeight),
+        new Phaser.Geom.Point(screenX, screenY - TILE_HEIGHT),
+        new Phaser.Geom.Point(screenX - TILE_WIDTH / 2, screenY - TILE_HEIGHT / 2),
+      ],
+      true,
+    );
+
+    if (config.type === ItemType.PLANTER) {
+      g.fillStyle(0x3d2817, alpha);
+      g.fillPoints(
+        [
+          new Phaser.Geom.Point(screenX, screenY - itemHeight + 2),
+          new Phaser.Geom.Point(
+            screenX + TILE_WIDTH / 2 - 4,
+            screenY - TILE_HEIGHT / 2 - itemHeight + 2,
+          ),
+          new Phaser.Geom.Point(screenX, screenY - TILE_HEIGHT - itemHeight + 4),
+          new Phaser.Geom.Point(
+            screenX - TILE_WIDTH / 2 + 4,
+            screenY - TILE_HEIGHT / 2 - itemHeight + 2,
+          ),
+        ],
+        true,
+      );
+    }
   }
 
   /** Generate and cache an isometric box texture for procedural items */
@@ -995,7 +1100,7 @@ export class MainScene extends Phaser.Scene {
     // --- Procedural Texture Cache (Optimized) ---
     this.generateProceduralTexture(item.itemId);
     const procKey = `proc_${item.itemId}`;
-    this.renderTexture(
+    const drewTexture = this.renderTexture(
       procKey,
       screen.x,
       screen.y,
@@ -1006,6 +1111,9 @@ export class MainScene extends Phaser.Scene {
       1.0, // Bottom-anchor
       item.tint,
     );
+    if (!drewTexture) {
+      this.drawProceduralItemFallback(config, screen.x, screen.y, alpha, item.tint);
+    }
 
     // Crop rendering
     if (config.type === ItemType.PLANTER) {
