@@ -206,7 +206,8 @@ export class MainScene extends Phaser.Scene {
     return false;
   }
 
-  /** Place a sprite image at screen coordinates, sized to fit an isometric tile */
+  /** Place a sprite image at screen coordinates, sized to fit an isometric tile.
+   *  @param originY  Vertical anchor: 0.5 = center (default, for furniture), 1.0 = bottom (for crops/plants) */
   private drawSpriteImage(
     spritePath: string,
     screenX: number,
@@ -215,6 +216,7 @@ export class MainScene extends Phaser.Scene {
     height: number,
     alpha: number = 1,
     depth: number = 0,
+    originY: number = 0.5,
   ): boolean {
     const key = this.getSpriteKey(spritePath);
     if (!this.loadedTextures.has(key)) {
@@ -222,7 +224,8 @@ export class MainScene extends Phaser.Scene {
       return false; // Not ready yet, caller should fallback
     }
 
-    const img = this.add.image(screenX, screenY - height / 2, key);
+    const img = this.add.image(screenX, screenY, key);
+    img.setOrigin(0.5, originY);
     img.setDisplaySize(width, height);
     img.setAlpha(alpha);
     img.setDepth(depth);
@@ -451,7 +454,7 @@ export class MainScene extends Phaser.Scene {
       const drawn = this.drawSpriteImage(
         config.sprite,
         screen.x,
-        screen.y - 10 + bounce,
+        screen.y - 10 + bounce - 12, // Center-anchor: position at visual center
         24,
         24,
         1,
@@ -505,7 +508,7 @@ export class MainScene extends Phaser.Scene {
       const drawn = this.drawSpriteImage(
         config.sprite,
         screen.x,
-        screen.y - height,
+        screen.y - height - spriteH / 2, // Center-anchor: position at visual center above base
         spriteW,
         spriteH,
         alpha,
@@ -619,21 +622,36 @@ export class MainScene extends Phaser.Scene {
           // Try sprite-based crop rendering
           const cropSprite = this.getCropSprite(cropConfig, progress);
           if (cropSprite) {
-            const cropSpriteH = 20 + progress * 25;
+            // Eased growth curve — fast when young, slowing near maturity
+            const easedP = Phaser.Math.Easing.Quadratic.Out(progress);
+            const cropH = 12 + easedP * 30;
+
+            // Maintain source aspect ratio
+            const spriteKey = this.getSpriteKey(cropSprite);
+            const tex = this.textures.exists(spriteKey)
+              ? this.textures.get(spriteKey)
+              : null;
+            const srcImg = tex?.getSourceImage();
+            const ratio = srcImg ? srcImg.width / srcImg.height : 0.6;
+            const cropW = cropH * ratio;
+
+            // Bottom-anchor: sprite grows UP from soil surface
+            const soilY = screen.y - height;
             const drawn = this.drawSpriteImage(
               cropSprite,
               cx,
-              cy - cropSpriteH / 2,
-              24,
-              cropSpriteH,
+              soilY, // Base position = top of planter (soil)
+              cropW,
+              cropH,
               alpha,
               depth + 0.1,
+              1.0, // originY = 1.0 — bottom-anchored
             );
             if (drawn) {
-              // Sparkle effect for ready crops (on top of sprite)
+              // Sparkle effect for ready crops (above the plant top)
               if (progress >= 1 && !this.isVisiting) {
                 g.lineStyle(2, 0xffff00, alpha);
-                g.strokeCircle(cx, cy - cropSpriteH - 5, 8);
+                g.strokeCircle(cx, soilY - cropH - 5, 8);
               }
               return; // Skip procedural crop drawing
             }
