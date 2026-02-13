@@ -35,7 +35,7 @@ describe("API Integration", () => {
     });
 
     // Start server to attach routes
-    server = await startServer();
+    server = await startServer(0);
   });
 
   afterAll(() => {
@@ -67,8 +67,15 @@ describe("API Integration", () => {
         level: 1,
         xp: 0,
         inventory: {},
-        rooms: { interior: { items: [] } },
+        rooms: {
+          interior: { type: "interior", items: [], unlocked: true },
+          garden: { type: "garden", items: [], unlocked: true },
+        },
         currentRoom: "interior",
+        pets: [],
+        quests: [],
+        tutorialStep: 0,
+        completedTutorial: false,
       };
 
       const res = await request(app)
@@ -153,6 +160,20 @@ describe("API Integration", () => {
         .send({
           id: TARGET_USER_ID,
           username: "Target",
+          coins: 100,
+          gems: 0,
+          xp: 0,
+          level: 1,
+          inventory: {},
+          rooms: {
+            interior: { type: "interior", items: [], unlocked: true },
+            garden: { type: "garden", items: [], unlocked: true },
+          },
+          currentRoom: "interior",
+          pets: [],
+          quests: [],
+          tutorialStep: 0,
+          completedTutorial: false,
           billboard: [],
         });
 

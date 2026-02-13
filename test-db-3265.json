@@ -1,0 +1,67 @@
+{
+  "test-user-id": {
+    "id": "test-user-id",
+    "username": "Integration Tester",
+    "coins": 100,
+    "gems": 10,
+    "xp": 0,
+    "level": 1,
+    "inventory": {},
+    "placedItems": [],
+    "rooms": {
+      "interior": {
+        "type": "interior",
+        "items": [],
+        "unlocked": true
+      },
+      "garden": {
+        "type": "garden",
+        "items": [],
+        "unlocked": true
+      }
+    },
+    "currentRoom": "interior",
+    "pets": [],
+    "equippedPetId": null,
+    "tutorialStep": 0,
+    "completedTutorial": false,
+    "quests": []
+  },
+  "target-user-id": {
+    "id": "target-user-id",
+    "username": "Target",
+    "coins": 100,
+    "gems": 0,
+    "xp": 0,
+    "level": 1,
+    "inventory": {},
+    "placedItems": [],
+    "rooms": {
+      "interior": {
+        "type": "interior",
+        "items": [],
+        "unlocked": true
+      },
+      "garden": {
+        "type": "garden",
+        "items": [],
+        "unlocked": true
+      }
+    },
+    "currentRoom": "interior",
+    "pets": [],
+    "equippedPetId": null,
+    "tutorialStep": 0,
+    "completedTutorial": false,
+    "quests": [],
+    "billboard": [
+      {
+        "fromId": "test-user-id",
+        "fromName": "Integration Tester",
+        "sticker": "heart",
+        "message": "Hello!",
+        "timestamp": 1770987936227
+      }
+    ]
+  }
+}

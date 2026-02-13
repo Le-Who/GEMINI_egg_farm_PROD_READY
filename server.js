@@ -5,6 +5,7 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { Storage } from "@google-cloud/storage";
+import { UserStateSchema } from "./schemas.js";
 
 dotenv.config();
 
@@ -45,21 +46,12 @@ async function gcsRead(gcsPath) {
   }
 }
 
-async function gcsWrite(gcsPath, content) {
+async function gcsWrite(gcsPath, content, contentType = "application/json") {
   if (!bucket) return;
   try {
     await bucket
       .file(gcsPath)
-      .save(content, { resumable: false, contentType: "application/json" });
-  } catch (e) {
-    console.error(`GCS write error (${gcsPath}):`, e.message);
-  }
-}
-
-async function gcsWriteBuffer(gcsPath, buffer, contentType) {
-  if (!bucket) return;
-  try {
-    await bucket.file(gcsPath).save(buffer, { resumable: false, contentType });
+      .save(content, { resumable: false, contentType });
   } catch (e) {
     console.error(`GCS write error (${gcsPath}):`, e.message);
   }
@@ -80,7 +72,8 @@ async function gcsList(prefix) {
 // Player Data Persistence
 // ═══════════════════════════════════════════════════════════
 
-const LOCAL_DB_PATH = path.join(__dirname, "data", "db.json");
+const LOCAL_DB_PATH =
+  process.env.DB_PATH || path.join(__dirname, "data", "db.json");
 const db = new Map();
 
 async function loadDb() {
@@ -147,7 +140,7 @@ process.on("SIGINT", gracefulShutdown);
 // Content Management (CMS)
 // ═══════════════════════════════════════════════════════════
 
-const LOCAL_CONTENT_DIR = path.join(__dirname, "data", "content");
+const LOCAL_CONTENT_DIR = path.join(DATA_DIR, "content");
 const CONTENT_TYPES = [
   "items",
   "crops",
@@ -162,36 +155,37 @@ let contentCache = {};
 let contentVersion = 0;
 
 async function loadContent() {
-  contentCache = {};
-  for (const type of CONTENT_TYPES) {
-    // Try GCS first
-    const gcsData = await gcsRead(`content/${type}.json`);
-    if (gcsData) {
-      try {
-        contentCache[type] = JSON.parse(gcsData);
-        continue;
-      } catch (e) {}
-    }
-
-    // Fallback to local file
-    const localPath = path.join(LOCAL_CONTENT_DIR, `${type}.json`);
-    try {
-      if (fs.existsSync(localPath)) {
-        contentCache[type] = JSON.parse(fs.readFileSync(localPath, "utf-8"));
-
-        // Seed GCS with local data on first run
-        if (bucket) {
-          await gcsWrite(
-            `content/${type}.json`,
-            fs.readFileSync(localPath, "utf-8"),
-          );
-          console.log(`  → seeded GCS: content/${type}.json`);
-        }
+  const newCache = {};
+  await Promise.all(
+    CONTENT_TYPES.map(async (type) => {
+      // Try GCS first
+      const gcsData = await gcsRead(`content/${type}.json`);
+      if (gcsData) {
+        try {
+          newCache[type] = JSON.parse(gcsData);
+          return;
+        } catch (e) {}
       }
-    } catch (e) {
-      console.error(`Failed to load content ${type}:`, e);
-    }
-  }
+
+      // Fallback to local file
+      const localPath = path.join(LOCAL_CONTENT_DIR, `${type}.json`);
+      try {
+        if (fs.existsSync(localPath)) {
+          const content = fs.readFileSync(localPath, "utf-8");
+          newCache[type] = JSON.parse(content);
+
+          // Seed GCS with local data on first run
+          if (bucket) {
+            await gcsWrite(`content/${type}.json`, content);
+            console.log(`  → seeded GCS: content/${type}.json`);
+          }
+        }
+      } catch (e) {
+        console.error(`Failed to load content ${type}:`, e);
+      }
+    }),
+  );
+  contentCache = newCache;
   console.log(`Content loaded: ${Object.keys(contentCache).join(", ")}`);
 }
 
@@ -212,7 +206,7 @@ async function saveContent(type) {
 // Startup (load data before serving)
 // ═══════════════════════════════════════════════════════════
 
-async function startServer() {
+async function startServer(port = PORT) {
   await loadDb();
   await loadContent();
 
@@ -225,7 +219,8 @@ async function startServer() {
   }
 
   // Serve sprites (from GCS via proxy, or local dir)
-  const LOCAL_SPRITES_DIR = path.join(__dirname, "public", "sprites");
+  const LOCAL_SPRITES_DIR =
+    process.env.SPRITES_DIR || path.join(__dirname, "public", "sprites");
   if (!fs.existsSync(LOCAL_SPRITES_DIR))
     fs.mkdirSync(LOCAL_SPRITES_DIR, { recursive: true });
 
@@ -370,7 +365,7 @@ async function startServer() {
       ".jpg": "image/jpeg",
       ".gif": "image/gif",
     };
-    await gcsWriteBuffer(
+    await gcsWrite(
       `sprites/${safeName}`,
       buffer,
       mimeTypes[ext] || "application/octet-stream",
@@ -517,7 +512,17 @@ async function startServer() {
 
   app.post("/api/state", requireAuth, (req, res) => {
     const userId = req.discordUser.id;
-    const state = req.body;
+    const validation = UserStateSchema.safeParse(req.body);
+
+    if (!validation.success) {
+      return res.status(400).json({
+        error: "Invalid state",
+        details: validation.error.errors,
+      });
+    }
+
+    const state = validation.data;
+
     if (state.id !== userId)
       return res.status(400).json({ error: "User ID mismatch" });
     db.set(userId, state);
@@ -671,9 +676,9 @@ async function startServer() {
     res.sendFile(indexPath);
   });
 
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-    console.log(`Admin panel: http://localhost:${PORT}/admin`);
+  return app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
+    console.log(`Admin panel: http://localhost:${port}/admin`);
     console.log(
       `Storage: ${bucket ? "GCS (" + GCS_BUCKET + ")" : "LOCAL (ephemeral)"}`,
     );
