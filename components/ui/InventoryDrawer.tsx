@@ -36,7 +36,7 @@ export const InventoryDrawer: React.FC<InventoryDrawerProps> = ({
     <>
       {/* Handle / Tab */}
       <div
-        className={`absolute left-1/2 -translate-x-1/2 transition-all duration-300 z-30 ${
+        className={`absolute right-4 transition-all duration-300 z-30 ${
           isExpanded ? "bottom-[240px]" : "bottom-6"
         }`}
       >

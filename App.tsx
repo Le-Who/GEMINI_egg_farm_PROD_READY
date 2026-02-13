@@ -296,9 +296,15 @@ const App: React.FC = () => {
 
       // --- VISITOR MODE ---
       if (isVisiting) {
+        // Allow billboard interaction for visitors
         const item = currentRoomItems.find(
           (i) => i.gridX === x && i.gridY === y,
         );
+        if (item && item.itemId === "billboard_wood") {
+          setIsStickerPickerOpen(true);
+          return;
+        }
+
         if (item && item.cropData) {
           // Optimistic check
           if (wateredPlants.has(item.id)) {
@@ -398,6 +404,13 @@ const App: React.FC = () => {
         const item = currentRoomItems.find(
           (i) => i.gridX === x && i.gridY === y,
         );
+
+        // Visitor Billboard Fix
+        if (item && item.itemId === "billboard_wood") {
+          setIsStickerPickerOpen(true);
+          return;
+        }
+
         if (!item) return;
 
         const config = ITEMS[item.itemId];
@@ -445,6 +458,18 @@ const App: React.FC = () => {
         }
 
         // GENERIC INTERACT
+        // Play Mode: interacting with furniture/decor should NOT pick it up
+        // We only allow "harvesting" or "hatching" here.
+        // If it's just a decoration, do nothing (maybe show "Entering Edit Mode" hint?)
+
+        if (
+          config.type === ItemType.FURNITURE ||
+          config.type === ItemType.DECORATION
+        ) {
+          // Passive objects - do nothing in Play Mode
+          return;
+        }
+
         const result = await GameEngine.harvestOrPickup(x, y);
         if (result.success && result.newState) {
           setCurrentUser(result.newState);
@@ -455,14 +480,54 @@ const App: React.FC = () => {
               triggerFloatingText(x, y, `+${result.reward}G`, "#ffff00");
               showNotification(`+${result.reward} Gold | +XP`, "success");
             } else showNotification(result.message || "Harvested", "success");
-          } else if (result.action === "pickup") {
-            showNotification("Item put in inventory", "success");
           } else if (result.action === "hatch") {
             triggerFloatingText(x, y, "HATCHED!", "#ff00ff");
             showNotification(result.message || "Hatched!", "success");
+          } else if (result.action === "pickup") {
+            // This case should theoretically be unreachable now for Furniture/Decor if logic above holds,
+            // but 'harvestOrPickup' still handles generic pickup.
+            // We'll allow it for now if GameEngine allowed it (e.g. maybe a loose item dropped?)
+            showNotification("Item put in inventory", "success");
           }
         } else {
           // Silent fail or low priority message
+        }
+      }
+
+      // 4. EDITOR PICKUP (Click to Pick Up)
+      if (isEditMode && !selectedItemId) {
+        const item = currentRoomItems.find(
+          (i) => i.gridX === x && i.gridY === y,
+        );
+        if (item) {
+          const result = await GameEngine.harvestOrPickup(x, y); // Pickup
+          if (result.success && result.newState) {
+            setCurrentUser(result.newState);
+            setDisplayUser(result.newState);
+            // Auto-select the item we just picked up to move it?
+            // result.action is 'pickup'
+            // We can select it immediately for placement:
+            setSelectedItemId(item.itemId);
+            setRotation(item.rotation);
+            showNotification("Moving item...", "success");
+          }
+        }
+      }
+
+      // 4. EDITOR PICKUP (Click to Pick Up)
+      if (isEditMode && !selectedItemId) {
+        const item = currentRoomItems.find(
+          (i) => i.gridX === x && i.gridY === y,
+        );
+        if (item) {
+          const result = await GameEngine.harvestOrPickup(x, y); // Pickup
+          if (result.success && result.newState) {
+            setCurrentUser(result.newState);
+            setDisplayUser(result.newState);
+            setSelectedItemId(item.itemId);
+            setRotation(item.rotation);
+            showNotification("Moving item...", "success");
+          }
         }
       }
     },
@@ -641,12 +706,14 @@ const App: React.FC = () => {
       />
 
       {notification && (
-        <div
-          className={`fixed top-24 left-1/2 -translate-x-1/2 px-6 py-2 rounded-full shadow-xl z-50 text-white font-bold animate-bounce ${
-            notification.type === "success" ? "bg-green-500" : "bg-red-500"
-          }`}
-        >
-          {notification.msg}
+        <div className="fixed top-24 inset-x-0 flex justify-center z-50 pointer-events-none">
+          <div
+            className={`px-6 py-2 rounded-full shadow-xl text-white font-bold animate-bounce ${
+              notification.type === "success" ? "bg-green-500" : "bg-red-500"
+            }`}
+          >
+            {notification.msg}
+          </div>
         </div>
       )}
     </div>

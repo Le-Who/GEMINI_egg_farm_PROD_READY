@@ -184,13 +184,6 @@ export const HUD: React.FC<HUDProps> = ({
       {/* Right Sidebar */}
       <div className="absolute top-20 right-4 z-10 flex flex-col gap-3">
         {/* Tutorial Step 2: Place Item -> Pulse Edit Button */}
-        <SidebarButton
-          id="btn-edit-mode"
-          onClick={onToggleEdit}
-          icon={Home}
-          label="Edit House"
-          pulse={user.tutorialStep === 2}
-        />
 
         {/* Tutorial Step 0: Open Shop -> Pulse Shop Button */}
         <SidebarButton

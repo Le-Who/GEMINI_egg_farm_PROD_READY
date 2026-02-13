@@ -408,8 +408,20 @@ export class MainScene extends Phaser.Scene {
 
   // --- Sprite Texture Management ---
 
-  /** Get a texture key from a sprite URL path like /sprites/foo.png */
+  /** Get a texture key from a sprite URL path like /sprites/foo.png or https://example.com/foo.png */
   private getSpriteKey(spritePath: string): string {
+    // Determine if it's a remote URL
+    if (spritePath.startsWith("http")) {
+      // Simple hash-like key for URLs
+      let hash = 0;
+      for (let i = 0; i < spritePath.length; i++) {
+        const char = spritePath.charCodeAt(i);
+        hash = (hash << 5) - hash + char;
+        hash |= 0;
+      }
+      return `remote_sprite_${Math.abs(hash)}`;
+    }
+    // Local path
     return `sprite_${spritePath.replace(/[^a-zA-Z0-9]/g, "_")}`;
   }
 
@@ -772,9 +784,9 @@ export class MainScene extends Phaser.Scene {
       const drawn = this.drawSpriteImage(
         config.sprite,
         screen.x,
-        screen.y - 10 + bounce - 12, // Center-anchor: position at visual center
-        24,
-        24,
+        screen.y - 24 + bounce, // Adjusted Y for larger size
+        48, // Width 48
+        48, // Height 48
         1,
         depth,
       );
@@ -1120,6 +1132,8 @@ export class MainScene extends Phaser.Scene {
     const mv = adjX / halfW;
     const x = Math.round((mu + mv) / 2);
     const y = Math.round((mu - mv) / 2);
+    // User reported offset: likely need to adjust for tile center vs top-left
+    // No change needed to math if TILE_HEIGHT is correct, but let's ensure we aren't rounding aggressively
     return { x, y };
   }
 

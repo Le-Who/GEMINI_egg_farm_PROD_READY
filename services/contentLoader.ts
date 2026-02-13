@@ -11,7 +11,70 @@ import {
 } from "../types";
 
 // --- Content Store (loaded from server API) ---
-let _items: Record<string, ItemConfig> = {};
+const DEFAULT_DYES: Record<string, ItemConfig> = {
+  dye_red: {
+    id: "dye_red",
+    name: "Red Dye",
+    type: ItemType.DYE,
+    price: 50,
+    currency: "coins",
+    color: 0xff4444,
+    width: 1,
+    height: 1,
+    description: "Dye your furniture Red!",
+    dyeColor: "0xff4444",
+  },
+  dye_blue: {
+    id: "dye_blue",
+    name: "Blue Dye",
+    type: ItemType.DYE,
+    price: 50,
+    currency: "coins",
+    color: 0x4444ff,
+    width: 1,
+    height: 1,
+    description: "Dye your furniture Blue!",
+    dyeColor: "0x4444ff",
+  },
+  dye_green: {
+    id: "dye_green",
+    name: "Green Dye",
+    type: ItemType.DYE,
+    price: 50,
+    currency: "coins",
+    color: 0x44ff44,
+    width: 1,
+    height: 1,
+    description: "Dye your furniture Green!",
+    dyeColor: "0x44ff44",
+  },
+  dye_yellow: {
+    id: "dye_yellow",
+    name: "Yellow Dye",
+    type: ItemType.DYE,
+    price: 50,
+    currency: "coins",
+    color: 0xffff44,
+    width: 1,
+    height: 1,
+    description: "Dye your furniture Yellow!",
+    dyeColor: "0xffff44",
+  },
+  dye_purple: {
+    id: "dye_purple",
+    name: "Purple Dye",
+    type: ItemType.DYE,
+    price: 50,
+    currency: "coins",
+    color: 0xff44ff,
+    width: 1,
+    height: 1,
+    description: "Dye your furniture Purple!",
+    dyeColor: "0xff44ff",
+  },
+};
+
+let _items: Record<string, ItemConfig> = { ...DEFAULT_DYES };
 let _crops: Record<string, CropConfig> = {};
 let _pets: Record<string, PetConfig> = {};
 let _eggs: Record<string, EggConfig> = {};
@@ -69,7 +132,7 @@ export async function loadContent(): Promise<boolean> {
     const data = await res.json();
 
     if (data.items) {
-      _items = {};
+      _items = { ...DEFAULT_DYES };
       for (const [id, raw] of Object.entries(data.items))
         _items[id] = parseItem(raw);
     }

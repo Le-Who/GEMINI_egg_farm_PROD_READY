@@ -680,7 +680,13 @@ async function startServer() {
   });
 }
 
-startServer().catch((e) => {
-  console.error("Fatal startup error:", e);
-  process.exit(1);
-});
+// Export for testing
+export { app, startServer };
+
+// Only start strict if main module
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  startServer().catch((e) => {
+    console.error("Fatal startup error:", e);
+    process.exit(1);
+  });
+}
