@@ -20,6 +20,7 @@ import {
   loadContent,
   refreshArrayRefs,
   startContentPolling,
+  NOTIFICATION_DURATION,
 } from "./constants";
 import { Loader2, ArrowLeft } from "lucide-react";
 import Phaser from "phaser";
@@ -172,7 +173,7 @@ const GameContent: React.FC = () => {
       notificationTimeoutRef.current = setTimeout(() => {
         setNotification(null);
         notificationTimeoutRef.current = null;
-      }, 3000);
+      }, NOTIFICATION_DURATION);
     },
     [],
   );
