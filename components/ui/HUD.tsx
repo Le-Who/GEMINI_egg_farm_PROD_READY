@@ -11,6 +11,7 @@ import {
   PawPrint,
   Flower2,
   Trophy,
+  Pencil,
 } from "lucide-react";
 
 interface HUDProps {
@@ -184,6 +185,14 @@ export const HUD: React.FC<HUDProps> = ({
       {/* Right Sidebar */}
       <div className="absolute top-20 right-4 z-10 flex flex-col gap-3">
         {/* Tutorial Step 2: Place Item -> Pulse Edit Button */}
+        <SidebarButton
+          id="btn-edit"
+          onClick={onToggleEdit}
+          icon={Pencil}
+          label="Edit Mode"
+          colorClass="text-yellow-400"
+          pulse={user.tutorialStep === 2}
+        />
 
         {/* Tutorial Step 0: Open Shop -> Pulse Shop Button */}
         <SidebarButton

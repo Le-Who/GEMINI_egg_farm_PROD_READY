@@ -6,7 +6,10 @@
     "start": "node server.js",
     "dev": "node server.js",
     "build": "vite build",
-    "gcp-build": "npm run build"
+    "gcp-build": "npm run build",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit tests/integration",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@discord/embedded-app-sdk": "^1.0.0",

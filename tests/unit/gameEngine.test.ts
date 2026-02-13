@@ -18,6 +18,9 @@ vi.mock("../../services/contentLoader", () => ({
     planter_basic: { id: "planter_basic", type: "PLANTER", price: 50 },
     chair_wood: { id: "chair_wood", type: "FURNITURE", price: 100 },
     seed_strawberry: { id: "seed_strawberry", type: "PLANTER", price: 10 },
+    incubator_basic: { id: "incubator_basic", type: "INCUBATOR", price: 200 },
+    egg_common: { id: "egg_common", type: "EGG", price: 100 },
+    water_can: { id: "water_can", type: "CONSUMABLE", price: 0 },
   }),
   getCrops: () => ({
     strawberry: {
@@ -28,9 +31,24 @@ vi.mock("../../services/contentLoader", () => ({
       xpReward: 5,
     },
   }),
-  getPets: () => ({}),
-  getEggs: () => ({}),
-  getLevels: () => [],
+  getPets: () => ({
+    cat_orange: {
+      id: "cat_orange",
+      name: "Orange Cat",
+      bonuses: [{ type: "growth_speed", value: 0.1 }],
+    },
+  }),
+  getEggs: () => ({
+    egg_common: {
+      id: "egg_common",
+      hatchTime: 60,
+      pool: { cat_orange: 100 },
+    },
+  }),
+  getLevels: () => [
+    { level: 1, xpFiltered: 0, unlockItems: [] },
+    { level: 2, xpFiltered: 100, unlockItems: [] },
+  ],
   getTutorial: () => [],
   getSkus: () => [],
   getQuests: () => [],
@@ -157,6 +175,74 @@ describe("GameEngine", () => {
       expect(res.action).toBe("pickup");
       expect(res.newState?.inventory["planter_basic"]).toBe(5); // 5 (start) - 1 (place) + 1 (pickup) = 5
       expect(res.newState?.rooms.interior.items).toHaveLength(0);
+    });
+
+    it("should harvest a grown crop", async () => {
+      // Place planter
+      const placeRes = await GameEngine.placeItem("planter_basic", 4, 4, 0);
+      const planterId = placeRes.newState?.rooms.interior.items.find(
+        (i) => i.gridX === 4 && i.gridY === 4,
+      )?.id;
+
+      // Plant seed
+      await GameEngine.plantSeed(planterId!, "strawberry");
+
+      // Spy on Date.now to fast-forward
+      const realDateNow = Date.now.bind(global.Date);
+      const futureTime = realDateNow() + 20000; // +20s (strawberry takes 10s)
+      vi.spyOn(global.Date, "now").mockReturnValue(futureTime);
+
+      const res = await GameEngine.harvestOrPickup(4, 4);
+
+      expect(res.success).toBe(true);
+      expect(res.action).toBe("harvest");
+      expect(res.newState?.coins).toBeGreaterThan(1000); // 1000 - cost + sellPrice
+
+      // Restore Date
+      vi.restoreAllMocks();
+    });
+  });
+
+  describe("Pet System", () => {
+    it("should incubate an egg", async () => {
+      // Place incubator
+      const placeRes = await GameEngine.placeItem("incubator_basic", 6, 6, 0);
+      const incubatorId = placeRes.newState?.rooms.interior.items.find(
+        (i) => i.gridX === 6 && i.gridY === 6,
+      )?.id;
+
+      // Place egg
+      const res = await GameEngine.placeEgg(incubatorId!, "egg_common");
+      expect(res.success).toBe(true);
+
+      const incubator = res.newState?.rooms.interior.items.find(
+        (i) => i.id === incubatorId,
+      );
+      expect(incubator?.meta).toBeDefined();
+      expect(incubator?.meta?.eggId).toBe("egg_common");
+    });
+
+    it("should equip a pet", async () => {
+      // Mock user having a pet
+      (global.fetch as any).mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          ...MOCK_USER,
+          pets: [
+            {
+              instanceId: "pet_1",
+              petId: "cat_orange",
+              name: "Kitty",
+              acquiredAt: Date.now(),
+            },
+          ],
+        }),
+      });
+      await GameEngine.getUser();
+
+      const res = await GameEngine.equipPet("pet_1");
+      expect(res.success).toBe(true);
+      expect(res.newState?.equippedPetId).toBe("pet_1");
     });
   });
 });

@@ -321,17 +321,19 @@ npm start
 
 The project employs a comprehensive testing strategy using **Vitest** for unit/integration and **Playwright** for end-to-end testing.
 
-| Type            | Tool               | Target                    | Command               |
-| :-------------- | :----------------- | :------------------------ | :-------------------- |
-| **Unit**        | Vitest             | `services/gameEngine.ts`  | `npm run test:unit`   |
-| **Integration** | Vitest + Supertest | `server.js` API endpoints | `npm run test:unit`   |
-| **E2E**         | Playwright         | Full Browser Flow         | `npx playwright test` |
+| Type            | Tool                | Target                    | Command             |
+| :-------------- | :------------------ | :------------------------ | :------------------ |
+| **All Tests**   | Vitest + Playwright | Full Suite                | `npm run test`      |
+| **Unit**        | Vitest              | `services/gameEngine.ts`  | `npm run test:unit` |
+| **Integration** | Vitest + Supertest  | `server.js` API endpoints | `npm run test:unit` |
+| **E2E**         | Playwright          | Full Browser Flow         | `npm run test:e2e`  |
 
 ### Key Test Features
 
-- **Mocked Discord Auth**: Integration tests bypass real Discord auth using extensive mocking.
+- **Mocked Discord Auth**: Integration and E2E tests bypass real Discord auth using extensive mocking. E2E tests use `page.route` to simulate API responses.
 - **Optimistic UI Checks**: E2E tests verify canvas rendering and title correctness.
 - **Game Logic Validation**: Unit tests cover all core actions (buy, plant, harvest, hatch).
+- **Prerequisites**: E2E tests require the dev server to be running (`npm start`) if not using the automated `npm run test:e2e` script which handles it (via Playwright webServer).
 
 ---
 
