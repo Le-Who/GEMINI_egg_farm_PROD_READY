@@ -456,9 +456,48 @@ export class MainScene extends Phaser.Scene {
     return false;
   }
 
-  /** Place a sprite image at screen coordinates, sized to fit an isometric tile.
-   *  @param originY  Vertical anchor: 0.5 = center (default, for furniture), 1.0 = bottom (for crops/plants)
-   *  @param tint     Optional color tint (hex, e.g. 0xff4444) applied via Phaser setTint */
+  /** Place a sprite image from pool at screen coordinates. */
+  private renderTexture(
+    key: string,
+    screenX: number,
+    screenY: number,
+    width: number,
+    height: number,
+    alpha: number = 1,
+    depth: number = 0,
+    originY: number = 0.5,
+    tint?: number | null,
+  ): boolean {
+    // Acquire from pool or create new (only if pool has capacity)
+    let img = this.spritePool.getFirstDead(
+      false,
+    ) as Phaser.GameObjects.Image | null;
+    if (img) {
+      img.setActive(true).setVisible(true);
+      img.setTexture(key);
+      img.setPosition(screenX, screenY);
+    } else {
+      if (this.spritePool.isFull()) {
+        return false;
+      }
+      img = this.add.image(screenX, screenY, key);
+      this.spritePool.add(img);
+    }
+    img.setOrigin(0.5, originY);
+    img.setDisplaySize(width, height);
+    img.setAlpha(alpha);
+    img.setDepth(depth);
+    // Apply or clear tint
+    if (tint != null) {
+      img.setTint(tint);
+    } else {
+      img.clearTint();
+    }
+    this.activeSprites.push(img);
+    return true;
+  }
+
+  /** Wrapper for drawing loaded sprites by path */
   private drawSpriteImage(
     spritePath: string,
     screenX: number,
@@ -475,31 +514,239 @@ export class MainScene extends Phaser.Scene {
       this.ensureSpriteLoaded(spritePath);
       return false; // Not ready yet, caller should fallback
     }
+    return this.renderTexture(
+      key,
+      screenX,
+      screenY,
+      width,
+      height,
+      alpha,
+      depth,
+      originY,
+      tint,
+    );
+  }
 
-    // Acquire from pool or create new
-    let img = this.spritePool.getFirstDead(
-      false,
-    ) as Phaser.GameObjects.Image | null;
-    if (img) {
-      img.setActive(true).setVisible(true);
-      img.setTexture(key);
-      img.setPosition(screenX, screenY);
-    } else {
-      img = this.add.image(screenX, screenY, key);
-      this.spritePool.add(img);
-    }
-    img.setOrigin(0.5, originY);
-    img.setDisplaySize(width, height);
-    img.setAlpha(alpha);
-    img.setDepth(depth);
-    // Apply or clear tint
+  /** Fallback rendering path for procedural items when sprite pool is saturated. */
+  private drawProceduralItemFallback(
+    config: (typeof ITEMS)[string],
+    screenX: number,
+    screenY: number,
+    alpha: number,
+    tint?: number | null,
+  ) {
+    const g = this.itemsGraphics;
+
+    let itemHeight = 20;
+    if (config.type === ItemType.PLANTER) itemHeight = 15;
+    if (config.type === ItemType.INCUBATOR) itemHeight = 15;
+
+    const baseColor = Phaser.Display.Color.IntegerToColor(config.color);
+    let red = baseColor.red;
+    let green = baseColor.green;
+    let blue = baseColor.blue;
     if (tint != null) {
-      img.setTint(tint);
-    } else {
-      img.clearTint();
+      const tintObj = Phaser.Display.Color.IntegerToColor(tint);
+      red = Math.floor((red * tintObj.red) / 255);
+      green = Math.floor((green * tintObj.green) / 255);
+      blue = Math.floor((blue * tintObj.blue) / 255);
     }
-    this.activeSprites.push(img);
-    return true;
+
+    const color = Phaser.Display.Color.GetColor(red, green, blue);
+
+    // Top Face
+    g.fillStyle(color, alpha);
+    g.fillPoints(
+      [
+        new Phaser.Geom.Point(screenX, screenY - itemHeight),
+        new Phaser.Geom.Point(
+          screenX + TILE_WIDTH / 2,
+          screenY - TILE_HEIGHT / 2 - itemHeight,
+        ),
+        new Phaser.Geom.Point(screenX, screenY - TILE_HEIGHT - itemHeight),
+        new Phaser.Geom.Point(
+          screenX - TILE_WIDTH / 2,
+          screenY - TILE_HEIGHT / 2 - itemHeight,
+        ),
+      ],
+      true,
+    );
+
+    // Right/left sides
+    g.fillStyle(
+      Phaser.Display.Color.GetColor(
+        Math.floor(red * 0.8),
+        Math.floor(green * 0.8),
+        Math.floor(blue * 0.8),
+      ),
+      alpha,
+    );
+    g.fillPoints(
+      [
+        new Phaser.Geom.Point(screenX + TILE_WIDTH / 2, screenY - TILE_HEIGHT / 2 - itemHeight),
+        new Phaser.Geom.Point(screenX, screenY - itemHeight),
+        new Phaser.Geom.Point(screenX, screenY - TILE_HEIGHT),
+        new Phaser.Geom.Point(screenX + TILE_WIDTH / 2, screenY - TILE_HEIGHT / 2),
+      ],
+      true,
+    );
+
+    g.fillStyle(
+      Phaser.Display.Color.GetColor(
+        Math.floor(red * 0.6),
+        Math.floor(green * 0.6),
+        Math.floor(blue * 0.6),
+      ),
+      alpha,
+    );
+    g.fillPoints(
+      [
+        new Phaser.Geom.Point(screenX - TILE_WIDTH / 2, screenY - TILE_HEIGHT / 2 - itemHeight),
+        new Phaser.Geom.Point(screenX, screenY - itemHeight),
+        new Phaser.Geom.Point(screenX, screenY - TILE_HEIGHT),
+        new Phaser.Geom.Point(screenX - TILE_WIDTH / 2, screenY - TILE_HEIGHT / 2),
+      ],
+      true,
+    );
+
+    if (config.type === ItemType.PLANTER) {
+      g.fillStyle(0x3d2817, alpha);
+      g.fillPoints(
+        [
+          new Phaser.Geom.Point(screenX, screenY - itemHeight + 2),
+          new Phaser.Geom.Point(
+            screenX + TILE_WIDTH / 2 - 4,
+            screenY - TILE_HEIGHT / 2 - itemHeight + 2,
+          ),
+          new Phaser.Geom.Point(screenX, screenY - TILE_HEIGHT - itemHeight + 4),
+          new Phaser.Geom.Point(
+            screenX - TILE_WIDTH / 2 + 4,
+            screenY - TILE_HEIGHT / 2 - itemHeight + 2,
+          ),
+        ],
+        true,
+      );
+    }
+  }
+
+  /** Generate and cache an isometric box texture for procedural items */
+  private generateProceduralTexture(itemId: string) {
+    const key = `proc_${itemId}`;
+    if (this.textures.exists(key)) return;
+
+    const config = ITEMS[itemId];
+    if (!config) return;
+
+    let itemHeight = 20;
+    if (config.type === ItemType.PLANTER) itemHeight = 15;
+    if (config.type === ItemType.INCUBATOR) itemHeight = 15;
+
+    // Total texture size: TILE_WIDTH x (TILE_HEIGHT + itemHeight)
+    const texWidth = TILE_WIDTH;
+    const texHeight = TILE_HEIGHT + itemHeight;
+
+    // Create temporary graphics
+    const g = this.make.graphics({ x: 0, y: 0, add: false });
+
+    // Base point for drawing (bottom center of the texture)
+    const baseX = texWidth / 2;
+    const baseY = texHeight;
+
+    const color = config.color;
+
+    // Top Face
+    g.fillStyle(color, 1);
+    g.fillPoints(
+      [
+        new Phaser.Geom.Point(baseX, baseY - itemHeight),
+        new Phaser.Geom.Point(
+          baseX + TILE_WIDTH / 2,
+          baseY - TILE_HEIGHT / 2 - itemHeight,
+        ),
+        new Phaser.Geom.Point(baseX, baseY - TILE_HEIGHT - itemHeight),
+        new Phaser.Geom.Point(
+          baseX - TILE_WIDTH / 2,
+          baseY - TILE_HEIGHT / 2 - itemHeight,
+        ),
+      ],
+      true,
+    );
+
+    // Right Side (Darker)
+    g.fillStyle(
+      Phaser.Display.Color.GetColor(
+        (color >> 16) & (255 * 0.8),
+        (color >> 8) & (255 * 0.8),
+        color & (255 * 0.8),
+      ),
+      1,
+    );
+    g.fillPoints(
+      [
+        new Phaser.Geom.Point(baseX, baseY - itemHeight),
+        new Phaser.Geom.Point(
+          baseX + TILE_WIDTH / 2,
+          baseY - TILE_HEIGHT / 2 - itemHeight,
+        ),
+        new Phaser.Geom.Point(
+          baseX + TILE_WIDTH / 2,
+          baseY - TILE_HEIGHT / 2,
+        ),
+        new Phaser.Geom.Point(baseX, baseY),
+      ],
+      true,
+    );
+
+    // Left Side (Even Darker)
+    g.fillStyle(
+      Phaser.Display.Color.GetColor(
+        (color >> 16) & (255 * 0.6),
+        (color >> 8) & (255 * 0.6),
+        color & (255 * 0.6),
+      ),
+      1,
+    );
+    g.fillPoints(
+      [
+        new Phaser.Geom.Point(baseX, baseY - itemHeight),
+        new Phaser.Geom.Point(
+          baseX - TILE_WIDTH / 2,
+          baseY - TILE_HEIGHT / 2 - itemHeight,
+        ),
+        new Phaser.Geom.Point(
+          baseX - TILE_WIDTH / 2,
+          baseY - TILE_HEIGHT / 2,
+        ),
+        new Phaser.Geom.Point(baseX, baseY),
+      ],
+      true,
+    );
+
+    // Planter Soil
+    if (config.type === ItemType.PLANTER) {
+      g.fillStyle(0x3d2817, 1); // Soil
+      g.fillPoints(
+        [
+          new Phaser.Geom.Point(baseX, baseY - itemHeight + 2),
+          new Phaser.Geom.Point(
+            baseX + TILE_WIDTH / 2 - 4,
+            baseY - TILE_HEIGHT / 2 - itemHeight + 2,
+          ),
+          new Phaser.Geom.Point(
+            baseX,
+            baseY - TILE_HEIGHT - itemHeight + 2 + 2,
+          ),
+          new Phaser.Geom.Point(
+            baseX - TILE_WIDTH / 2 + 4,
+            baseY - TILE_HEIGHT / 2 - itemHeight + 2,
+          ),
+        ],
+        true,
+      );
+    }
+
+    g.generateTexture(key, texWidth, texHeight);
+    g.destroy();
   }
 
   /** Get the appropriate crop sprite for current growth progress */
@@ -850,97 +1097,26 @@ export class MainScene extends Phaser.Scene {
       if (drawn) return; // Sprite rendered — skip procedural
     }
 
-    // --- Procedural fallback: isometric box ---
-    g.fillStyle(color, alpha);
-
-    // Top
-    g.fillPoints(
-      [
-        new Phaser.Geom.Point(screen.x, screen.y - height),
-        new Phaser.Geom.Point(
-          screen.x + TILE_WIDTH / 2,
-          screen.y - TILE_HEIGHT / 2 - height,
-        ),
-        new Phaser.Geom.Point(screen.x, screen.y - TILE_HEIGHT - height),
-        new Phaser.Geom.Point(
-          screen.x - TILE_WIDTH / 2,
-          screen.y - TILE_HEIGHT / 2 - height,
-        ),
-      ],
-      true,
-    );
-
-    // Sides (Darker)
-    g.fillStyle(
-      Phaser.Display.Color.GetColor(
-        (color >> 16) & (255 * 0.8),
-        (color >> 8) & (255 * 0.8),
-        color & (255 * 0.8),
-      ),
+    // --- Procedural Texture Cache (Optimized) ---
+    this.generateProceduralTexture(item.itemId);
+    const procKey = `proc_${item.itemId}`;
+    const drewTexture = this.renderTexture(
+      procKey,
+      screen.x,
+      screen.y,
+      TILE_WIDTH,
+      TILE_HEIGHT + height,
       alpha,
+      depth,
+      1.0, // Bottom-anchor
+      item.tint,
     );
-    g.fillPoints(
-      [
-        new Phaser.Geom.Point(screen.x, screen.y - height),
-        new Phaser.Geom.Point(
-          screen.x + TILE_WIDTH / 2,
-          screen.y - TILE_HEIGHT / 2 - height,
-        ),
-        new Phaser.Geom.Point(
-          screen.x + TILE_WIDTH / 2,
-          screen.y - TILE_HEIGHT / 2,
-        ),
-        new Phaser.Geom.Point(screen.x, screen.y),
-      ],
-      true,
-    );
-
-    g.fillStyle(
-      Phaser.Display.Color.GetColor(
-        (color >> 16) & (255 * 0.6),
-        (color >> 8) & (255 * 0.6),
-        color & (255 * 0.6),
-      ),
-      alpha,
-    );
-    g.fillPoints(
-      [
-        new Phaser.Geom.Point(screen.x, screen.y - height),
-        new Phaser.Geom.Point(
-          screen.x - TILE_WIDTH / 2,
-          screen.y - TILE_HEIGHT / 2 - height,
-        ),
-        new Phaser.Geom.Point(
-          screen.x - TILE_WIDTH / 2,
-          screen.y - TILE_HEIGHT / 2,
-        ),
-        new Phaser.Geom.Point(screen.x, screen.y),
-      ],
-      true,
-    );
+    if (!drewTexture) {
+      this.drawProceduralItemFallback(config, screen.x, screen.y, alpha, item.tint);
+    }
 
     // Crop rendering
     if (config.type === ItemType.PLANTER) {
-      g.fillStyle(0x3d2817, alpha); // Soil
-      g.fillPoints(
-        [
-          new Phaser.Geom.Point(screen.x, screen.y - height + 2),
-          new Phaser.Geom.Point(
-            screen.x + TILE_WIDTH / 2 - 4,
-            screen.y - TILE_HEIGHT / 2 - height + 2,
-          ),
-          new Phaser.Geom.Point(
-            screen.x,
-            screen.y - TILE_HEIGHT - height + 2 + 2,
-          ),
-          new Phaser.Geom.Point(
-            screen.x - TILE_WIDTH / 2 + 4,
-            screen.y - TILE_HEIGHT / 2 - height + 2,
-          ),
-        ],
-        true,
-      );
-
       if (item.cropData) {
         const cropConfig = CROPS[item.cropData.cropId];
         if (cropConfig) {
