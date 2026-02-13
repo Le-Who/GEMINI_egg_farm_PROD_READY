@@ -17,6 +17,57 @@ const GCS_BUCKET = process.env.GCS_BUCKET || "";
 app.use(express.json({ limit: "10mb" }));
 
 // ═══════════════════════════════════════════════════════════
+// Security: Rate Limiting
+// ═══════════════════════════════════════════════════════════
+
+// Trust the first proxy (e.g. Google Cloud Load Balancer)
+app.set("trust proxy", 1);
+
+const rateLimitMap = new Map();
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
+const MAX_REQUESTS_PER_WINDOW = 120; // ~2 requests per second average
+
+const rateLimiter = (req, res, next) => {
+  // Use req.ip (safe when trust proxy is set)
+  const ip = req.ip || "unknown";
+
+  // Clean up old entries periodically (lazy cleanup on access)
+  const now = Date.now();
+  let record = rateLimitMap.get(ip);
+
+  if (!record || now - record.startTime > RATE_LIMIT_WINDOW) {
+    record = { count: 0, startTime: now };
+    rateLimitMap.set(ip, record);
+  }
+
+  record.count++;
+
+  if (record.count > MAX_REQUESTS_PER_WINDOW) {
+    console.warn(`[Security] Rate limit exceeded for IP: ${ip}`);
+    return res.status(429).json({
+      error: "Too many requests. Please try again later.",
+    });
+  }
+
+  next();
+};
+
+// Clean up expired entries every 5 minutes to prevent memory leaks
+// Use .unref() so this interval doesn't prevent the process from exiting (e.g. in tests)
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, record] of rateLimitMap.entries()) {
+    if (now - record.startTime > RATE_LIMIT_WINDOW) {
+      rateLimitMap.delete(ip);
+    }
+  }
+}, 5 * 60 * 1000).unref();
+
+// Apply to all /api and /admin routes
+app.use("/api", rateLimiter);
+app.use("/admin", rateLimiter);
+
+// ═══════════════════════════════════════════════════════════
 // GCS-backed Storage (persistent across deploys)
 // Falls back to local filesystem when GCS_BUCKET is not set
 // ═══════════════════════════════════════════════════════════
@@ -212,7 +263,8 @@ async function saveContent(type) {
 // Startup (load data before serving)
 // ═══════════════════════════════════════════════════════════
 
-async function startServer() {
+async function startServer(portOverride) {
+  const port = portOverride !== undefined ? portOverride : PORT;
   await loadDb();
   await loadContent();
 
@@ -671,9 +723,9 @@ async function startServer() {
     res.sendFile(indexPath);
   });
 
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-    console.log(`Admin panel: http://localhost:${PORT}/admin`);
+  return app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
+    console.log(`Admin panel: http://localhost:${port}/admin`);
     console.log(
       `Storage: ${bucket ? "GCS (" + GCS_BUCKET + ")" : "LOCAL (ephemeral)"}`,
     );

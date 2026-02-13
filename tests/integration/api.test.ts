@@ -19,6 +19,9 @@ describe("API Integration", () => {
   let server: any;
 
   beforeAll(async () => {
+    // Start server to attach routes
+    server = await startServer(0);
+
     // Setup fetch mock for Discord Auth within the mocked node-fetch
     (fetch as any).mockImplementation((url: string) => {
       // Mock Discord Auth
@@ -34,8 +37,6 @@ describe("API Integration", () => {
       return Promise.resolve({ ok: false });
     });
 
-    // Start server to attach routes
-    server = await startServer();
   });
 
   afterAll(() => {
