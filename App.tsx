@@ -20,6 +20,7 @@ import {
   loadContent,
   refreshArrayRefs,
   startContentPolling,
+  SYNC_INTERVAL_MS,
   NOTIFICATION_DURATION,
 } from "./constants";
 import { Loader2, ArrowLeft } from "lucide-react";
@@ -123,7 +124,7 @@ const GameContent: React.FC = () => {
         setCurrentUser(u);
         if (!isVisiting) setDisplayUser(u);
       }
-    }, 5000); // Poll every 5s
+    }, SYNC_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [isEditMode, isVisiting, currentUser]);
 
