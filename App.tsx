@@ -20,9 +20,10 @@ import {
   loadContent,
   refreshArrayRefs,
   startContentPolling,
+  SYNC_INTERVAL_MS,
+  NOTIFICATION_DURATION,
 } from "./constants";
 import { Loader2, ArrowLeft } from "lucide-react";
-import Phaser from "phaser";
 import { gameBus } from "./services/eventBus";
 
 const GameContent: React.FC = () => {
@@ -123,7 +124,7 @@ const GameContent: React.FC = () => {
         setCurrentUser(u);
         if (!isVisiting) setDisplayUser(u);
       }
-    }, 5000); // Poll every 5s
+    }, SYNC_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [isEditMode, isVisiting, currentUser]);
 
@@ -172,7 +173,7 @@ const GameContent: React.FC = () => {
       notificationTimeoutRef.current = setTimeout(() => {
         setNotification(null);
         notificationTimeoutRef.current = null;
-      }, 3000);
+      }, NOTIFICATION_DURATION);
     },
     [],
   );
@@ -526,21 +527,6 @@ const GameContent: React.FC = () => {
             setSelectedItemId(item.itemId);
             setRotation(item.rotation);
             showNotification("Moving item...", "success");
-          }
-        }
-      }
-
-      // 4. EDITOR PICKUP (Click to Pick Up)
-      if (isEditMode && !selectedItemId) {
-        const item = currentRoomItems.find(
-          (i) => i.gridX === x && i.gridY === y,
-        );
-        if (item) {
-          const result = await GameEngine.harvestOrPickup(x, y); // Pickup
-          if (result.success && result.newState) {
-            setCurrentUser(result.newState);
-            setDisplayUser(result.newState);
-            showNotification("Item stored in inventory", "success");
           }
         }
       }
