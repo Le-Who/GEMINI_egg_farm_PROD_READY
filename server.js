@@ -232,6 +232,12 @@ async function startServer() {
   app.get("/sprites/:filename", async (req, res) => {
     const { filename } = req.params;
 
+    // Security: Prevent path traversal
+    const safePath = path.resolve(LOCAL_SPRITES_DIR, filename);
+    if (!safePath.startsWith(LOCAL_SPRITES_DIR + path.sep)) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
     // Try GCS first
     if (bucket) {
       try {
@@ -671,7 +677,7 @@ async function startServer() {
     res.sendFile(indexPath);
   });
 
-  app.listen(PORT, () => {
+  return app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
     console.log(`Admin panel: http://localhost:${PORT}/admin`);
     console.log(
