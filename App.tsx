@@ -529,21 +529,6 @@ const GameContent: React.FC = () => {
           }
         }
       }
-
-      // 4. EDITOR PICKUP (Click to Pick Up)
-      if (isEditMode && !selectedItemId) {
-        const item = currentRoomItems.find(
-          (i) => i.gridX === x && i.gridY === y,
-        );
-        if (item) {
-          const result = await GameEngine.harvestOrPickup(x, y); // Pickup
-          if (result.success && result.newState) {
-            setCurrentUser(result.newState);
-            setDisplayUser(result.newState);
-            showNotification("Item stored in inventory", "success");
-          }
-        }
-      }
     },
     [
       currentUser,
