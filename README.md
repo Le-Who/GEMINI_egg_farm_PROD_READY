@@ -317,6 +317,24 @@ npm start
 
 ---
 
+## 🧪 Testing
+
+The project employs a comprehensive testing strategy using **Vitest** for unit/integration and **Playwright** for end-to-end testing.
+
+| Type            | Tool               | Target                    | Command               |
+| :-------------- | :----------------- | :------------------------ | :-------------------- |
+| **Unit**        | Vitest             | `services/gameEngine.ts`  | `npm run test:unit`   |
+| **Integration** | Vitest + Supertest | `server.js` API endpoints | `npm run test:unit`   |
+| **E2E**         | Playwright         | Full Browser Flow         | `npx playwright test` |
+
+### Key Test Features
+
+- **Mocked Discord Auth**: Integration tests bypass real Discord auth using extensive mocking.
+- **Optimistic UI Checks**: E2E tests verify canvas rendering and title correctness.
+- **Game Logic Validation**: Unit tests cover all core actions (buy, plant, harvest, hatch).
+
+---
+
 ## 🐳 Docker Deployment
 
 ```dockerfile
