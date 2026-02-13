@@ -286,6 +286,7 @@ export const MockBackend = {
     // Harvest
     if (item.cropData) {
       const crop = CROPS[item.cropData.cropId];
+      const harvestedCropId = item.cropData.cropId;
       const elapsed = Date.now() - item.cropData.plantedAt;
       if (elapsed >= crop.growthTime * 1000) {
         // Apply pet coin_reward and xp_reward bonuses
@@ -298,7 +299,7 @@ export const MockBackend = {
         item.cropData = null;
         checkLevelUp(state);
         checkTutorial(state, "HARVEST");
-        checkQuests(state, "HARVEST", item.cropData?.cropId);
+        checkQuests(state, "HARVEST", harvestedCropId);
         currentUserState = state;
         debouncedSave(state);
         return {

@@ -400,6 +400,25 @@ async function startServer() {
     res.json([...files].map((f) => ({ name: f, path: `/sprites/${f}` })));
   });
 
+  // Admin: Delete sprite
+  app.delete("/admin/api/sprites/:name", requireAdmin, async (req, res) => {
+    const safeName = req.params.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    try {
+      // Delete from GCS
+      if (bucket) {
+        try {
+          await bucket.file(`sprites/${safeName}`).delete();
+        } catch (e) {}
+      }
+      // Delete from local
+      const localPath = path.join(LOCAL_SPRITES_DIR, safeName);
+      if (fs.existsSync(localPath)) fs.unlinkSync(localPath);
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // --- Discord Auth ---
   const requireAuth = async (req, res, next) => {
     const authHeader = req.headers.authorization;
