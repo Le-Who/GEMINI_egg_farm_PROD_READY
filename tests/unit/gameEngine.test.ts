@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { GameEngine } from "../../services/gameEngine";
 import { UserState } from "../../types";
+import { refreshArrayRefs } from "../../constants";
 
 // Mock Discord Service
 vi.mock("../../services/discord", () => ({
@@ -50,7 +51,27 @@ vi.mock("../../services/contentLoader", () => ({
     { level: 2, xpRequired: 100, unlockItems: [] },
   ],
   getTutorial: () => [],
-  getSkus: () => [],
+  getSkus: () => [
+    {
+      id: "sku_legacy",
+      name: "Legacy Gem Pack",
+      price: "$0.99",
+      amount: 100,
+      icon: "gem.png",
+    },
+    {
+      id: "sku_bundle",
+      name: "Starter Bundle",
+      price: "$4.99",
+      amount: 0,
+      icon: "bundle.png",
+      rewards: {
+        coins: 1000,
+        gems: 50,
+        items: { planter_basic: 2 },
+      },
+    },
+  ],
   getQuests: () => [],
 }));
 
@@ -89,6 +110,7 @@ describe("GameEngine", () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    refreshArrayRefs();
 
     // Mock Fetch for getUser
     (global.fetch as any).mockResolvedValue({
@@ -202,6 +224,28 @@ describe("GameEngine", () => {
 
       // Restore Date
       vi.restoreAllMocks();
+    });
+  });
+
+  describe("buyPremiumCurrency", () => {
+    it("should add gems using legacy amount", async () => {
+      const res = await GameEngine.buyPremiumCurrency("sku_legacy");
+      expect(res.success).toBe(true);
+      expect(res.newState?.gems).toBe(200); // 100 + 100
+    });
+
+    it("should add rewards (coins, gems, items) using new system", async () => {
+      const res = await GameEngine.buyPremiumCurrency("sku_bundle");
+      expect(res.success).toBe(true);
+      expect(res.newState?.coins).toBe(2000); // 1000 + 1000
+      expect(res.newState?.gems).toBe(150); // 100 + 50
+      expect(res.newState?.inventory["planter_basic"]).toBe(7); // 5 + 2
+    });
+
+    it("should fail if SKU not found", async () => {
+      const res = await GameEngine.buyPremiumCurrency("sku_invalid");
+      expect(res.success).toBe(false);
+      expect(res.message).toBe("SKU not found");
     });
   });
 
