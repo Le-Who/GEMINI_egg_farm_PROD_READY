@@ -61,6 +61,7 @@ const MOCK_USER: UserState = {
   pets: [],
   tutorialStep: 10,
   completedTutorial: true,
+  placedItems: [],
 };
 
 describe("GameEngine", () => {

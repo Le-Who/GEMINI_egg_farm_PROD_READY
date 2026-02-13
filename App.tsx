@@ -524,9 +524,7 @@ const App: React.FC = () => {
           if (result.success && result.newState) {
             setCurrentUser(result.newState);
             setDisplayUser(result.newState);
-            setSelectedItemId(item.itemId);
-            setRotation(item.rotation);
-            showNotification("Moving item...", "success");
+            showNotification("Item stored in inventory", "success");
           }
         }
       }

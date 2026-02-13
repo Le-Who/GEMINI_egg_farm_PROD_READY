@@ -5,7 +5,7 @@ import { X } from "lucide-react";
 interface StickerPickerProps {
   isOpen: boolean;
   onClose: () => void;
-  onSend: (sticker: StickerType) => void;
+  onSend: (sticker: StickerType, message?: string) => void;
   billboard?: BillboardEntry[];
   ownerName: string;
 }
@@ -36,13 +36,15 @@ export const StickerPicker: React.FC<StickerPickerProps> = ({
   ownerName,
 }) => {
   const [sending, setSending] = useState(false);
+  const [message, setMessage] = useState("");
 
   if (!isOpen) return null;
 
   const handleSend = async (sticker: StickerType) => {
     setSending(true);
-    await onSend(sticker);
+    await onSend(sticker, message);
     setSending(false);
+    setMessage(""); // Reset
   };
 
   const recentStickers = billboard.slice(-10).reverse();
@@ -56,7 +58,7 @@ export const StickerPicker: React.FC<StickerPickerProps> = ({
       />
 
       {/* Panel */}
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[320px] max-h-[400px] bg-gray-800/95 backdrop-blur-md rounded-2xl border border-gray-600 shadow-2xl flex flex-col overflow-hidden animate-scale-in">
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[320px] max-h-[500px] bg-gray-800/95 backdrop-blur-md rounded-2xl border border-gray-600 shadow-2xl flex flex-col overflow-hidden animate-scale-in">
         {/* Header */}
         <div className="flex justify-between items-center p-3 border-b border-gray-700 bg-gray-900/60">
           <span className="text-white font-bold text-sm">
@@ -71,20 +73,32 @@ export const StickerPicker: React.FC<StickerPickerProps> = ({
         </div>
 
         {/* Sticker Buttons */}
-        <div className="p-3 border-b border-gray-700">
-          <p className="text-xs text-gray-400 mb-2">Leave a sticker:</p>
-          <div className="grid grid-cols-3 gap-2">
-            {STICKERS.map((s) => (
-              <button
-                key={s.type}
-                onClick={() => handleSend(s.type)}
-                disabled={sending}
-                className="flex flex-col items-center gap-1 p-2 rounded-xl bg-gray-700/60 hover:bg-gray-600 border border-gray-600 hover:border-gray-500 transition-all active:scale-95 disabled:opacity-50"
-              >
-                <span className="text-2xl">{s.emoji}</span>
-                <span className="text-[10px] text-gray-400">{s.label}</span>
-              </button>
-            ))}
+        <div className="p-3 border-b border-gray-700 space-y-3">
+          <div>
+            <p className="text-xs text-gray-400 mb-2">Leave a sticker:</p>
+            <div className="grid grid-cols-3 gap-2">
+              {STICKERS.map((s) => (
+                <button
+                  key={s.type}
+                  onClick={() => handleSend(s.type)}
+                  disabled={sending}
+                  className="flex flex-col items-center gap-1 p-2 rounded-xl bg-gray-700/60 hover:bg-gray-600 border border-gray-600 hover:border-gray-500 transition-all active:scale-95 disabled:opacity-50"
+                >
+                  <span className="text-2xl">{s.emoji}</span>
+                  <span className="text-[10px] text-gray-400">{s.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <input
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Add a message... (optional)"
+              maxLength={64}
+              className="w-full bg-gray-900/50 border border-gray-600 rounded-lg px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-green-500 transition-colors"
+            />
           </div>
         </div>
 
@@ -99,17 +113,24 @@ export const StickerPicker: React.FC<StickerPickerProps> = ({
               {recentStickers.map((entry, i) => (
                 <div
                   key={`${entry.fromId}-${entry.timestamp}`}
-                  className="flex items-center gap-2 text-xs bg-gray-700/40 px-2.5 py-1.5 rounded-lg"
+                  className="flex flex-col gap-1 bg-gray-700/40 px-2.5 py-1.5 rounded-lg border border-gray-600/30"
                 >
-                  <span className="text-lg">
-                    {STICKER_EMOJI[entry.sticker] || "✨"}
-                  </span>
-                  <span className="text-gray-300 font-medium">
-                    {entry.fromName}
-                  </span>
-                  <span className="text-gray-500 ml-auto text-[10px]">
-                    {formatTimeAgo(entry.timestamp)}
-                  </span>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="text-lg">
+                      {STICKER_EMOJI[entry.sticker] || "✨"}
+                    </span>
+                    <span className="text-gray-300 font-medium">
+                      {entry.fromName}
+                    </span>
+                    <span className="text-gray-500 ml-auto text-[10px]">
+                      {formatTimeAgo(entry.timestamp)}
+                    </span>
+                  </div>
+                  {entry.message && (
+                    <div className="pl-8 text-[11px] text-gray-400 italic leading-tight">
+                      "{entry.message}"
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

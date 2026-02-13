@@ -198,7 +198,8 @@ export class MainScene extends Phaser.Scene {
     this.isVisiting = isVisiting;
     this.wateredPlants = wateredPlants || new Set();
     this.tutorialStep = tutorialStep;
-    this.lastAction = lastAction || null;
+    // Safety: ensure lastAction is strictly null if not visiting, regardless of passed value
+    this.lastAction = isVisiting ? lastAction || null : null;
 
     const bgColor =
       this.currentRoomType === "garden" ? GARDEN_BG_COLOR : CANVAS_BG_COLOR;
@@ -1009,14 +1010,28 @@ export class MainScene extends Phaser.Scene {
       if (item.meta?.eggId) {
         const egg = EGGS[item.meta.eggId];
 
-        // Egg body
-        g.fillStyle(0xffeebb, alpha);
-        g.fillEllipse(screen.x, screen.y - height - 10, 14, 18);
-        // Spots
-        g.fillStyle(0xccaa88, alpha);
-        g.fillCircle(screen.x - 3, screen.y - height - 12, 2);
-
         if (egg) {
+          // Try Egg Sprite
+          const eggSpriteDrawn = egg.sprite
+            ? this.drawSpriteImage(
+                egg.sprite,
+                screen.x,
+                screen.y - height - 15,
+                32,
+                36, // Slightly oval
+                alpha,
+                depth + 1,
+              )
+            : false;
+
+          if (!eggSpriteDrawn) {
+            // Procedural Egg Fallback
+            g.fillStyle(0xffeebb, alpha);
+            g.fillEllipse(screen.x, screen.y - height - 10, 14, 18);
+            // Spots
+            g.fillStyle(0xccaa88, alpha);
+            g.fillCircle(screen.x - 3, screen.y - height - 12, 2);
+          }
           const elapsed = (Date.now() - (item.meta.hatchStart || 0)) / 1000;
           const progress = Math.min(1, elapsed / egg.hatchTime);
 

@@ -117,12 +117,21 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                       )}
 
                       <div className="h-16 bg-gray-900/40 rounded flex items-center justify-center relative overflow-hidden">
-                        <div
-                          className="w-10 h-10 rounded shadow-lg transition-transform group-hover:scale-110"
-                          style={{
-                            backgroundColor: `#${item.color.toString(16).padStart(6, "0")}`,
-                          }}
-                        />
+                        {item.sprite ? (
+                          <img
+                            src={item.sprite}
+                            alt={item.name}
+                            className="w-10 h-10 object-contain drop-shadow-md transition-transform group-hover:scale-110"
+                            style={{ imageRendering: "pixelated" }}
+                          />
+                        ) : (
+                          <div
+                            className="w-10 h-10 rounded shadow-lg transition-transform group-hover:scale-110"
+                            style={{
+                              backgroundColor: `#${item.color.toString(16).padStart(6, "0")}`,
+                            }}
+                          />
+                        )}
                         <div className="absolute bottom-1 right-1 text-[9px] text-gray-500 uppercase font-bold tracking-wider">
                           {item.type}
                         </div>

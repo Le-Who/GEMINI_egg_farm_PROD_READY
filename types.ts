@@ -62,6 +62,7 @@ export interface EggConfig {
   id: string;
   hatchTime: number; // seconds
   pool: { petId: string; weight: number }[];
+  sprite?: string; // New: Custom egg sprite
 }
 
 export interface LevelConfig {
