@@ -42,7 +42,7 @@ vi.mock("../../services/contentLoader", () => ({
     egg_common: {
       id: "egg_common",
       hatchTime: 60,
-      pool: { cat_orange: 100 },
+      pool: [{ petId: "cat_orange", weight: 100 }],
     },
   }),
   getLevels: () => [
@@ -202,6 +202,101 @@ describe("GameEngine", () => {
 
       // Restore Date
       vi.restoreAllMocks();
+    });
+  });
+
+  describe("hatchEgg", () => {
+    it("should hatch an egg when ready", async () => {
+      // Place incubator
+      const placeRes = await GameEngine.placeItem("incubator_basic", 7, 7, 0);
+      const incubatorId = placeRes.newState?.rooms.interior.items.find(
+        (i) => i.gridX === 7 && i.gridY === 7,
+      )?.id;
+
+      // Place egg
+      await GameEngine.placeEgg(incubatorId!, "egg_common");
+
+      // Fast forward time
+      const realDateNow = Date.now.bind(global.Date);
+      const futureTime = realDateNow() + 70000; // +70s (hatch time 60s)
+      vi.spyOn(global.Date, "now").mockReturnValue(futureTime);
+
+      const res = await GameEngine.hatchEgg(7, 7);
+      expect(res.success).toBe(true);
+      expect(res.action).toBe("hatch");
+      expect(res.newState?.pets.length).toBeGreaterThan(0);
+
+      vi.restoreAllMocks();
+    });
+
+    it("should not hatch if not ready", async () => {
+      // Place incubator
+      const placeRes = await GameEngine.placeItem("incubator_basic", 8, 8, 0);
+      const incubatorId = placeRes.newState?.rooms.interior.items.find(
+        (i) => i.gridX === 8 && i.gridY === 8,
+      )?.id;
+
+      // Place egg
+      await GameEngine.placeEgg(incubatorId!, "egg_common");
+
+      const res = await GameEngine.hatchEgg(8, 8);
+      expect(res.success).toBe(false);
+      expect(res.message).toBe("Incubating...");
+    });
+  });
+
+  describe("harvestCrop", () => {
+    it("should harvest a ready crop", async () => {
+      // Place planter
+      const placeRes = await GameEngine.placeItem("planter_basic", 1, 1, 0);
+      const planterId = placeRes.newState?.rooms.interior.items.find(
+        (i) => i.gridX === 1 && i.gridY === 1,
+      )?.id;
+
+      // Plant seed
+      await GameEngine.plantSeed(planterId!, "strawberry");
+
+      // Fast forward
+      const realDateNow = Date.now.bind(global.Date);
+      const futureTime = realDateNow() + 20000;
+      vi.spyOn(global.Date, "now").mockReturnValue(futureTime);
+
+      const res = await GameEngine.harvestCrop(1, 1);
+      expect(res.success).toBe(true);
+      expect(res.action).toBe("harvest");
+      expect(res.reward).toBeGreaterThan(0);
+
+      vi.restoreAllMocks();
+    });
+
+    it("should not harvest if not ready", async () => {
+      // Place planter
+      const placeRes = await GameEngine.placeItem("planter_basic", 2, 2, 0);
+      const planterId = placeRes.newState?.rooms.interior.items.find(
+        (i) => i.gridX === 2 && i.gridY === 2,
+      )?.id;
+
+      // Plant seed
+      await GameEngine.plantSeed(planterId!, "strawberry");
+
+      const res = await GameEngine.harvestCrop(2, 2);
+      expect(res.success).toBe(false);
+      expect(res.message).toBe("Not ready");
+    });
+  });
+
+  describe("pickupItem", () => {
+    it("should pickup an item", async () => {
+      // Ensure user has the item
+      const user = await GameEngine.getUser();
+      user.inventory["chair_wood"] = 1;
+
+      await GameEngine.placeItem("chair_wood", 3, 3, 0);
+
+      const res = await GameEngine.pickupItem(3, 3);
+      expect(res.success).toBe(true);
+      expect(res.action).toBe("pickup");
+      expect(res.newState?.rooms.interior.items.find((i) => i.gridX === 3 && i.gridY === 3)).toBeUndefined();
     });
   });
 
