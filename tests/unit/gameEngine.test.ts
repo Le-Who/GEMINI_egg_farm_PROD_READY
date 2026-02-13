@@ -166,6 +166,56 @@ describe("GameEngine", () => {
       expect(planter?.cropData).toBeDefined();
       expect(planter?.cropData?.cropId).toBe("strawberry");
     });
+
+    it("should fail if insufficient coins", async () => {
+      // 1. Place a planter
+      const placeRes = await GameEngine.placeItem("planter_basic", 2, 2, 0);
+      const planterId = placeRes.newState?.rooms.interior.items.find(
+        (i) => i.gridX === 2 && i.gridY === 2,
+      )?.id;
+      if (!planterId) throw new Error("Planter not placed");
+
+      const stateWithPlanter = placeRes.newState!;
+
+      // 2. Reload user with 0 coins but keeping the planter
+      (global.fetch as any).mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          ...stateWithPlanter,
+          coins: 0,
+        }),
+      });
+      await GameEngine.getUser();
+
+      // 3. Attempt to plant
+      const res = await GameEngine.plantSeed(planterId, "strawberry");
+      expect(res.success).toBe(false);
+      expect(res.message).toBe("Error");
+    });
+
+    it("should fail if crop does not exist", async () => {
+      // 1. Place a planter
+      const placeRes = await GameEngine.placeItem("planter_basic", 3, 3, 0);
+      const planterId = placeRes.newState?.rooms.interior.items.find(
+        (i) => i.gridX === 3 && i.gridY === 3,
+      )?.id;
+      if (!planterId) throw new Error("Planter not placed");
+
+      // 2. Attempt to plant invalid crop
+      const res = await GameEngine.plantSeed(planterId, "invalid_crop");
+      expect(res.success).toBe(false);
+      expect(res.message).toBe("Error");
+    });
+
+    it("should fail if planter does not exist", async () => {
+      // Attempt to plant in invalid planter
+      const res = await GameEngine.plantSeed(
+        "invalid_planter_id",
+        "strawberry",
+      );
+      expect(res.success).toBe(false);
+      expect(res.message).toBe("Error");
+    });
   });
 
   describe("harvestOrPickup", () => {
