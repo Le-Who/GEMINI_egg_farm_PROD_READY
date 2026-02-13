@@ -89,6 +89,7 @@ export const HUD: React.FC<HUDProps> = ({
     <button
       id={id}
       onClick={onClick}
+      aria-label={label}
       className={`group relative w-12 h-12 rounded-2xl border-2 flex items-center justify-center shadow-lg transition-all hover:scale-105 active:scale-95 backdrop-blur-md ${
         active
           ? "bg-fuchsia-600/90 border-fuchsia-300 text-white shadow-fuchsia-500/30"
@@ -136,7 +137,14 @@ export const HUD: React.FC<HUDProps> = ({
             <span className="text-white font-bold text-sm leading-none tracking-wide drop-shadow-sm">
               {user.username}
             </span>
-            <div className="w-full h-2.5 bg-gray-900/50 rounded-full overflow-hidden border border-emerald-800/50 relative group">
+            <div
+              role="progressbar"
+              aria-valuenow={progressPercent}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={t("hud.xp")}
+              className="w-full h-2.5 bg-gray-900/50 rounded-full overflow-hidden border border-emerald-800/50 relative group"
+            >
               <div
                 className="h-full bg-gradient-to-r from-fuchsia-500 to-purple-400 transition-all duration-500 ease-out box-shadow-[0_0_10px_rgba(232,121,249,0.5)]"
                 style={{ width: `${progressPercent}%` }}
@@ -170,6 +178,7 @@ export const HUD: React.FC<HUDProps> = ({
           <div className="flex flex-col gap-2 ml-1 animate-slide-right">
             <button
               onClick={() => onSwitchRoom("interior")}
+              aria-label={t("hud.interior")}
               className={`w-full text-left px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-3 transition-all border border-transparent ${
                 roomUser.currentRoom === "interior"
                   ? "bg-indigo-600/90 text-white shadow-lg border-indigo-400/50 backdrop-blur-sm"
@@ -180,6 +189,7 @@ export const HUD: React.FC<HUDProps> = ({
             </button>
             <button
               onClick={() => onSwitchRoom("garden")}
+              aria-label={t("hud.garden")}
               className={`w-full text-left px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-3 transition-all border border-transparent ${
                 roomUser.currentRoom === "garden"
                   ? "bg-green-600/90 text-white shadow-lg border-green-400/50 backdrop-blur-sm"
