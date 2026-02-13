@@ -2,14 +2,14 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { GameCanvas } from "./components/GameCanvas";
 import { HUD } from "./components/ui/HUD";
 import { ShopModal } from "./components/ui/ShopModal";
-import { EditorBar } from "./components/ui/EditorBar";
+import { InventoryDrawer } from "./components/ui/InventoryDrawer";
 import { SeedBagModal } from "./components/ui/SeedBagModal";
 import { NeighborsPanel } from "./components/ui/NeighborsPanel";
 import { PetsModal } from "./components/ui/PetsModal";
 import { QuestsPanel } from "./components/ui/QuestsPanel";
 import { TutorialOverlay } from "./components/ui/TutorialOverlay";
 import { ConfirmationModal } from "./components/ui/ConfirmationModal";
-import { StickerPicker } from "./components/ui/StickerPicker";
+import { GuestbookModal } from "./components/ui/GuestbookModal";
 import { GameEngine } from "./services/gameEngine";
 import { discordService } from "./services/discord"; // REAL Service
 import { UserState, ItemType, RoomType, StickerType } from "./types";
@@ -383,6 +383,10 @@ const App: React.FC = () => {
         if (result.success && result.newState) {
           setCurrentUser(result.newState);
           setDisplayUser(result.newState);
+          // FIX: Check if we ran out of stock
+          if ((result.newState.inventory[selectedItemId] || 0) <= 0) {
+            setSelectedItemId(null);
+          }
         } else {
           showNotification(result.message || "Cannot place here", "error");
         }
@@ -434,7 +438,7 @@ const App: React.FC = () => {
           }
         }
 
-        // BILLBOARD — open sticker picker when visiting
+        // BILLBOARD — open guestbook when visiting
         if (item.itemId === "billboard_wood") {
           setIsStickerPickerOpen(true);
           return;
@@ -491,9 +495,14 @@ const App: React.FC = () => {
   }
 
   // Determine current pet to display
-  // Use currentUser's pet if available (My pet follows me)
-  const myPetId = currentUser.equippedPetId;
-  const myPet = myPetId ? currentUser.pets.find((p) => p.id === myPetId) : null;
+  // Show Host's pet (displayUser) logic:
+  // If visiting, show displayUser.equippedPetId
+  // If home, show currentUser.equippedPetId (which IS displayUser)
+  const petOwner = displayUser;
+  const displayPetId = petOwner.equippedPetId;
+  const displayPet = displayPetId
+    ? petOwner.pets.find((p) => p.id === displayPetId)
+    : null;
 
   const currentRoomItems = displayUser.rooms[displayUser.currentRoom].items;
 
@@ -507,7 +516,7 @@ const App: React.FC = () => {
         ghostItem={
           isEditMode && selectedItemId ? { id: selectedItemId, rotation } : null
         }
-        currentPet={myPet || null}
+        currentPet={displayPet || null}
         isVisiting={isVisiting}
         wateredPlants={wateredPlants}
         playerGridPos={playerGridPos}
@@ -551,16 +560,16 @@ const App: React.FC = () => {
         onVisit={handleVisit}
       />
 
-      {isEditMode && (
-        <EditorBar
-          user={currentUser}
-          selectedItemId={selectedItemId}
-          rotation={rotation}
-          onSelect={setSelectedItemId}
-          onRotate={() => setRotation((r) => (r + 1) % 4)}
-          onClose={toggleEditMode}
-        />
-      )}
+      <InventoryDrawer
+        user={currentUser}
+        selectedItemId={selectedItemId}
+        rotation={rotation}
+        onSelect={setSelectedItemId}
+        onRotate={() => setRotation((r) => (r + 1) % 4)}
+        onClose={toggleEditMode}
+        isEditMode={isEditMode}
+        onToggleEditMode={toggleEditMode}
+      />
 
       <ShopModal
         isOpen={isShopOpen}
@@ -601,10 +610,10 @@ const App: React.FC = () => {
         confirmText="Purchase"
       />
 
-      <StickerPicker
+      <GuestbookModal
         isOpen={isStickerPickerOpen}
         onClose={() => setIsStickerPickerOpen(false)}
-        onSend={async (sticker: StickerType) => {
+        onSend={async (sticker: StickerType, message?: string) => {
           if (!displayUser) return;
           try {
             const token = discordService.accessToken;
@@ -614,7 +623,7 @@ const App: React.FC = () => {
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${token}`,
               },
-              body: JSON.stringify({ sticker }),
+              body: JSON.stringify({ sticker, message }),
             });
             const data = await res.json();
             if (data.success) {
@@ -633,7 +642,7 @@ const App: React.FC = () => {
 
       {notification && (
         <div
-          className={`absolute top-24 left-1/2 -translate-x-1/2 px-6 py-2 rounded-full shadow-xl z-50 text-white font-bold animate-bounce ${
+          className={`fixed top-24 left-1/2 -translate-x-1/2 px-6 py-2 rounded-full shadow-xl z-50 text-white font-bold animate-bounce ${
             notification.type === "success" ? "bg-green-500" : "bg-red-500"
           }`}
         >

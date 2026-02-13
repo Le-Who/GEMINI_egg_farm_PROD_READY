@@ -555,6 +555,66 @@ async function startServer() {
     res.json(neighbors);
   });
 
+  // Generic Interaction (Watering, etc.) for Visitors
+  // POST /api/interact/:userId
+  app.post("/api/interact/:userId", requireAuth, (req, res) => {
+    const targetId = req.params.userId;
+    const { action, targetItemId } = req.body; // e.g., { action: "WATER", targetItemId: "plant_123" }
+
+    if (action !== "WATER") {
+      return res.status(400).json({ error: "Invalid action" });
+    }
+
+    const targetState = db.get(targetId);
+    if (!targetState) return res.status(404).json({ error: "User not found" });
+
+    // Prevent self-interaction via this endpoint (though client should block it too)
+    if (targetId === req.discordUser.id) {
+      return res.status(400).json({ error: "Cannot visit-interact with self" });
+    }
+
+    // Logic for WATER
+    if (action === "WATER") {
+      // Find the item in any room (usually garden)
+      let found = false;
+      for (const roomKey of ["interior", "garden"]) {
+        const room = targetState.rooms[roomKey];
+        if (!room) continue;
+        const item = room.items.find((i) => i.id === targetItemId);
+        if (item && item.cropData) {
+          // Apply water effect: Reduce plantedAt timestamp by 10 minutes (600s)
+          // effective "speed up"
+          const reduction = 10 * 60 * 1000;
+          item.cropData.plantedAt -= reduction;
+          found = true;
+          // Record Echo Ghost
+          targetState.lastAction = {
+            type: "WATER",
+            gridX: item.gridX,
+            gridY: item.gridY,
+            timestamp: Date.now(),
+          };
+          break;
+        }
+      }
+
+      if (!found) {
+        return res
+          .status(404)
+          .json({ error: "Plant not found or not growing" });
+      }
+
+      db.set(targetId, targetState);
+      debouncedSaveDb();
+      return res.json({
+        success: true,
+        message: "Watered! (Growth sped up by 10m)",
+      });
+    }
+
+    res.status(400).json({ error: "Unknown action" });
+  });
+
   // Leave a sticker on someone's billboard
   const VALID_STICKERS = [
     "heart",
@@ -566,7 +626,7 @@ async function startServer() {
   ];
   app.post("/api/billboard/:userId", requireAuth, (req, res) => {
     const targetId = req.params.userId;
-    const { sticker } = req.body;
+    const { sticker, message } = req.body;
 
     if (!VALID_STICKERS.includes(sticker)) {
       return res.status(400).json({ error: "Invalid sticker type" });
@@ -589,6 +649,7 @@ async function startServer() {
       fromId: req.discordUser.id,
       fromName: req.discordUser.username || "Visitor",
       sticker,
+      message: message ? message.substring(0, 256) : undefined,
       timestamp: Date.now(),
     });
     if (targetState.billboard.length > 20) {

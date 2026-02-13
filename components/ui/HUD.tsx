@@ -79,6 +79,7 @@ export const HUD: React.FC<HUDProps> = ({
     pulse = false,
   }: any) => (
     <button
+      id={props.id}
       onClick={onClick}
       className={`group relative w-12 h-12 rounded-xl border-2 flex items-center justify-center shadow-lg transition-all hover:scale-105 active:scale-95 ${
         active
@@ -183,6 +184,7 @@ export const HUD: React.FC<HUDProps> = ({
       <div className="absolute top-20 right-4 z-10 flex flex-col gap-3">
         {/* Tutorial Step 2: Place Item -> Pulse Edit Button */}
         <SidebarButton
+          id="btn-edit-mode"
           onClick={onToggleEdit}
           icon={Home}
           label="Edit House"
@@ -191,6 +193,7 @@ export const HUD: React.FC<HUDProps> = ({
 
         {/* Tutorial Step 0: Open Shop -> Pulse Shop Button */}
         <SidebarButton
+          id="btn-shop"
           onClick={onOpenShop}
           icon={ShoppingCart}
           label="Shop"
@@ -199,12 +202,14 @@ export const HUD: React.FC<HUDProps> = ({
         />
 
         <SidebarButton
+          id="btn-pets"
           onClick={onOpenPets}
           icon={PawPrint}
           label="Pets"
           colorClass="text-purple-400"
         />
         <SidebarButton
+          id="btn-quests"
           onClick={onOpenQuests}
           icon={Trophy}
           label="Quests"

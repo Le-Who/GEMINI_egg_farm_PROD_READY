@@ -110,6 +110,7 @@ export interface BillboardEntry {
   fromId: string;
   fromName: string;
   sticker: StickerType;
+  message?: string; // New: Optional text message
   timestamp: number;
 }
 

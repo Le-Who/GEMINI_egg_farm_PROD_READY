@@ -107,6 +107,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                   return (
                     <div
                       key={item.id}
+                      id={`shop-item-${item.id}`}
                       className={`bg-gray-700/80 p-2.5 rounded-lg border transition-all flex flex-col gap-1.5 group relative ${isTutorialTarget ? "border-yellow-400 ring-2 ring-yellow-400/50 scale-[1.02] shadow-xl bg-gray-600" : "border-gray-600 hover:border-gray-500"}`}
                     >
                       {isTutorialTarget && (

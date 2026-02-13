@@ -644,12 +644,14 @@ export class MainScene extends Phaser.Scene {
           HARVEST: "🌾",
           PLACE: "📦",
           PICKUP: "🔄",
+          WATER: "💧", // Added WATER icon
         };
         const icon = icons[this.lastAction.type] || "✨";
         const textKey = `ghost_${this.lastAction.gridX}_${this.lastAction.gridY}`;
         let label = this.children.getByName(
           textKey,
         ) as Phaser.GameObjects.Text | null;
+
         if (!label) {
           label = this.add
             .text(screen.x, screen.y - 28, icon, {
@@ -657,7 +659,18 @@ export class MainScene extends Phaser.Scene {
             })
             .setOrigin(0.5)
             .setName(textKey)
-            .setDepth(9999);
+            .setDepth(9999)
+            .setInteractive(); // Make interactive
+
+          // Tooltip/Status on hover
+          label.on("pointerover", () => {
+            this.showFloatingText(
+              this.lastAction!.gridX,
+              this.lastAction!.gridY,
+              `${this.lastAction!.type} here`,
+              "#ffffff",
+            );
+          });
         }
         label.setPosition(screen.x, screen.y - 28);
         label.setAlpha(pulse + 0.3);

@@ -376,14 +376,19 @@ export const GameEngine = {
   waterNeighborPlant: async (neighborId: string, plantId: string) => {
     try {
       const token = discordService.accessToken;
-      const res = await fetch(`/api/water/${neighborId}/${plantId}`, {
+      const res = await fetch(`/api/interact/${neighborId}`, {
         method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action: "WATER", targetItemId: plantId }),
       });
-      if (res.ok) return { success: true, message: "Watered!" };
-      return { success: false, message: "Could not water" };
+      const data = await res.json();
+      if (res.ok) return { success: true, message: data.message };
+      return { success: false, message: data.error || "Could not water" };
     } catch (e) {
-      return { success: true, message: "Watered!" }; // Graceful fallback
+      return { success: false, message: "Network error" };
     }
   },
 
