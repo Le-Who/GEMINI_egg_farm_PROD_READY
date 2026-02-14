@@ -630,6 +630,16 @@ async function startServer(port = PORT) {
       return res.status(400).json({ error: "Invalid sticker type" });
     }
 
+    // Input validation: Message must be a string if provided
+    if (message !== undefined && typeof message !== "string") {
+      return res.status(400).json({ error: "Message must be a string" });
+    }
+
+    // Sanitize message: Allow only alphanumeric, space, ., !, ?
+    const sanitizedMessage = message
+      ? message.replace(/[^a-zA-Z0-9\s.,!?]/g, "").substring(0, 256)
+      : undefined;
+
     const targetState = db.get(targetId);
     if (!targetState) return res.status(404).json({ error: "User not found" });
 
@@ -647,7 +657,7 @@ async function startServer(port = PORT) {
       fromId: req.discordUser.id,
       fromName: req.discordUser.username || "Visitor",
       sticker,
-      message: message ? message.substring(0, 256) : undefined,
+      message: sanitizedMessage,
       timestamp: Date.now(),
     });
     if (targetState.billboard.length > 20) {
