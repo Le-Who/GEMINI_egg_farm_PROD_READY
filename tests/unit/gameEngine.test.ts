@@ -174,6 +174,7 @@ describe("GameEngine", () => {
     // Mock Fetch for getUser
     (global.fetch as any).mockResolvedValue({
       ok: true,
+      headers: new Map(), // Mock Headers object
       json: async () => JSON.parse(JSON.stringify(MOCK_USER)),
     });
 
@@ -196,6 +197,7 @@ describe("GameEngine", () => {
     it("should reject if insufficient funds", async () => {
       (global.fetch as any).mockResolvedValue({
         ok: true,
+        headers: new Map(),
         json: async () => ({ ...MOCK_USER, coins: 0 }),
       });
       await GameEngine.getUser(); // Re-init with 0 coins
@@ -261,6 +263,7 @@ describe("GameEngine", () => {
       // 2. Reload user with 0 coins but keeping the planter
       (global.fetch as any).mockResolvedValue({
         ok: true,
+        headers: new Map(),
         json: async () => ({
           ...stateWithPlanter,
           coins: 0,
@@ -458,6 +461,7 @@ describe("GameEngine", () => {
       // Mock user having a pet
       (global.fetch as any).mockResolvedValue({
         ok: true,
+        headers: new Map(),
         json: async () => ({
           ...MOCK_USER,
           pets: [
@@ -496,6 +500,7 @@ describe("GameEngine", () => {
       // Change mock response
       (global.fetch as any).mockResolvedValue({
         ok: true,
+        headers: new Map(),
         json: async () => ({ ...MOCK_USER, coins: 99999 }),
       });
 
@@ -519,6 +524,7 @@ describe("GameEngine", () => {
       // 2. Add dye to inventory
       (global.fetch as any).mockResolvedValue({
         ok: true,
+        headers: new Map(),
         json: async () => ({
           ...MOCK_USER,
           inventory: { ...MOCK_USER.inventory, dye_red: 1, chair_wood: 0 },
@@ -556,6 +562,7 @@ describe("GameEngine", () => {
       // Mock user state with tinted chair
       (global.fetch as any).mockResolvedValue({
         ok: true,
+        headers: new Map(),
         json: async () => ({
           ...MOCK_USER,
           rooms: placeRes.newState?.rooms,
@@ -602,6 +609,7 @@ describe("GameEngine", () => {
       // Ensure no dye
       (global.fetch as any).mockResolvedValue({
         ok: true,
+        headers: new Map(),
         json: async () => ({
           ...MOCK_USER,
           inventory: { ...MOCK_USER.inventory, dye_red: 0 },
