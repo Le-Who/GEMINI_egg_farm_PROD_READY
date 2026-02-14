@@ -37,7 +37,8 @@ export interface BaseSceneConfig {
  *     drawScene() { ... }
  *   }
  */
-export abstract class BaseScene extends (globalThis.Phaser?.Scene ?? class {}) {
+export abstract class BaseScene extends ((globalThis as any).Phaser?.Scene ??
+  class {}) {
   // Grid settings
   protected gridWidth: number = 16;
   protected gridHeight: number = 16;

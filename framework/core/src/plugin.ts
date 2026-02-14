@@ -54,7 +54,10 @@ export class PluginManager<TState extends BasePlayerState = BasePlayerState> {
     let current: GameAction | null = action;
     for (const plugin of this.plugins.values()) {
       if (!current) break;
-      const result = plugin.hooks.beforeAction?.(current, state);
+      const result: GameAction | null | undefined = plugin.hooks.beforeAction?.(
+        current,
+        state,
+      );
       if (result === null) return null;
       if (result !== undefined) current = result;
     }
