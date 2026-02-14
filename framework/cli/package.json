@@ -1,0 +1,26 @@
+{
+  "name": "create-discord-activity-game",
+  "version": "0.1.0",
+  "description": "CLI generator for Discord Activities games",
+  "type": "module",
+  "bin": {
+    "create-discord-activity-game": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0"
+  },
+  "keywords": [
+    "discord",
+    "activities",
+    "game",
+    "generator",
+    "cli"
+  ],
+  "license": "MIT"
+}

@@ -1,0 +1,29 @@
+{
+  "id": "{{GAME_ID}}",
+  "title": "{{GAME_TITLE}}",
+  "description": "A cozy farm simulation for Discord Activities",
+  "genre": "farm",
+  "version": "{{VERSION}}",
+  "locales": {{LOCALES}},
+  "persistence": "{{PERSISTENCE}}",
+  "discord": {
+    "clientId": "",
+    "scopes": ["identify", "rpc.activities.write", "guilds.members.read"]
+  },
+  "rendering": {
+    "type": "phaser",
+    "grid": {
+      "width": 16,
+      "height": 16,
+      "tileWidth": 64,
+      "tileHeight": 32,
+      "isometric": true
+    },
+    "backgroundColor": 3092790
+  },
+  "server": {
+    "port": 8080,
+    "adminPanel": true,
+    "adminPasswordEnv": "ADMIN_PASSWORD"
+  }
+}

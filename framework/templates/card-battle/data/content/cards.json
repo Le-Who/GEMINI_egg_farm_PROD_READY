@@ -1,0 +1,87 @@
+{
+  "fire_imp": {
+    "id": "fire_imp",
+    "name": "Fire Imp",
+    "rarity": "common",
+    "type": "creature",
+    "cost": 2,
+    "attack": 3,
+    "health": 4,
+    "element": "fire",
+    "description": "A mischievous imp wreathed in flame"
+  },
+  "water_sprite": {
+    "id": "water_sprite",
+    "name": "Water Sprite",
+    "rarity": "common",
+    "type": "creature",
+    "cost": 2,
+    "attack": 2,
+    "health": 5,
+    "element": "water",
+    "ability": "heal",
+    "abilityDescription": "Heal 1 HP on play",
+    "description": "A gentle spirit of flowing water"
+  },
+  "earth_golem": {
+    "id": "earth_golem",
+    "name": "Earth Golem",
+    "rarity": "rare",
+    "type": "creature",
+    "cost": 4,
+    "attack": 5,
+    "health": 8,
+    "element": "earth",
+    "description": "A massive construct of stone and moss"
+  },
+  "wind_fairy": {
+    "id": "wind_fairy",
+    "name": "Wind Fairy",
+    "rarity": "common",
+    "type": "creature",
+    "cost": 1,
+    "attack": 2,
+    "health": 2,
+    "element": "air",
+    "ability": "swift",
+    "abilityDescription": "Attacks first",
+    "description": "A tiny fairy riding the breeze"
+  },
+  "shadow_bat": {
+    "id": "shadow_bat",
+    "name": "Shadow Bat",
+    "rarity": "rare",
+    "type": "creature",
+    "cost": 3,
+    "attack": 4,
+    "health": 3,
+    "element": "dark",
+    "ability": "lifesteal",
+    "abilityDescription": "Heal for damage dealt",
+    "description": "A bat cloaked in living shadow"
+  },
+  "fireball": {
+    "id": "fireball",
+    "name": "Fireball",
+    "rarity": "common",
+    "type": "spell",
+    "cost": 3,
+    "attack": 5,
+    "health": 0,
+    "element": "fire",
+    "description": "Deal 5 damage to target"
+  },
+  "holy_shield": {
+    "id": "holy_shield",
+    "name": "Holy Shield",
+    "rarity": "epic",
+    "type": "spell",
+    "cost": 2,
+    "attack": 0,
+    "health": 4,
+    "element": "light",
+    "ability": "shield",
+    "abilityDescription": "Gain 4 health",
+    "description": "A protective barrier of divine light"
+  }
+}
