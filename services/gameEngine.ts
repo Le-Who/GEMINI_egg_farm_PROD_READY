@@ -78,15 +78,34 @@ function getEquippedPetBonus(state: UserState, bonusType: string): number {
 }
 
 // --- API Helpers ---
+const requestCache: Record<string, { etag: string; data: any }> = {};
+
 const api = {
   get: async (endpoint: string) => {
     const token = discordService.accessToken;
     if (!token) return null;
+
+    const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
+    if (requestCache[endpoint]) {
+      headers["If-None-Match"] = requestCache[endpoint].etag;
+    }
+
     const res = await fetch(endpoint, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers,
     });
+
+    if (res.status === 304 && requestCache[endpoint]) {
+      return requestCache[endpoint].data;
+    }
+
     if (!res.ok) return null;
-    return res.json();
+
+    const data = await res.json();
+    const etag = res.headers.get("ETag");
+    if (etag) {
+      requestCache[endpoint] = { etag, data };
+    }
+    return data;
   },
   post: async (endpoint: string, body: any) => {
     const token = discordService.accessToken;
@@ -147,6 +166,12 @@ export const GameEngine = {
     if (state.username !== username) state.username = username;
 
     // OPTIMIZATION: If identical to current cached state, return cache to prevent re-renders
+    // Level 1: Reference equality (ETag 304 hit)
+    if (currentUserState && state === currentUserState) {
+      return currentUserState;
+    }
+
+    // Level 2: Deep equality check
     if (
       currentUserState &&
       JSON.stringify(state) === JSON.stringify(currentUserState)
