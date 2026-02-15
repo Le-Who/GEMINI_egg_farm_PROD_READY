@@ -12,7 +12,7 @@ COPY server.js .
 COPY storage.js .
 
 # Bundle Discord SDK into public/js/
-RUN npx esbuild src/discord-entry.js --bundle --outfile=public/js/discord-sdk.js --format=iife --global-name=DiscordSDKModule --target=es2020
+RUN npx esbuild src/discord-entry.js --bundle --outfile=public/js/discord-sdk-bundle.js --format=iife --global-name=DiscordSDKModule --target=es2020
 
 # Remove devDependencies for smaller image
 RUN npm prune --omit=dev

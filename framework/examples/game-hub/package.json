@@ -5,7 +5,7 @@
   "private": true,
   "description": "Unified Game Hub — Farm + Trivia + Match-3 in one Discord Activity",
   "scripts": {
-    "build": "npx esbuild src/discord-entry.js --bundle --outfile=public/js/discord-sdk.js --format=iife --global-name=DiscordSDKModule --target=es2020",
+    "build": "npx esbuild src/discord-entry.js --bundle --outfile=public/js/discord-sdk-bundle.js --format=iife --global-name=DiscordSDKModule --target=es2020",
     "prestart": "npm run build",
     "start": "node server.js",
     "dev": "node server.js"

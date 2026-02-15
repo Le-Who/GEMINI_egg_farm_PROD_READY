@@ -984,14 +984,25 @@ app.get("/api/leaderboard", (req, res) => {
   res.json(leaders);
 });
 
-/* ═══════════════════════════════════════════════════
- *  STATIC FILES
- * ═══════════════════════════════════════════════════ */
-/* ─── Config JS endpoint (external script, CSP-safe — no inline!) ─── */
-app.get("/api/config.js", (_req, res) => {
+/*
+ * Serve /js/discord-sdk.js dynamically: prepend client_id config
+ * before the SDK bundle so it's available when the IIFE runs.
+ * This is CSP-safe (external same-origin script) and eliminates
+ * any race conditions with separate config scripts.
+ */
+let sdkBundleCache = null;
+app.get("/js/discord-sdk.js", (_req, res) => {
+  if (!sdkBundleCache) {
+    sdkBundleCache = fs.readFileSync(
+      path.join(__dirname, "public", "js", "discord-sdk-bundle.js"),
+      "utf-8",
+    );
+  }
+  const prefix = `window.__DISCORD_CLIENT_ID=${JSON.stringify(CLIENT_ID || "")};\n`;
   res
     .type("application/javascript")
-    .send(`window.__DISCORD_CLIENT_ID=${JSON.stringify(CLIENT_ID || "")};`);
+    .set("Cache-Control", "no-cache")
+    .send(prefix + sdkBundleCache);
 });
 
 app.use(express.static(path.join(__dirname, "public")));
