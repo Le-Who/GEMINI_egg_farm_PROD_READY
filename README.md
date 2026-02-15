@@ -516,13 +516,13 @@ npm run create-game -- my-game --genre trivia
 
 ### Demo Showcase
 
-| Demo                     | Genre       | Port | Key Features                                                                                                           |
-| ------------------------ | ----------- | ---- | ---------------------------------------------------------------------------------------------------------------------- |
-| 💎 **Gem Crush**         | Match-3     | 8080 | 8×8 grid, 6 gem types, swap mechanics, combo chains, gravity cascade, floating score animations                        |
-| ⚔️ **Card Battle Arena** | Card Battle | 8081 | 8-card database, element abilities (Burn, Lifesteal, Freeze), AI opponent, animated HP bars, battle log                |
-| 🧠 **Brain Blitz**       | Trivia      | 8082 | 12 questions (3 difficulties), countdown timer with speed bonus, streak tracking, category tags                        |
-| 🌱 **Cozy Farm**         | Farm Sim    | 8083 | 5 crop types, 6 plots, planting/watering/harvest cycle, seed shop, growth stages, XP/level system                      |
-| 🎮 **Game Hub**          | 3-in-1 Hub  | 8090 | Farm + Trivia + Match-3 in a single 3-screen slider, CSS transitions, Trivia Duels, Match-3 Leaderboard, shared userId |
+| Demo                     | Genre       | Port | Key Features                                                                                                                                                                                             |
+| ------------------------ | ----------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 💎 **Gem Crush**         | Match-3     | 8080 | 8×8 grid, 6 gem types, swap mechanics, combo chains, gravity cascade, floating score animations                                                                                                          |
+| ⚔️ **Card Battle Arena** | Card Battle | 8081 | 8-card database, element abilities (Burn, Lifesteal, Freeze), AI opponent, animated HP bars, battle log                                                                                                  |
+| 🧠 **Brain Blitz**       | Trivia      | 8082 | 12 questions (3 difficulties), countdown timer with speed bonus, streak tracking, category tags                                                                                                          |
+| 🌱 **Cozy Farm**         | Farm Sim    | 8083 | 5 crop types, 6 plots, planting/watering/harvest cycle, seed shop, growth stages, XP/level system                                                                                                        |
+| 🎮 **Game Hub**          | 3-in-1 Hub  | 8090 | Farm + Trivia + Match-3 in a 3-screen slider, skeleton loading, responsive layout (dvh + breakpoints), client-side match-3 engine, game state persistence, seed validation UX, Trivia Duels, Leaderboard |
 
 ```bash
 # Run any demo:
