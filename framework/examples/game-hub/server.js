@@ -674,6 +674,8 @@ app.post("/api/trivia/answer", requireAuth, (req, res) => {
  *  TRIVIA MODULE — Duel System
  * ═══════════════════════════════════════════════════ */
 const duelRooms = new Map(); // roomId -> duel state
+const duelHistory = []; // Circular buffer of finished duel results (max 50)
+const DUEL_HISTORY_MAX = 50;
 const DUEL_WAIT_EXPIRY_MS = 3 * 60 * 1000; // 3 min for waiting rooms
 const DUEL_FINISH_EXPIRY_MS = 10 * 60 * 1000; // 10 min for finished rooms
 
@@ -834,7 +836,33 @@ app.post("/api/trivia/duel/answer", requireAuth, (req, res) => {
     dp.finishedAt = Date.now();
     // Check if both finished
     const allDone = Object.values(room.players).every((pl) => pl.finished);
-    if (allDone) room.status = "finished";
+    if (allDone) {
+      room.status = "finished";
+      // Record to duel history
+      const sorted = Object.values(room.players).sort(
+        (a, b) => b.score - a.score,
+      );
+      const winner =
+        sorted[0].score > sorted[1]?.score
+          ? sorted[0].username
+          : sorted[0].score === sorted[1]?.score
+            ? "Tie"
+            : sorted[0].username;
+      duelHistory.unshift({
+        roomId: room.roomId,
+        finishedAt: Date.now(),
+        players: Object.values(room.players).map((pl) => ({
+          userId: pl.userId,
+          username: pl.username,
+          score: pl.score,
+          correctCount: pl.answers.filter((a) => a.correct).length,
+          totalQuestions: room.questions.length,
+        })),
+        winner,
+      });
+      if (duelHistory.length > DUEL_HISTORY_MAX)
+        duelHistory.length = DUEL_HISTORY_MAX;
+    }
   }
 
   let nextQuestion = null;
@@ -943,6 +971,25 @@ app.post("/api/trivia/duel/ready", requireAuth, (req, res) => {
     status: room.status,
     players: playersInfo,
   });
+});
+
+/* ─── Duel History ─── */
+app.get("/api/trivia/duel/history", (req, res) => {
+  const userId = req.query.userId || "";
+  const page = Math.max(1, parseInt(req.query.page) || 1);
+  const limit = Math.min(20, Math.max(1, parseInt(req.query.limit) || 5));
+
+  // Filter by user if specified, otherwise return all
+  let filtered = userId
+    ? duelHistory.filter((d) => d.players.some((p) => p.userId === userId))
+    : duelHistory;
+
+  const total = filtered.length;
+  const totalPages = Math.ceil(total / limit) || 1;
+  const offset = (page - 1) * limit;
+  const entries = filtered.slice(offset, offset + limit);
+
+  res.json({ entries, page, totalPages, total });
 });
 
 /* ═══════════════════════════════════════════════════

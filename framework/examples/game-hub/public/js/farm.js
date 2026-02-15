@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Farm Module  (v1.3)
+ *  Game Hub — Farm Module  (v1.4)
  *  Plots, planting, watering, harvesting, seed shop
  *  ─ Local growth timer, diff-update fix, farm badge
  *  ─ Diff-update plots (no blink), horizontal buy bar, plot dispatcher
@@ -11,8 +11,24 @@ const FarmGame = (() => {
   let selectedSeed = null;
   let firstRenderDone = false;
   let buyQty = 1;
+  let justPlantedPlot = -1; // Track freshly-planted plot for animation
 
   const $ = (id) => document.getElementById(id);
+
+  /* ─── localStorage helpers for seed quantities ─── */
+  const QTY_STORAGE_KEY = "hub_buyQtys";
+  function loadBuyQtys() {
+    try {
+      return JSON.parse(localStorage.getItem(QTY_STORAGE_KEY)) || {};
+    } catch {
+      return {};
+    }
+  }
+  function saveBuyQty(seedId, qty) {
+    const qtys = loadBuyQtys();
+    qtys[seedId] = qty;
+    localStorage.setItem(QTY_STORAGE_KEY, JSON.stringify(qtys));
+  }
 
   /* ─── Skeleton Rendering ─── */
   function showSkeleton() {
@@ -156,13 +172,28 @@ const FarmGame = (() => {
 
     if (plot.crop) {
       const cfg = crops[plot.crop] || {};
+      const isJustPlanted = justPlantedPlot === i;
+      const displayPct = isJustPlanted ? 100 : Math.round(pct * 100);
       div.innerHTML = `
         <div class="crop-emoji">${cfg.emoji || "🌱"}</div>
         <div class="crop-name">${cfg.name || plot.crop}</div>
-        <div class="growth-bar"><div class="growth-bar-fill${isReady ? " done" : ""}" style="width:${Math.round(pct * 100)}%"></div></div>
+        <div class="growth-bar"><div class="growth-bar-fill${isReady ? " done" : ""}${isJustPlanted ? " plant-burst" : ""}" style="width:${displayPct}%"></div></div>
         ${!plot.watered && !isReady ? '<button class="farm-water-btn" title="Water">💧</button>' : ""}
         ${plot.watered ? '<button class="farm-water-btn watered" disabled>💧</button>' : ""}
       `;
+      // Animate rollback: 100% → real value
+      if (isJustPlanted) {
+        justPlantedPlot = -1;
+        const fill = div.querySelector(".growth-bar-fill");
+        if (fill) {
+          requestAnimationFrame(() => {
+            setTimeout(() => {
+              fill.classList.remove("plant-burst");
+              fill.style.width = Math.round(pct * 100) + "%";
+            }, 500);
+          });
+        }
+      }
       const waterBtn = div.querySelector(".farm-water-btn:not([disabled])");
       if (waterBtn && !plot.watered && !isReady) {
         waterBtn.addEventListener("click", (e) => {
@@ -204,10 +235,11 @@ const FarmGame = (() => {
     // Toggle: clicking same seed deselects it
     if (selectedSeed === id) {
       selectedSeed = null;
-      buyQty = 1;
     } else {
       selectedSeed = id;
-      buyQty = 1;
+      // Restore qty from localStorage (or default 1)
+      const stored = loadBuyQtys();
+      buyQty = stored[id] || 1;
     }
     renderShop();
     updateBuyBar();
@@ -232,26 +264,25 @@ const FarmGame = (() => {
     bar.innerHTML = `
       <span class="buy-bar-seed">${cfg.emoji} ${cfg.name}</span>
       <span class="buy-bar-stepper">
+        <button class="step-lg" id="buy-qty-m10">−10</button>
         <button id="buy-qty-minus">−</button>
         <span class="qty-display" id="buy-qty-val">${buyQty}</span>
         <button id="buy-qty-plus">+</button>
+        <button class="step-lg" id="buy-qty-p10">+10</button>
       </span>
       <span class="buy-bar-total">🪙 ${totalCost}</span>
       <button class="buy-bar-btn${canAfford ? "" : " disabled"}" id="buy-bar-go">${canAfford ? "Buy" : "💰?"}</button>
     `;
 
-    $("buy-qty-minus").onclick = () => {
-      if (buyQty > 1) {
-        buyQty--;
-        updateBuyBar();
-      }
-    };
-    $("buy-qty-plus").onclick = () => {
-      if (buyQty < 99) {
-        buyQty++;
-        updateBuyBar();
-      }
-    };
+    function setQty(q) {
+      buyQty = Math.max(1, Math.min(99, q));
+      if (selectedSeed) saveBuyQty(selectedSeed, buyQty);
+      updateBuyBar();
+    }
+    $("buy-qty-m10").onclick = () => setQty(buyQty - 10);
+    $("buy-qty-minus").onclick = () => setQty(buyQty - 1);
+    $("buy-qty-plus").onclick = () => setQty(buyQty + 1);
+    $("buy-qty-p10").onclick = () => setQty(buyQty + 10);
     $("buy-bar-go").onclick = () => {
       if (canAfford) buySeeds(selectedSeed);
     };
@@ -278,6 +309,7 @@ const FarmGame = (() => {
       renderShop();
       showToast(`Bought ${buyQty}× ${cfg.emoji} ${cfg.name} seeds`);
       buyQty = 1;
+      if (selectedSeed) saveBuyQty(selectedSeed, 1); // Reset stored qty after purchase
       updateBuyBar();
     } else {
       showToast(`❌ ${data.error}`);
@@ -305,6 +337,7 @@ const FarmGame = (() => {
       state.plots = data.plots;
       state.inventory = data.inventory;
       state.coins = data.coins;
+      justPlantedPlot = plotId; // Trigger fill→rollback animation
       render();
       renderShop();
       updateBuyBar();

@@ -65,7 +65,7 @@ async function initDiscord() {
         response_type: "code",
         state: "",
         prompt: "none",
-        scope: ["identify"],
+        scope: ["identify", "guilds"],
       });
 
       // Exchange code for access token via our server
@@ -250,7 +250,7 @@ function bindNavigation() {
   document
     .getElementById("btn-trivia-play-again")
     ?.addEventListener("click", () => TriviaGame.showMenu());
-  // New v1.3 buttons
+  // New v1.4 buttons
   document
     .getElementById("btn-duel-voice-invite")
     ?.addEventListener("click", () => TriviaGame.inviteFromVoice());

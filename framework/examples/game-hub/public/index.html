@@ -207,6 +207,28 @@
               🔄 Play Again
             </button>
           </div>
+
+          <!-- Duel History (visible on trivia menu) -->
+          <div
+            id="trivia-duel-history"
+            class="card duel-history-panel"
+            style="display: none"
+          >
+            <h3 style="font-size: 0.95rem; margin-bottom: 8px">
+              ⚔️ Recent Duels
+            </h3>
+            <div id="duel-history-list"></div>
+            <div class="duel-history-pager" id="duel-history-pager"></div>
+          </div>
+
+          <!-- Duel History Bar (collapsed, shown when submenus open) -->
+          <div
+            id="trivia-duel-history-bar"
+            class="duel-history-bar"
+            style="display: none"
+          >
+            ⚔️ Recent Duels ▲
+          </div>
         </section>
 
         <!-- ────── FARM SCREEN ────── -->
@@ -274,18 +296,52 @@
             </div>
           </div>
 
-          <div class="m3-board-container" id="m3-board-container">
-            <div class="m3-board" id="m3-board"></div>
-            <div class="m3-combo-banner" id="m3-combo-banner"></div>
-          </div>
+          <div class="m3-layout">
+            <div class="m3-main">
+              <div class="m3-board-container" id="m3-board-container">
+                <div class="m3-board" id="m3-board"></div>
+                <div class="m3-combo-banner" id="m3-combo-banner"></div>
+              </div>
 
-          <div style="display: flex; gap: 10px; margin-top: 16px">
-            <button class="btn btn-primary" id="m3-btn-start">
-              🎮 New Game
-            </button>
-            <button class="btn btn-secondary" id="m3-btn-lb">
-              🏆 Leaderboard
-            </button>
+              <div style="display: flex; gap: 10px; margin-top: 16px">
+                <button class="btn btn-primary" id="m3-btn-start">
+                  🎮 New Game
+                </button>
+                <button class="btn btn-secondary" id="m3-btn-lb">
+                  🏆 Leaderboard
+                </button>
+              </div>
+            </div>
+
+            <!-- Leaderboard Panel (right side on wide screens) -->
+            <div
+              class="card m3-lb-panel"
+              id="m3-lb-panel"
+              style="display: none"
+            >
+              <div class="m3-lb-tabs">
+                <button class="m3-lb-tab active" id="btn-lb-tab-all">
+                  🌍 All Players
+                </button>
+                <button class="m3-lb-tab" id="btn-lb-tab-room">
+                  🎙️ Voice Channel
+                </button>
+              </div>
+              <table class="m3-lb-table">
+                <thead>
+                  <tr>
+                    <th>Rank</th>
+                    <th>Player</th>
+                    <th style="text-align: right">Score</th>
+                  </tr>
+                </thead>
+                <tbody id="m3-lb-body">
+                  <tr>
+                    <td colspan="3" class="m3-lb-empty">No scores yet 🏆</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <!-- Game Over Overlay -->
@@ -317,32 +373,6 @@
               </button>
             </div>
           </div>
-
-          <!-- Leaderboard Panel -->
-          <div class="card m3-lb-panel" id="m3-lb-panel" style="display: none">
-            <div class="m3-lb-tabs">
-              <button class="m3-lb-tab active" id="btn-lb-tab-all">
-                🌍 All Players
-              </button>
-              <button class="m3-lb-tab" id="btn-lb-tab-room">
-                🎙️ Voice Channel
-              </button>
-            </div>
-            <table class="m3-lb-table">
-              <thead>
-                <tr>
-                  <th>Rank</th>
-                  <th>Player</th>
-                  <th style="text-align: right">Score</th>
-                </tr>
-              </thead>
-              <tbody id="m3-lb-body">
-                <tr>
-                  <td colspan="3" class="m3-lb-empty">No scores yet 🏆</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
         </section>
       </div>
       <!-- /screen-track -->
@@ -363,7 +393,7 @@
         font-family: monospace;
       "
     >
-      v1.3
+      v1.4
     </div>
 
     <!-- ═══ Scripts (order matters: discord-sdk.js is served dynamically with config) ═══ -->

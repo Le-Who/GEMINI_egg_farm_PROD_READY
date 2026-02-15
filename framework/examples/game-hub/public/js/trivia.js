@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Trivia Module  (v1.3)
+ *  Game Hub — Trivia Module  (v1.4)
  *  Solo mode, Duel mode, timer, results
  *  ─ Forfeit, cancel, lobby ready-up, voice invite
  * ═══════════════════════════════════════════════════ */
@@ -8,15 +8,19 @@ const TriviaGame = (() => {
   let session = null; // { question, startTime, timerId }
   let duel = null; // { roomId, inviteCode, pollId, countdownId, lobbyTimeoutId }
   let view = "menu"; // menu | solo | duel-create | duel-join | duel-wait | duel-lobby | duel-play | results
+  let duelHistoryPage = 1;
 
   const $ = (id) => document.getElementById(id);
   const DUEL_TIMEOUT_SEC = 60; // auto-cancel after 60s
 
   function init() {
     showMenu();
+    // Collapsed bar click -> return to menu
+    const bar = $("trivia-duel-history-bar");
+    if (bar) bar.addEventListener("click", () => showMenu());
   }
   function onEnter() {
-    /* trivia timer keeps running — no action needed */
+    fetchDuelHistory();
   }
 
   /* ─── View Management ─── */
@@ -48,6 +52,19 @@ const TriviaGame = (() => {
     if (forfeitBtn)
       forfeitBtn.style.display =
         name === "solo" || name === "duel-play" ? "" : "none";
+
+    // Duel history: show panel on menu, collapse to bar on other views
+    const histPanel = $("trivia-duel-history");
+    const histBar = $("trivia-duel-history-bar");
+    if (histPanel && histBar) {
+      if (name === "menu") {
+        histPanel.style.display = "";
+        histBar.style.display = "none";
+      } else {
+        histPanel.style.display = "none";
+        histBar.style.display = "";
+      }
+    }
   }
 
   function showMenu() {
@@ -55,6 +72,83 @@ const TriviaGame = (() => {
     stopTimer();
     clearDuelPolling();
     if (duel?.lobbyTimeoutId) clearInterval(duel.lobbyTimeoutId);
+    fetchDuelHistory();
+  }
+
+  /* ─── Duel History ─── */
+  async function fetchDuelHistory(page) {
+    if (page !== undefined) duelHistoryPage = page;
+    try {
+      const url = `/api/trivia/duel/history?userId=${encodeURIComponent(HUB.userId || "")}&page=${duelHistoryPage}&limit=5`;
+      const data = await fetch(url).then((r) => r.json());
+      renderDuelHistory(data);
+    } catch (e) {
+      console.warn("Failed to fetch duel history", e);
+    }
+  }
+
+  function renderDuelHistory(data) {
+    const list = $("duel-history-list");
+    const pager = $("duel-history-pager");
+    const panel = $("trivia-duel-history");
+    if (!list || !panel) return;
+
+    if (!data.entries || (data.entries.length === 0 && data.page === 1)) {
+      list.innerHTML =
+        '<div class="duel-history-empty">No duels yet — create or join one!</div>';
+      if (pager) pager.innerHTML = "";
+      panel.style.display = view === "menu" ? "" : "none";
+      return;
+    }
+
+    panel.style.display = view === "menu" ? "" : "none";
+    const myId = HUB.userId || "";
+
+    list.innerHTML = data.entries
+      .map((d) => {
+        const me = d.players.find((p) => p.userId === myId);
+        const opp =
+          d.players.find((p) => p.userId !== myId) ||
+          d.players[1] ||
+          d.players[0];
+        const isWin = d.winner === (me?.username || "");
+        const isTie = d.winner === "Tie";
+        const cls = isWin ? "win" : isTie ? "tie" : "loss";
+        const resultText = isTie ? "Tie" : isWin ? "Win" : "Loss";
+        const ago = timeAgo(d.finishedAt);
+        return `<div class="duel-history-item ${cls}">
+        <div class="dh-players">
+          <span>${me?.username || "You"} vs ${opp?.username || "?"}</span>
+          <span style="font-size:0.7rem;color:var(--text-dim)">${me?.score ?? 0} – ${opp?.score ?? 0} · ${ago}</span>
+        </div>
+        <div class="dh-result">${resultText}</div>
+      </div>`;
+      })
+      .join("");
+
+    if (pager) {
+      if (data.totalPages <= 1) {
+        pager.innerHTML = "";
+      } else {
+        pager.innerHTML = `
+          <button ${data.page <= 1 ? "disabled" : ""} id="dh-prev">← Prev</button>
+          <span style="font-size:0.72rem;color:var(--text-dim)">${data.page}/${data.totalPages}</span>
+          <button ${data.page >= data.totalPages ? "disabled" : ""} id="dh-next">Next →</button>
+        `;
+        const prev = $("dh-prev");
+        const next = $("dh-next");
+        if (prev) prev.onclick = () => fetchDuelHistory(data.page - 1);
+        if (next) next.onclick = () => fetchDuelHistory(data.page + 1);
+      }
+    }
+  }
+
+  function timeAgo(ts) {
+    const diff = Date.now() - ts;
+    if (diff < 60000) return "just now";
+    if (diff < 3600000) return Math.floor(diff / 60000) + "m ago";
+    if (diff < 86400000) return Math.floor(diff / 3600000) + "h ago";
+    return Math.floor(diff / 86400000) + "d ago";
   }
 
   /* ═══ SOLO MODE ═══ */
@@ -285,10 +379,21 @@ const TriviaGame = (() => {
   async function inviteFromVoice() {
     if (typeof HUB.sdk !== "undefined" && HUB.sdk) {
       try {
-        await HUB.sdk.commands.openInviteDialog();
-        return;
+        // Pre-check: verify we're in a guild channel (not a DM)
+        const channel = await HUB.sdk.commands.getChannel({
+          channel_id: HUB.sdk.channelId,
+        });
+        if (!channel?.guild_id) {
+          showToast(
+            "📋 Invite dialog requires a server voice channel — code copied instead",
+          );
+        } else {
+          await HUB.sdk.commands.openInviteDialog();
+          return;
+        }
       } catch (e) {
-        console.warn("SDK invite not available, falling back to copy", e);
+        console.warn("SDK invite unavailable:", e?.message || e);
+        showToast("📋 Invite dialog unavailable — code copied instead");
       }
     }
     // Fallback: copy invite code to clipboard
@@ -544,5 +649,6 @@ const TriviaGame = (() => {
     copyInviteCode,
     duelReady,
     inviteFromVoice,
+    fetchDuelHistory,
   };
 })();

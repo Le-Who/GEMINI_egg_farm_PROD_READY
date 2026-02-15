@@ -2,7 +2,7 @@
 
 > A combined Farm + Trivia + Match-3 game running as a single Discord Embedded App Activity with horizontal screen-swipe navigation.
 
-**v1.3** — Content-hash cache busting, duel lobby ready-up, local growth timers, voice invite, farm notifications
+**v1.4** — Plant animation, side-panel leaderboard, duel history, shop qty persistence (±10), Discord invite fix
 
 ## Quick Start
 
@@ -23,6 +23,8 @@ npm run dev
 - **Local growth timer** — client-side growth calculation for instant responsiveness; lazy server sync every 30s
 - **Tiered watering bonus** — slow crops (sunflower, golden) get up to 45% time reduction, fast crops 30%
 - **Harvest notifications** — pulsing gold badge on nav-dot + floating badge when plants are ready on another screen
+- **Plant animation** — growth bar fills to 100% then smoothly rolls back to actual value on fresh plant
+- **Shop ±10 buttons** — quick quantity adjustment with localStorage persistence (resets to 1 after purchase)
 
 ### 🧠 Trivia
 
@@ -30,6 +32,8 @@ npm run dev
 - Difficulty tiers, streak/combo scoring
 - **Duel Lobby** — both players must press "Ready" before game starts (60s auto-start timeout)
 - **Voice Chat Invite** — 🎙️ button to share duel code with voice channel participants (SDK + clipboard fallback)
+- **Duel History** — recent duel results panel with pagination; collapses to bottom bar when submenus are open
+- **Improved invite diagnostics** — pre-checks guild context before attempting invite dialog
 
 ### 💎 Match-3
 
@@ -38,6 +42,7 @@ npm run dev
 - **Smooth animations** — reduced cascade delays (450ms total vs. 630ms), CSS pop/fall classes
 - Server validation via fire-and-forget sync
 - Leaderboard (global + room-scoped)
+- **Side-panel leaderboard** — appears to the right of the board on wide screens, falls back to stacked on narrow viewports
 - **Reliable score saving** — dedicated `/api/game/end` endpoint ensures highScore persistence
 
 ### 🖥 Responsive Layout
@@ -53,24 +58,25 @@ npm run dev
 
 ## API Endpoints
 
-| Method | Path                      | Description                   |
-| ------ | ------------------------- | ----------------------------- |
-| `POST` | `/api/farm/state`         | Get farm state                |
-| `POST` | `/api/farm/plant`         | Plant a seed                  |
-| `POST` | `/api/farm/water`         | Water a plot                  |
-| `POST` | `/api/farm/harvest`       | Harvest a crop                |
-| `POST` | `/api/farm/buy-seeds`     | Buy seeds                     |
-| `POST` | `/api/content/crops`      | Get crop definitions          |
-| `POST` | `/api/trivia/start`       | Start solo trivia             |
-| `POST` | `/api/trivia/answer`      | Answer trivia question        |
-| `POST` | `/api/trivia/duel/create` | Create duel room              |
-| `POST` | `/api/trivia/duel/join`   | Join duel room                |
-| `POST` | `/api/game/state`         | Get active match-3 game state |
-| `POST` | `/api/game/start`         | Start new match-3 game        |
-| `POST` | `/api/game/move`          | Submit match-3 move           |
-| `POST` | `/api/game/end`           | Finalize game, save highScore |
-| `POST` | `/api/trivia/duel/ready`  | Mark player ready in lobby    |
-| `GET`  | `/api/leaderboard`        | Global leaderboard            |
+| Method | Path                       | Description                     |
+| ------ | -------------------------- | ------------------------------- |
+| `POST` | `/api/farm/state`          | Get farm state                  |
+| `POST` | `/api/farm/plant`          | Plant a seed                    |
+| `POST` | `/api/farm/water`          | Water a plot                    |
+| `POST` | `/api/farm/harvest`        | Harvest a crop                  |
+| `POST` | `/api/farm/buy-seeds`      | Buy seeds                       |
+| `POST` | `/api/content/crops`       | Get crop definitions            |
+| `POST` | `/api/trivia/start`        | Start solo trivia               |
+| `POST` | `/api/trivia/answer`       | Answer trivia question          |
+| `POST` | `/api/trivia/duel/create`  | Create duel room                |
+| `POST` | `/api/trivia/duel/join`    | Join duel room                  |
+| `POST` | `/api/game/state`          | Get active match-3 game state   |
+| `POST` | `/api/game/start`          | Start new match-3 game          |
+| `POST` | `/api/game/move`           | Submit match-3 move             |
+| `POST` | `/api/game/end`            | Finalize game, save highScore   |
+| `POST` | `/api/trivia/duel/ready`   | Mark player ready in lobby      |
+| `GET`  | `/api/trivia/duel/history` | Recent duel results (paginated) |
+| `GET`  | `/api/leaderboard`         | Global leaderboard              |
 
 ## Project Structure
 

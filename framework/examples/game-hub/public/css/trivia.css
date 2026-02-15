@@ -316,3 +316,91 @@
   margin-top: 8px;
   opacity: 0.7;
 }
+
+/* ─── Duel History Panel ─── */
+.duel-history-panel {
+  margin-top: 18px;
+  max-width: 420px;
+  width: 100%;
+}
+.duel-history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  font-size: 0.78rem;
+  border-left: 3px solid var(--accent);
+}
+.duel-history-item.win {
+  border-left-color: var(--success);
+}
+.duel-history-item.loss {
+  border-left-color: #ef4444;
+}
+.duel-history-item.tie {
+  border-left-color: var(--gold);
+}
+.duel-history-item .dh-players {
+  flex: 1;
+  min-width: 0;
+}
+.duel-history-item .dh-players span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.duel-history-item .dh-result {
+  font-weight: 700;
+  font-size: 0.8rem;
+  margin-left: 10px;
+  flex-shrink: 0;
+}
+.duel-history-empty {
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  padding: 12px;
+}
+.duel-history-pager {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.duel-history-pager button {
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  color: var(--text);
+  border-radius: 6px;
+  padding: 4px 12px;
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+.duel-history-pager button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* ─── Duel History Bar (collapsed) ─── */
+.duel-history-bar {
+  position: fixed;
+  bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--card-bg);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px 12px 0 0;
+  padding: 6px 18px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  z-index: 100;
+  opacity: 0.85;
+  transition: opacity 0.2s;
+}
+.duel-history-bar:hover {
+  opacity: 1;
+}

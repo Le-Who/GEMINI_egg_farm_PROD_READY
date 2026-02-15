@@ -229,6 +229,33 @@
   transform: translate(-50%, -50%) scale(1);
 }
 
+/* ─── Match-3 Layout (board left, leaderboard right) ─── */
+.m3-layout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+.m3-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+@media (min-width: 680px) {
+  .m3-layout {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: center;
+  }
+  .m3-lb-panel {
+    margin-top: 0 !important;
+    min-width: 200px;
+    max-width: 260px;
+    flex-shrink: 0;
+  }
+}
+
 /* ─── Leaderboard Panel ─── */
 .m3-lb-panel {
   margin-top: 16px;
