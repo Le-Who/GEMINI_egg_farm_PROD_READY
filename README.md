@@ -471,6 +471,86 @@ SkuConfig    → 7 fields (price, amount, icon, rewards: {coins, gems, items})
 
 ---
 
+## 🧩 Game Framework
+
+The project includes a **reusable game framework** for rapidly scaffolding new Discord Activities games across multiple genres. The framework lives in `framework/` and does not modify the existing Egg Farm code.
+
+### Architecture
+
+```
+framework/
+├── core/                 # Reusable library (13 modules)
+│   └── src/              # EventBus, StateManager, BaseServer, BaseScene,
+│                         # DiscordBridge, ContentManager, AssetManager,
+│                         # i18n, Config, Plugin, Persistence adapters
+├── cli/                  # CLI project generator
+│   └── src/              # Template engine with {{variable}} substitution
+├── templates/            # 4 genre starter templates
+│   ├── farm/             # Isometric farm (Phaser 3)
+│   ├── card-battle/      # Card battle (DOM/React)
+│   ├── trivia/           # Quiz show (DOM/React)
+│   └── match-3/          # Puzzle (Phaser 3)
+├── examples/             # 4 playable demos (zero build step)
+│   ├── match-3-demo/     # 💎 Gem Crush — :8080
+│   ├── card-battle-demo/ # ⚔️ Card Battle Arena — :8081
+│   ├── trivia-demo/      # 🧠 Brain Blitz — :8082
+│   └── farm-demo/        # 🌱 Cozy Farm — :8083
+├── docs/                 # Architecture, quick-start, security
+├── tests/                # Vitest unit tests for core modules
+└── README.md             # Detailed framework documentation (RU)
+```
+
+### CLI Generator
+
+```bash
+# From framework/ directory:
+npm run create-game -- my-game --genre trivia
+
+# Parameters:
+#   --genre        farm | card-battle | trivia | match-3
+#   --persistence  memory | local-file
+#   --locales      en,ru
+#   --theme        discord | custom
+```
+
+### Demo Showcase
+
+| Demo                     | Genre       | Port | Key Features                                                                                            |
+| ------------------------ | ----------- | ---- | ------------------------------------------------------------------------------------------------------- |
+| 💎 **Gem Crush**         | Match-3     | 8080 | 8×8 grid, 6 gem types, swap mechanics, combo chains, gravity cascade, floating score animations         |
+| ⚔️ **Card Battle Arena** | Card Battle | 8081 | 8-card database, element abilities (Burn, Lifesteal, Freeze), AI opponent, animated HP bars, battle log |
+| 🧠 **Brain Blitz**       | Trivia      | 8082 | 12 questions (3 difficulties), countdown timer with speed bonus, streak tracking, category tags         |
+| 🌱 **Cozy Farm**         | Farm Sim    | 8083 | 5 crop types, 6 plots, planting/watering/harvest cycle, seed shop, growth stages, XP/level system       |
+
+```bash
+# Run any demo:
+cd framework/examples/match-3-demo
+npm install && npm run dev
+# Open http://localhost:8080
+```
+
+Each demo is a **standalone project** with a single `index.html` (zero build step) and an Express server handling all game logic via REST API — demonstrating the framework's server-side architecture pattern.
+
+### Core Modules
+
+| Module           | Description                                                       |
+| ---------------- | ----------------------------------------------------------------- |
+| `EventBus`       | Typed pub/sub event system                                        |
+| `StateManager`   | Generic player state with persistence & subscriptions             |
+| `BaseServer`     | Express factory with health, content, state, Discord OAuth routes |
+| `BaseScene`      | Phaser 3 base scene with grid math, camera, object pooling        |
+| `DiscordBridge`  | Discord SDK wrapper (auth, activity lifecycle)                    |
+| `ContentManager` | Content loading, caching, version polling                         |
+| `AssetManager`   | Sprite & audio loading with Phaser integration                    |
+| `I18n`           | Dot-notation i18n with interpolation & fallback                   |
+| `Config`         | Deep merge config loader with env overrides                       |
+| `PluginManager`  | Lifecycle-based plugin system                                     |
+| `Persistence`    | `MemoryAdapter`, `LocalFileAdapter` (GCS/Redis planned)           |
+
+> **Documentation**: See [`framework/README.md`](framework/README.md) for full API reference, migration guide, and deployment instructions.
+
+---
+
 ## 📝 License
 
 This project is proprietary. All rights reserved.
