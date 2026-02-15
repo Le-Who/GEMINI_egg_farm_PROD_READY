@@ -288,7 +288,11 @@ const Match3Game = (() => {
     document
       .querySelectorAll(".m3-lb-tab")
       .forEach((t) => t.classList.remove("active"));
-    event.target.classList.add("active");
+    const activeTab =
+      scope === "room"
+        ? document.getElementById("btn-lb-tab-room")
+        : document.getElementById("btn-lb-tab-all");
+    if (activeTab) activeTab.classList.add("active");
     fetchLeaderboard(scope);
   }
 

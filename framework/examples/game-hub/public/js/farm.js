@@ -13,7 +13,8 @@ const FarmGame = (() => {
 
   /* ─── Init ─── */
   async function init() {
-    crops = await api("/api/content/crops");
+    const cropsData = await api("/api/content/crops");
+    if (cropsData && !cropsData.error) crops = cropsData;
     await loadState();
     renderShop();
   }
@@ -23,8 +24,12 @@ const FarmGame = (() => {
       userId: HUB.userId,
       username: HUB.username,
     });
-    state = data;
-    render();
+    if (data && !data.error) {
+      state = data;
+      render();
+    } else {
+      console.warn("Farm state load failed:", data?.error);
+    }
   }
 
   /* ─── Render Plots ─── */
@@ -48,9 +53,17 @@ const FarmGame = (() => {
           <div class="crop-emoji">${cfg.emoji || "🌱"}</div>
           <div class="crop-name">${cfg.name || plot.crop}</div>
           <div class="growth-bar"><div class="growth-bar-fill${isReady ? " done" : ""}" style="width:${Math.round(pct * 100)}%"></div></div>
-          ${!plot.watered && !isReady ? `<button class="farm-water-btn" onclick="FarmGame.water(${i})" title="Water">💧</button>` : ""}
+          ${!plot.watered && !isReady ? '<button class="farm-water-btn" title="Water">💧</button>' : ""}
           ${plot.watered ? '<button class="farm-water-btn watered" disabled>💧</button>' : ""}
         `;
+        // Bind water button (CSP-safe, no inline onclick)
+        const waterBtn = div.querySelector(".farm-water-btn:not([disabled])");
+        if (waterBtn && !plot.watered && !isReady) {
+          waterBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            FarmGame.water(i);
+          });
+        }
         if (isReady) {
           div.onclick = () => FarmGame.harvest(i);
           div.title = "Click to harvest!";

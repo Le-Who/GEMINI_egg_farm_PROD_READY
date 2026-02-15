@@ -1,6 +1,7 @@
 /* ═══════════════════════════════════════════════════
  *  Game Hub — Shared Module (Production-Ready)
  *  Discord SDK auth, API helper, screen navigation
+ *  CSP-compliant: no inline handlers, no external fonts
  * ═══════════════════════════════════════════════════ */
 
 const HUB = {
@@ -14,13 +15,14 @@ const HUB = {
 
 /* ─── Discord SDK Init ─── */
 async function initDiscord() {
-  // Try Discord Embedded App SDK (only works inside Discord iframe)
-  try {
-    if (typeof DiscordSDK !== "undefined") {
+  // DiscordSDK is set as window.DiscordSDK by discord-sdk.js bundle
+  if (typeof DiscordSDK !== "undefined") {
+    try {
       const sdk = new DiscordSDK(
         document.querySelector('meta[name="discord-client-id"]')?.content || "",
       );
       await sdk.ready();
+      console.log("Discord SDK ready");
 
       // Authorize and get code
       const { code } = await sdk.commands.authorize({
@@ -47,19 +49,21 @@ async function initDiscord() {
         });
         const user = await userRes.json();
         HUB.userId = user.id;
-        HUB.username = user.username || "Player";
+        HUB.username = user.global_name || user.username || "Player";
 
         // Notify SDK we're authenticated
         await sdk.commands.authenticate({ access_token: HUB.accessToken });
         console.log(`Discord auth OK: ${HUB.username} (${HUB.userId})`);
         return;
       }
+    } catch (e) {
+      console.warn(
+        "Discord SDK init failed (expected outside Discord):",
+        e.message || e,
+      );
     }
-  } catch (e) {
-    console.warn(
-      "Discord SDK init failed (expected outside Discord):",
-      e.message || e,
-    );
+  } else {
+    console.log("DiscordSDK not available — running in demo mode");
   }
 
   // Fallback: demo mode — random userId
@@ -79,6 +83,11 @@ async function api(path, body) {
     headers,
     body: body ? JSON.stringify(body) : undefined,
   });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    console.error(`API ${path} → ${res.status}: ${text}`);
+    return { error: `Server error ${res.status}`, _httpStatus: res.status };
+  }
   return res.json();
 }
 
@@ -149,8 +158,70 @@ function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+/* ─── Bind Navigation Buttons (CSP-safe, no inline handlers) ─── */
+function bindNavigation() {
+  // Nav arrows
+  document
+    .getElementById("nav-left")
+    .addEventListener("click", () => navigate(-1));
+  document
+    .getElementById("nav-right")
+    .addEventListener("click", () => navigate(1));
+
+  // Nav dots
+  document
+    .getElementById("nav-dot-trivia")
+    .addEventListener("click", () => goToScreen(0));
+  document
+    .getElementById("nav-dot-farm")
+    .addEventListener("click", () => goToScreen(1));
+  document
+    .getElementById("nav-dot-match3")
+    .addEventListener("click", () => goToScreen(2));
+
+  // Trivia buttons
+  document
+    .getElementById("btn-trivia-solo")
+    ?.addEventListener("click", () => TriviaGame.startSolo());
+  document
+    .getElementById("btn-trivia-create-duel")
+    ?.addEventListener("click", () => TriviaGame.createDuel());
+  document
+    .getElementById("btn-trivia-join-duel")
+    ?.addEventListener("click", () => TriviaGame.showJoinDuel());
+  document
+    .getElementById("btn-duel-copy-code")
+    ?.addEventListener("click", () => TriviaGame.copyInviteCode());
+  document
+    .getElementById("btn-duel-create-back")
+    ?.addEventListener("click", () => TriviaGame.showMenu());
+  document
+    .getElementById("btn-duel-join-submit")
+    ?.addEventListener("click", () => TriviaGame.joinDuel());
+  document
+    .getElementById("btn-duel-join-back")
+    ?.addEventListener("click", () => TriviaGame.showMenu());
+  document
+    .getElementById("btn-trivia-play-again")
+    ?.addEventListener("click", () => TriviaGame.showMenu());
+
+  // Match-3 buttons
+  document
+    .getElementById("btn-m3-play-again")
+    ?.addEventListener("click", () => Match3Game.startGame());
+  document
+    .getElementById("btn-lb-tab-all")
+    ?.addEventListener("click", () => Match3Game.setLbTab("all"));
+  document
+    .getElementById("btn-lb-tab-room")
+    ?.addEventListener("click", () => Match3Game.setLbTab("room"));
+}
+
 /* ─── Init on load ─── */
 window.addEventListener("DOMContentLoaded", async () => {
+  // Bind all navigation buttons (CSP-safe)
+  bindNavigation();
+
   // Initialize Discord auth (or fallback to demo)
   await initDiscord();
 

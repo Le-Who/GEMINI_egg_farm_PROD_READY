@@ -8,10 +8,6 @@
       name="description"
       content="Unified Game Hub: Farm, Trivia (Solo & Duel), Match-3 with Leaderboard — Discord Activities Framework Demo"
     />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap"
-      rel="stylesheet"
-    />
     <link rel="stylesheet" href="css/base.css" />
     <link rel="stylesheet" href="css/farm.css" />
     <link rel="stylesheet" href="css/trivia.css" />
@@ -19,22 +15,14 @@
   </head>
   <body>
     <!-- ═══ Nav Arrows ═══ -->
-    <button class="nav-arrow nav-left" id="nav-left" onclick="navigate(-1)">
-      ‹
-    </button>
-    <button class="nav-arrow nav-right" id="nav-right" onclick="navigate(1)">
-      ›
-    </button>
+    <button class="nav-arrow nav-left" id="nav-left">‹</button>
+    <button class="nav-arrow nav-right" id="nav-right">›</button>
 
     <!-- ═══ Nav Dots ═══ -->
     <div class="nav-dots">
-      <button class="nav-dot" onclick="goToScreen(0)" title="Trivia">🧠</button>
-      <button class="nav-dot active" onclick="goToScreen(1)" title="Farm">
-        🌱
-      </button>
-      <button class="nav-dot" onclick="goToScreen(2)" title="Match-3">
-        💎
-      </button>
+      <button class="nav-dot" id="nav-dot-trivia" title="Trivia">🧠</button>
+      <button class="nav-dot active" id="nav-dot-farm" title="Farm">🌱</button>
+      <button class="nav-dot" id="nav-dot-match3" title="Match-3">💎</button>
     </div>
 
     <!-- ═══ Viewport ═══ -->
@@ -50,20 +38,17 @@
           <!-- Menu -->
           <div id="trivia-menu" class="card">
             <div class="trivia-modes">
-              <button class="trivia-mode-btn" onclick="TriviaGame.startSolo()">
+              <button class="trivia-mode-btn" id="btn-trivia-solo">
                 <span class="mode-icon">🎯</span>
                 <span class="mode-label">Solo</span>
                 <span class="mode-desc">5 questions, beat your best</span>
               </button>
-              <button class="trivia-mode-btn" onclick="TriviaGame.createDuel()">
+              <button class="trivia-mode-btn" id="btn-trivia-create-duel">
                 <span class="mode-icon">⚔️</span>
                 <span class="mode-label">Create Duel</span>
                 <span class="mode-desc">Challenge a friend</span>
               </button>
-              <button
-                class="trivia-mode-btn"
-                onclick="TriviaGame.showJoinDuel()"
-              >
+              <button class="trivia-mode-btn" id="btn-trivia-join-duel">
                 <span class="mode-icon">🤝</span>
                 <span class="mode-label">Join Duel</span>
                 <span class="mode-desc">Enter invite code</span>
@@ -109,7 +94,7 @@
             <button
               class="btn btn-secondary btn-sm"
               style="margin: 0 auto 12px; display: block"
-              onclick="TriviaGame.copyInviteCode()"
+              id="btn-duel-copy-code"
             >
               📋 Copy Code
             </button>
@@ -118,7 +103,7 @@
             </div>
             <button
               class="btn btn-secondary btn-sm mt-12"
-              onclick="TriviaGame.showMenu()"
+              id="btn-duel-create-back"
             >
               ← Back
             </button>
@@ -141,14 +126,11 @@
               <button
                 class="btn btn-primary btn-sm"
                 style="flex: 1"
-                onclick="TriviaGame.joinDuel()"
+                id="btn-duel-join-submit"
               >
                 Join
               </button>
-              <button
-                class="btn btn-secondary btn-sm"
-                onclick="TriviaGame.showMenu()"
-              >
+              <button class="btn btn-secondary btn-sm" id="btn-duel-join-back">
                 ← Back
               </button>
             </div>
@@ -170,10 +152,7 @@
             <h2 style="font-size: 1.3rem">🏆 Results</h2>
             <div class="trivia-results-score" id="trivia-final-score">0</div>
             <div id="trivia-results-extra"></div>
-            <button
-              class="btn btn-primary mt-16"
-              onclick="TriviaGame.showMenu()"
-            >
+            <button class="btn btn-primary mt-16" id="btn-trivia-play-again">
               🔄 Play Again
             </button>
           </div>
@@ -287,7 +266,7 @@
               >
                 Best: <strong class="text-accent" id="m3-final-best">0</strong>
               </div>
-              <button class="btn btn-primary" onclick="Match3Game.startGame()">
+              <button class="btn btn-primary" id="btn-m3-play-again">
                 🔄 Play Again
               </button>
             </div>
@@ -296,13 +275,10 @@
           <!-- Leaderboard Panel -->
           <div class="card m3-lb-panel" id="m3-lb-panel" style="display: none">
             <div class="m3-lb-tabs">
-              <button
-                class="m3-lb-tab active"
-                onclick="Match3Game.setLbTab('all')"
-              >
+              <button class="m3-lb-tab active" id="btn-lb-tab-all">
                 🌍 All Players
               </button>
-              <button class="m3-lb-tab" onclick="Match3Game.setLbTab('room')">
+              <button class="m3-lb-tab" id="btn-lb-tab-room">
                 🎙️ Voice Channel
               </button>
             </div>
@@ -328,6 +304,7 @@
     <!-- /viewport -->
 
     <!-- ═══ Scripts (order matters) ═══ -->
+    <script src="js/discord-sdk.js"></script>
     <script src="js/shared.js"></script>
     <script src="js/farm.js"></script>
     <script src="js/trivia.js"></script>
