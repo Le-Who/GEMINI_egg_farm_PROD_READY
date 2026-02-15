@@ -490,11 +490,12 @@ framework/
 │   ├── card-battle/      # Card battle (DOM/React)
 │   ├── trivia/           # Quiz show (DOM/React)
 │   └── match-3/          # Puzzle (Phaser 3)
-├── examples/             # 4 playable demos (zero build step)
+├── examples/             # 5 playable demos (zero build step)
 │   ├── match-3-demo/     # 💎 Gem Crush — :8080
 │   ├── card-battle-demo/ # ⚔️ Card Battle Arena — :8081
 │   ├── trivia-demo/      # 🧠 Brain Blitz — :8082
-│   └── farm-demo/        # 🌱 Cozy Farm — :8083
+│   ├── farm-demo/        # 🌱 Cozy Farm — :8083
+│   └── game-hub/         # 🎮 Game Hub (3-in-1) — :8090
 ├── docs/                 # Architecture, quick-start, security
 ├── tests/                # Vitest unit tests for core modules
 └── README.md             # Detailed framework documentation (RU)
@@ -515,12 +516,13 @@ npm run create-game -- my-game --genre trivia
 
 ### Demo Showcase
 
-| Demo                     | Genre       | Port | Key Features                                                                                            |
-| ------------------------ | ----------- | ---- | ------------------------------------------------------------------------------------------------------- |
-| 💎 **Gem Crush**         | Match-3     | 8080 | 8×8 grid, 6 gem types, swap mechanics, combo chains, gravity cascade, floating score animations         |
-| ⚔️ **Card Battle Arena** | Card Battle | 8081 | 8-card database, element abilities (Burn, Lifesteal, Freeze), AI opponent, animated HP bars, battle log |
-| 🧠 **Brain Blitz**       | Trivia      | 8082 | 12 questions (3 difficulties), countdown timer with speed bonus, streak tracking, category tags         |
-| 🌱 **Cozy Farm**         | Farm Sim    | 8083 | 5 crop types, 6 plots, planting/watering/harvest cycle, seed shop, growth stages, XP/level system       |
+| Demo                     | Genre       | Port | Key Features                                                                                                           |
+| ------------------------ | ----------- | ---- | ---------------------------------------------------------------------------------------------------------------------- |
+| 💎 **Gem Crush**         | Match-3     | 8080 | 8×8 grid, 6 gem types, swap mechanics, combo chains, gravity cascade, floating score animations                        |
+| ⚔️ **Card Battle Arena** | Card Battle | 8081 | 8-card database, element abilities (Burn, Lifesteal, Freeze), AI opponent, animated HP bars, battle log                |
+| 🧠 **Brain Blitz**       | Trivia      | 8082 | 12 questions (3 difficulties), countdown timer with speed bonus, streak tracking, category tags                        |
+| 🌱 **Cozy Farm**         | Farm Sim    | 8083 | 5 crop types, 6 plots, planting/watering/harvest cycle, seed shop, growth stages, XP/level system                      |
+| 🎮 **Game Hub**          | 3-in-1 Hub  | 8090 | Farm + Trivia + Match-3 in a single 3-screen slider, CSS transitions, Trivia Duels, Match-3 Leaderboard, shared userId |
 
 ```bash
 # Run any demo:
@@ -529,7 +531,7 @@ npm install && npm run dev
 # Open http://localhost:8080
 ```
 
-Each demo is a **standalone project** with a single `index.html` (zero build step) and an Express server handling all game logic via REST API — demonstrating the framework's server-side architecture pattern.
+Each demo is a **standalone project** with a single `index.html` (zero build step) and an Express server handling all game logic via REST API — demonstrating the framework's server-side architecture pattern. The **Game Hub** combines all three genres into a unified 3-screen Activity with animated transitions, async Trivia Duels (invite codes), and a Match-3 Leaderboard.
 
 ### Core Modules
 
