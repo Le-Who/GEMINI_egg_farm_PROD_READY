@@ -179,3 +179,16 @@
 .m3-lb-rank.bronze { color: #d97706; }
 .m3-lb-score { font-weight: 700; color: var(--gold); text-align: right !important; }
 .m3-lb-empty { text-align: center; color: var(--text-dim); padding: 20px; font-size: 0.8rem; }
+
+/* ─── Responsive — Small Viewports ─── */
+@media (max-height: 600px) {
+  .m3-board { padding: 6px; gap: 2px; border-radius: 14px; }
+  .m3-combo-banner { font-size: 1.3rem; }
+  .m3-lb-panel { margin-top: 10px; }
+}
+@media (max-width: 400px) {
+  .m3-board { padding: 5px; gap: 2px; border-radius: 12px; }
+  .m3-cell { border-radius: 8px; }
+  .m3-cell .gem-icon { font-size: calc(var(--m3-cell, 40px) * 0.44); }
+  .m3-lb-panel { width: calc(100vw - 40px); }
+}

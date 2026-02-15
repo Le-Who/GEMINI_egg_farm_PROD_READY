@@ -34,27 +34,31 @@ body {
     sans-serif;
   background: var(--bg);
   color: var(--text);
-  height: 100vh;
-  overflow: hidden;
+  height: 100dvh;
+  height: 100vh; /* fallback for older browsers */
+  overflow-x: hidden;
 }
 
 /* ─── Viewport & Track ─── */
 .viewport {
   width: 100vw;
-  height: 100vh;
+  height: 100dvh;
+  height: 100vh; /* fallback */
   overflow: hidden;
   position: relative;
 }
 .screen-track {
   display: flex;
   width: 300vw;
-  height: 100vh;
+  height: 100dvh;
+  height: 100vh; /* fallback */
   transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   transform: translateX(-100vw); /* Start on Farm (center) */
 }
 .screen {
   width: 100vw;
-  height: 100vh;
+  height: 100dvh;
+  height: 100vh; /* fallback */
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -345,4 +349,24 @@ body {
   z-index: 300;
   animation: toastSlide 2s ease forwards;
   pointer-events: none;
+}
+
+/* ─── Responsive — Small Viewports ─── */
+@supports (height: 100dvh) {
+  body, .viewport, .screen-track, .screen { height: 100dvh; }
+}
+@media (max-height: 600px) {
+  .screen-header { margin-bottom: 8px; }
+  .screen-header h1 { font-size: 1.2rem; }
+  .screen-header .subtitle { font-size: 0.6rem; }
+  .stats-bar { padding: 8px 12px; margin-bottom: 10px; }
+  .stat-value { font-size: clamp(1rem, 3vw, 1.5rem); }
+  .screen { padding: 12px 12px 32px; }
+}
+@media (max-width: 400px) {
+  .stats-bar { width: calc(100vw - 40px); gap: 8px; padding: 8px 10px; }
+  .card { width: calc(100vw - 40px); padding: 12px; }
+  .nav-arrow { width: 36px; height: 36px; font-size: 1.1rem; }
+  .nav-left { left: 4px; }
+  .nav-right { right: 4px; }
 }

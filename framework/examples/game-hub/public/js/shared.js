@@ -16,6 +16,19 @@ const HUB = {
 /* ─── Discord SDK Init ─── */
 /* ─── Discord SDK Init ─── */
 async function initDiscord() {
+  // Prefetch crops data in parallel with auth (they're static, so start early)
+  window.__cropsPromise = fetch("/api/content/crops")
+    .then((r) => (r.ok ? r.json() : null))
+    .catch(() => {
+      // Try localStorage cache as fallback
+      try {
+        const cached = localStorage.getItem("hub_crops_cache");
+        return cached ? JSON.parse(cached) : null;
+      } catch (_) {
+        return null;
+      }
+    });
+
   // 1. Fetch Client ID Config
   let clientId = "";
   try {
@@ -253,11 +266,13 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (typeof FarmGame !== "undefined") FarmGame.init();
   if (typeof FarmGame !== "undefined") FarmGame.onEnter();
 
-  // Cell size for match-3 based on viewport
-  const cellSize = Math.min(48, Math.floor((window.innerWidth - 120) / 8));
-  document.documentElement.style.setProperty("--m3-cell", cellSize + "px");
-  window.addEventListener("resize", () => {
-    const cs = Math.min(48, Math.floor((window.innerWidth - 120) / 8));
+  // Cell size for match-3 based on viewport (responsive)
+  function updateM3CellSize() {
+    const maxByWidth = Math.floor((window.innerWidth - 80) / 8);
+    const maxByHeight = Math.floor((window.innerHeight - 280) / 8);
+    const cs = Math.max(28, Math.min(48, maxByWidth, maxByHeight));
     document.documentElement.style.setProperty("--m3-cell", cs + "px");
-  });
+  }
+  updateM3CellSize();
+  window.addEventListener("resize", updateM3CellSize);
 });

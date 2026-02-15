@@ -1,6 +1,7 @@
 /* ═══════════════════════════════════════════════════
  *  Game Hub — Farm Module
  *  Plots, planting, watering, harvesting, seed shop
+ *  ─ Skeleton loading, parallel fetch, client seed validation
  * ═══════════════════════════════════════════════════ */
 
 const FarmGame = (() => {
@@ -11,12 +12,59 @@ const FarmGame = (() => {
 
   const $ = (id) => document.getElementById(id);
 
-  /* ─── Init ─── */
+  /* ─── Skeleton Rendering ─── */
+  function showSkeleton() {
+    const grid = $("farm-plots");
+    grid.innerHTML = "";
+    for (let i = 0; i < 6; i++) {
+      const div = document.createElement("div");
+      div.className = "farm-plot skeleton";
+      div.innerHTML = `<div class="skeleton-circle"></div><div class="skeleton-line"></div>`;
+      grid.appendChild(div);
+    }
+    const shopGrid = $("farm-shop-grid");
+    shopGrid.innerHTML = "";
+    for (let i = 0; i < 4; i++) {
+      const card = document.createElement("div");
+      card.className = "farm-seed-card skeleton";
+      card.innerHTML = `&nbsp;<br>&nbsp;`;
+      shopGrid.appendChild(card);
+    }
+  }
+
+  /* ─── Init (parallel loading) ─── */
   async function init() {
-    const cropsData = await api("/api/content/crops");
-    if (cropsData && !cropsData.error) crops = cropsData;
-    await loadState();
-    renderShop();
+    // Show skeleton immediately while data loads
+    showSkeleton();
+
+    // Use prefetched crops if available (from shared.js), otherwise fetch
+    const cropsPromise = window.__cropsPromise || api("/api/content/crops");
+    const statePromise = api("/api/farm/state", {
+      userId: HUB.userId,
+      username: HUB.username,
+    });
+
+    // Load both in parallel
+    const [cropsData, stateData] = await Promise.all([
+      cropsPromise,
+      statePromise,
+    ]);
+
+    if (cropsData && !cropsData.error) {
+      crops = cropsData;
+      // Cache crops in localStorage (they rarely change)
+      try {
+        localStorage.setItem("hub_crops_cache", JSON.stringify(cropsData));
+      } catch (_) {}
+    }
+
+    if (stateData && !stateData.error) {
+      state = stateData;
+      render();
+      renderShop();
+    } else {
+      console.warn("Farm state load failed:", stateData?.error);
+    }
   }
 
   async function loadState() {
@@ -45,7 +93,7 @@ const FarmGame = (() => {
       const div = document.createElement("div");
       const pct = plot.growth || 0;
       const isReady = plot.crop && pct >= 1;
-      div.className = `farm-plot${plot.crop ? "" : " empty"}${isReady ? " ready" : ""}`;
+      div.className = `farm-plot loaded${plot.crop ? "" : " empty"}${isReady ? " ready" : ""}`;
 
       if (plot.crop) {
         const cfg = crops[plot.crop] || {};
@@ -86,8 +134,10 @@ const FarmGame = (() => {
     for (const [id, cfg] of Object.entries(crops)) {
       const count = (state && state.inventory && state.inventory[id]) || 0;
       const card = document.createElement("div");
-      card.className = `farm-seed-card${selectedSeed === id ? " selected" : ""}`;
-      if (selectedSeed === id) card.style.borderColor = "#22c55e";
+      const isSelected = selectedSeed === id;
+      const isEmpty = count <= 0;
+      card.className = `farm-seed-card${isSelected ? " selected" : ""}${isEmpty ? " no-seeds" : ""}`;
+      if (isSelected) card.style.borderColor = "#22c55e";
       card.innerHTML = `
         <div class="seed-emoji">${cfg.emoji}</div>
         <div class="seed-name">${cfg.name}</div>
@@ -138,6 +188,26 @@ const FarmGame = (() => {
       showToast("Select a seed first!");
       return;
     }
+    // Client-side validation: check seed count before API call
+    const seedCount = state?.inventory?.[selectedSeed] || 0;
+    if (seedCount <= 0) {
+      showToast("🌾 No seeds left! Buy more in the shop ↓");
+      const shopEl = document.querySelector(".farm-shop");
+      if (shopEl) shopEl.scrollIntoView({ behavior: "smooth" });
+      // Highlight the seed card briefly
+      const cards = document.querySelectorAll(".farm-seed-card");
+      cards.forEach((c) => {
+        if (
+          c.querySelector(".seed-name")?.textContent ===
+          crops[selectedSeed]?.name
+        ) {
+          c.style.animation = "none";
+          c.offsetHeight; // trigger reflow
+          c.style.animation = "plotGlow 0.8s ease-in-out 2";
+        }
+      });
+      return;
+    }
     const data = await api("/api/farm/plant", {
       userId: HUB.userId,
       plotId,
@@ -150,7 +220,16 @@ const FarmGame = (() => {
       render();
       renderShop();
     } else {
-      showToast(`❌ ${data.error}`);
+      // Friendly error messages instead of raw server errors
+      const msg =
+        data.error === "no seeds"
+          ? "🌾 No seeds left! Buy more in the shop ↓"
+          : data.error === "plot occupied"
+            ? "🚫 This plot is already in use"
+            : data.error === "unknown crop"
+              ? "❓ Unknown seed type"
+              : `❌ ${data.error}`;
+      showToast(msg);
     }
   }
 

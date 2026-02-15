@@ -885,6 +885,17 @@ function findMatches(board) {
   return matches;
 }
 
+app.post("/api/game/state", requireAuth, (req, res) => {
+  const { userId, username } = resolveUser(req);
+  if (!userId) return res.status(400).json({ error: "userId required" });
+  const p = getPlayer(userId, username);
+  if (p.match3.currentGame) {
+    res.json({ game: p.match3.currentGame, highScore: p.match3.highScore });
+  } else {
+    res.json({ game: null, highScore: p.match3.highScore });
+  }
+});
+
 app.post("/api/game/start", requireAuth, (req, res) => {
   const { userId, username } = resolveUser(req);
   if (!userId) return res.status(400).json({ error: "userId required" });

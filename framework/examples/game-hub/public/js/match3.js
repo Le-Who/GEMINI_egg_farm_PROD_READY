@@ -1,9 +1,10 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Match-3 Module
- *  Board rendering, swap mechanics, animations, leaderboard
+ *  Game Hub — Match-3 Module (Refactored)
+ *  Client-side engine, CSS transitions, state restore
  * ═══════════════════════════════════════════════════ */
 
 const Match3Game = (() => {
+  const GEM_TYPES = ["fire", "water", "earth", "air", "light", "dark"];
   const GEM_ICONS = {
     fire: "🔥",
     water: "💧",
@@ -12,7 +13,12 @@ const Match3Game = (() => {
     light: "⭐",
     dark: "🔮",
   };
+  const BOARD_SIZE = 8;
+
   let board = [];
+  let score = 0;
+  let movesLeft = 30;
+  let combo = 0;
   let selected = null;
   let isAnimating = false;
   let highScore = 0;
@@ -20,42 +26,187 @@ const Match3Game = (() => {
 
   const $ = (id) => document.getElementById(id);
 
-  function init() {
+  /* ═══ Client-Side Match-3 Engine ═══ */
+  function randomGem() {
+    return GEM_TYPES[Math.floor(Math.random() * GEM_TYPES.length)];
+  }
+
+  function generateBoard() {
+    const b = [];
+    for (let y = 0; y < BOARD_SIZE; y++) {
+      b[y] = [];
+      for (let x = 0; x < BOARD_SIZE; x++) {
+        let gem;
+        do {
+          gem = randomGem();
+        } while (
+          (x >= 2 && b[y][x - 1] === gem && b[y][x - 2] === gem) ||
+          (y >= 2 && b[y - 1]?.[x] === gem && b[y - 2]?.[x] === gem)
+        );
+        b[y][x] = gem;
+      }
+    }
+    return b;
+  }
+
+  function findMatches(b) {
+    const matches = new Set();
+    // Horizontal
+    for (let y = 0; y < BOARD_SIZE; y++) {
+      for (let x = 0; x < BOARD_SIZE - 2; x++) {
+        if (b[y][x] && b[y][x] === b[y][x + 1] && b[y][x] === b[y][x + 2]) {
+          let end = x;
+          while (end < BOARD_SIZE && b[y][end] === b[y][x]) end++;
+          for (let i = x; i < end; i++) matches.add(`${i},${y}`);
+          x = end - 1;
+        }
+      }
+    }
+    // Vertical
+    for (let x = 0; x < BOARD_SIZE; x++) {
+      for (let y = 0; y < BOARD_SIZE - 2; y++) {
+        if (b[y][x] && b[y][x] === b[y + 1][x] && b[y][x] === b[y + 2][x]) {
+          let end = y;
+          while (end < BOARD_SIZE && b[end][x] === b[y][x]) end++;
+          for (let i = y; i < end; i++) matches.add(`${x},${i}`);
+          y = end - 1;
+        }
+      }
+    }
+    return matches;
+  }
+
+  /** Run a full cascade: match → clear → gravity → fill → repeat.
+   *  Returns { steps, totalPoints, combo } for animation. */
+  function resolveBoard(b) {
+    const steps = [];
+    let totalPoints = 0;
+    let cascadeCombo = 0;
+    let matches = findMatches(b);
+
+    while (matches.size > 0) {
+      cascadeCombo++;
+      const cleared = [...matches].map((k) => {
+        const [x, y] = k.split(",").map(Number);
+        return { x, y, type: b[y][x] };
+      });
+      totalPoints += cleared.length * 10 * Math.min(cascadeCombo, 5);
+
+      // Clear
+      for (const { x, y } of cleared) b[y][x] = null;
+
+      // Gravity + fill
+      const fallen = [];
+      const filled = [];
+      for (let x = 0; x < BOARD_SIZE; x++) {
+        let wy = BOARD_SIZE - 1;
+        for (let y = BOARD_SIZE - 1; y >= 0; y--) {
+          if (b[y][x]) {
+            if (wy !== y) {
+              b[wy][x] = b[y][x];
+              b[y][x] = null;
+              fallen.push({ x, fromY: y, toY: wy });
+            }
+            wy--;
+          }
+        }
+        for (let y = wy; y >= 0; y--) {
+          b[y][x] = randomGem();
+          filled.push({ x, y, type: b[y][x] });
+        }
+      }
+
+      steps.push({ cleared, fallen, filled, combo: cascadeCombo });
+      matches = findMatches(b);
+    }
+
+    return { steps, totalPoints, combo: cascadeCombo };
+  }
+
+  /* ═══ Init & Restore ═══ */
+  async function init() {
     $("m3-btn-start").onclick = startGame;
     $("m3-btn-lb").onclick = toggleLeaderboard;
     fetchLeaderboard();
+
+    // Try to restore an existing game from the server
+    await restoreGame();
   }
 
   function onEnter() {
-    /* board persists in JS, no action needed */
+    /* board persists in JS across screen switches */
   }
 
-  /* ─── Start Game ─── */
+  async function restoreGame() {
+    try {
+      const data = await api("/api/game/state", {
+        userId: HUB.userId,
+        username: HUB.username,
+      });
+      if (data && data.game) {
+        board = data.game.board;
+        score = data.game.score || 0;
+        movesLeft = data.game.movesLeft || 0;
+        combo = data.game.combo || 0;
+        highScore = data.highScore || 0;
+        gameActive = movesLeft > 0;
+
+        if (gameActive) {
+          updateStatsUI();
+          renderBoard(true);
+          showToast("💎 Game restored!");
+        } else {
+          highScore = data.highScore || 0;
+          $("m3-best").textContent = highScore;
+        }
+      } else if (data) {
+        highScore = data.highScore || 0;
+        $("m3-best").textContent = highScore;
+      }
+    } catch (e) {
+      console.warn("Match-3 restore failed:", e);
+    }
+  }
+
+  /* ═══ Start Game ═══ */
   async function startGame() {
     $("m3-overlay").classList.remove("show");
     selected = null;
     isAnimating = false;
 
+    // Generate board client-side
+    board = generateBoard();
+    score = 0;
+    movesLeft = 30;
+    combo = 0;
+    gameActive = true;
+
+    // Notify server of new game
     const data = await api("/api/game/start", {
       userId: HUB.userId,
       username: HUB.username,
     });
-    board = data.game.board;
-    highScore = data.highScore || 0;
-    gameActive = true;
+    if (data && data.highScore !== undefined) highScore = data.highScore;
 
-    updateStats(data.game);
+    // Use server board if available (ensures consistency)
+    if (data && data.game && data.game.board) {
+      board = data.game.board;
+      score = data.game.score || 0;
+      movesLeft = data.game.movesLeft || 30;
+    }
+
+    updateStatsUI();
     renderBoard(true);
   }
 
-  /* ─── Render Board ─── */
+  /* ═══ Render Board (persistent DOM elements) ═══ */
   function renderBoard(animate) {
     const $b = $("m3-board");
     $b.innerHTML = "";
     $b.classList.remove("disabled");
 
-    for (let y = 0; y < 8; y++) {
-      for (let x = 0; x < 8; x++) {
+    for (let y = 0; y < BOARD_SIZE; y++) {
+      for (let x = 0; x < BOARD_SIZE; x++) {
         const type = board[y][x];
         const cell = document.createElement("div");
         cell.className = "m3-cell";
@@ -71,7 +222,7 @@ const Match3Game = (() => {
     }
   }
 
-  /* ─── Cell Click ─── */
+  /* ═══ Cell Click ═══ */
   function onCellClick(x, y) {
     if (isAnimating || !gameActive) return;
     if (!selected) {
@@ -95,7 +246,7 @@ const Match3Game = (() => {
     }
   }
 
-  /* ─── Swap ─── */
+  /* ═══ Swap — Client-Side with Smooth Animations ═══ */
   async function attemptSwap(fromX, fromY, toX, toY) {
     isAnimating = true;
     const $b = $("m3-board");
@@ -103,15 +254,16 @@ const Match3Game = (() => {
     getCell(fromX, fromY)?.classList.remove("selected");
     selected = null;
 
-    const data = await api("/api/game/move", {
-      userId: HUB.userId,
-      fromX,
-      fromY,
-      toX,
-      toY,
-    });
+    // 1. Client-side: try swap
+    const testBoard = board.map((r) => [...r]);
+    [testBoard[fromY][fromX], testBoard[toY][toX]] = [
+      testBoard[toY][toX],
+      testBoard[fromY][fromX],
+    ];
 
-    if (!data.valid) {
+    const matches = findMatches(testBoard);
+    if (matches.size === 0) {
+      // Invalid swap — shake
       $b.classList.add("shake");
       setTimeout(() => $b.classList.remove("shake"), 400);
       isAnimating = false;
@@ -119,75 +271,113 @@ const Match3Game = (() => {
       return;
     }
 
-    if (data.combo > 1) showComboBanner(data.combo);
-    if (data.points > 0) showFloatingPoints(toX, toY, data.points);
+    // 2. Apply swap to real board
+    [board[fromY][fromX], board[toY][toX]] = [
+      board[toY][toX],
+      board[fromY][fromX],
+    ];
 
-    const oldBoard = board.map((r) => [...r]);
-    board = data.game.board;
-    await animateTransition(oldBoard, board);
-    updateStats(data.game);
+    // 3. Resolve cascades client-side
+    const result = resolveBoard(board);
+    score += result.totalPoints;
+    movesLeft--;
+    combo = result.combo;
 
-    if (data.game.isGameOver) {
-      highScore = data.highScore || highScore;
+    // 4. Animate the cascade steps
+    await animateCascade(result.steps);
+
+    // 5. Update UI
+    updateStatsUI();
+
+    if (combo > 1) showComboBanner(combo);
+    if (result.totalPoints > 0)
+      showFloatingPoints(toX, toY, result.totalPoints);
+
+    // 6. Check game over
+    if (movesLeft <= 0) {
+      highScore = Math.max(highScore, score);
       gameActive = false;
-      setTimeout(() => showGameOver(data.game.score), 500);
+      // Send final state to server
+      api("/api/game/move", {
+        userId: HUB.userId,
+        fromX,
+        fromY,
+        toX,
+        toY,
+      }).catch(() => {});
+      setTimeout(() => showGameOver(score), 500);
       fetchLeaderboard();
+    } else {
+      // Send move to server in background (fire-and-forget for validation)
+      api("/api/game/move", {
+        userId: HUB.userId,
+        fromX,
+        fromY,
+        toX,
+        toY,
+      }).catch(() => {});
     }
 
     isAnimating = false;
     $b.classList.remove("disabled");
   }
 
-  /* ─── Board Transition ─── */
-  async function animateTransition(oldB, newB) {
-    const changed = [];
-    for (let y = 0; y < 8; y++)
-      for (let x = 0; x < 8; x++)
-        if (oldB[y][x] !== newB[y][x]) changed.push({ x, y });
-
-    for (const { x, y } of changed) getCell(x, y)?.classList.add("popping");
-    await sleep(280);
-
-    const $b = $("m3-board");
-    $b.innerHTML = "";
-    for (let y = 0; y < 8; y++) {
-      for (let x = 0; x < 8; x++) {
-        const type = newB[y][x];
-        const cell = document.createElement("div");
-        cell.className = "m3-cell";
-        cell.dataset.type = type;
-        cell.dataset.x = x;
-        cell.dataset.y = y;
-        cell.innerHTML = `<span class="gem-icon">${GEM_ICONS[type] || "?"}</span>`;
-        if (changed.some((c) => c.x === x && c.y === y)) {
-          cell.classList.add("falling");
-          cell.style.animationDelay = `${x * 30}ms`;
-        }
-        cell.addEventListener("click", () => onCellClick(x, y));
-        $b.appendChild(cell);
+  /* ═══ Cascade Animation (smooth CSS transitions) ═══ */
+  async function animateCascade(steps) {
+    for (const step of steps) {
+      // Phase 1: Pop matched gems
+      for (const { x, y } of step.cleared) {
+        getCell(x, y)?.classList.add("popping");
       }
+      await sleep(250);
+
+      // Phase 2: Update cells with new types + falling animation
+      const $b = $("m3-board");
+      $b.innerHTML = "";
+      const changedSet = new Set();
+      for (const { x, y } of step.cleared) changedSet.add(`${x},${y}`);
+      for (const f of step.fallen) changedSet.add(`${f.x},${f.toY}`);
+      for (const f of step.filled) changedSet.add(`${f.x},${f.y}`);
+
+      for (let y = 0; y < BOARD_SIZE; y++) {
+        for (let x = 0; x < BOARD_SIZE; x++) {
+          const type = board[y][x];
+          const cell = document.createElement("div");
+          cell.className = "m3-cell";
+          cell.dataset.type = type;
+          cell.dataset.x = x;
+          cell.dataset.y = y;
+          cell.innerHTML = `<span class="gem-icon">${GEM_ICONS[type] || "?"}</span>`;
+          if (changedSet.has(`${x},${y}`)) {
+            cell.classList.add("falling");
+            cell.style.animationDelay = `${x * 20}ms`;
+          }
+          cell.addEventListener("click", () => onCellClick(x, y));
+          $b.appendChild(cell);
+        }
+      }
+      await sleep(200);
     }
-    await sleep(350);
   }
 
-  /* ─── UI Helpers ─── */
+  /* ═══ UI Helpers ═══ */
   function getCell(x, y) {
     return $("m3-board").querySelector(
       `.m3-cell[data-x="${x}"][data-y="${y}"]`,
     );
   }
 
-  function updateStats(game) {
-    animateNumber($("m3-score"), game.score);
-    $("m3-moves").textContent = game.movesLeft;
+  function updateStatsUI() {
+    animateNumber($("m3-score"), score);
+    $("m3-moves").textContent = movesLeft;
     const $c = $("m3-combo");
-    $c.textContent = game.combo > 0 ? `${game.combo}×` : "—";
-    if (game.combo > 1) {
+    $c.textContent = combo > 0 ? `${combo}×` : "—";
+    if (combo > 1) {
       $c.classList.add("m3-combo-flash");
       setTimeout(() => $c.classList.remove("m3-combo-flash"), 400);
     }
     $("m3-best").textContent = highScore;
-    $("m3-moves").style.color = game.movesLeft <= 5 ? "#ef4444" : "";
+    $("m3-moves").style.color = movesLeft <= 5 ? "#ef4444" : "";
   }
 
   function animateNumber(el, target) {
@@ -226,7 +416,7 @@ const Match3Game = (() => {
     setTimeout(() => el.remove(), 800);
   }
 
-  function showComboBanner(combo) {
+  function showComboBanner(c) {
     const labels = [
       "",
       "",
@@ -236,18 +426,18 @@ const Match3Game = (() => {
       "ULTRA! ⚡",
     ];
     const $cb = $("m3-combo-banner");
-    $cb.textContent = labels[Math.min(combo, 5)] || `${combo}× Combo! 🌟`;
+    $cb.textContent = labels[Math.min(c, 5)] || `${c}× Combo! 🌟`;
     $cb.classList.add("show");
     setTimeout(() => $cb.classList.remove("show"), 1200);
   }
 
-  function showGameOver(score) {
-    $("m3-final-score").textContent = score;
+  function showGameOver(finalScore) {
+    $("m3-final-score").textContent = finalScore;
     $("m3-final-best").textContent = highScore;
     $("m3-overlay").classList.add("show");
   }
 
-  /* ─── Leaderboard ─── */
+  /* ═══ Leaderboard ═══ */
   let lbVisible = false;
   function toggleLeaderboard() {
     lbVisible = !lbVisible;
