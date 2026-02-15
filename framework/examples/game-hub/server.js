@@ -566,6 +566,33 @@ app.post("/api/trivia/start", requireAuth, (req, res) => {
   });
 });
 
+app.post("/api/trivia/forfeit", requireAuth, (req, res) => {
+  const { userId } = resolveUser(req);
+  const p = getPlayer(userId);
+  const s = p.trivia.session;
+  if (!s) return res.status(400).json({ error: "no session" });
+
+  // Mark session complete with current stats
+  p.trivia.totalScore += s.score;
+  p.trivia.totalCorrect += s.answers.filter((a) => a.correct).length;
+  p.trivia.totalPlayed++;
+  p.trivia.bestStreak = Math.max(p.trivia.bestStreak, s.streak);
+  const finalScore = s.score;
+  p.trivia.session = null;
+  debouncedSaveDb();
+
+  res.json({
+    success: true,
+    score: finalScore,
+    stats: {
+      totalScore: p.trivia.totalScore,
+      bestStreak: p.trivia.bestStreak,
+      totalPlayed: p.trivia.totalPlayed,
+      totalCorrect: p.trivia.totalCorrect,
+    },
+  });
+});
+
 app.post("/api/trivia/answer", requireAuth, (req, res) => {
   const { userId } = resolveUser(req);
   const { answer, timeMs } = req.body;
@@ -628,6 +655,21 @@ app.post("/api/trivia/answer", requireAuth, (req, res) => {
  *  TRIVIA MODULE — Duel System
  * ═══════════════════════════════════════════════════ */
 const duelRooms = new Map(); // roomId -> duel state
+const DUEL_WAIT_EXPIRY_MS = 3 * 60 * 1000; // 3 min for waiting rooms
+const DUEL_FINISH_EXPIRY_MS = 10 * 60 * 1000; // 10 min for finished rooms
+
+// Periodic cleanup of stale duel rooms
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, room] of duelRooms) {
+    const age = now - room.createdAt;
+    if (room.status === "waiting" && age > DUEL_WAIT_EXPIRY_MS) {
+      duelRooms.delete(id);
+    } else if (room.status === "finished" && age > DUEL_FINISH_EXPIRY_MS) {
+      duelRooms.delete(id);
+    }
+  }
+}, 60_000);
 
 function generateCode() {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
@@ -678,6 +720,14 @@ app.post("/api/trivia/duel/join", requireAuth, (req, res) => {
 
   const room = duelRooms.get(inviteCode.toUpperCase());
   if (!room) return res.status(404).json({ error: "Room not found" });
+  // Check if room has expired
+  if (
+    room.status === "waiting" &&
+    Date.now() - room.createdAt > DUEL_WAIT_EXPIRY_MS
+  ) {
+    duelRooms.delete(inviteCode.toUpperCase());
+    return res.status(404).json({ error: "Room expired" });
+  }
   if (room.status === "finished")
     return res.status(400).json({ error: "Duel already finished" });
   if (Object.keys(room.players).length >= 2 && !room.players[userId])
@@ -787,6 +837,15 @@ app.get("/api/trivia/duel/status/:roomId", (req, res) => {
   const room = duelRooms.get(req.params.roomId);
   if (!room) return res.status(404).json({ error: "Room not found" });
 
+  // Lazy expiry check
+  if (
+    room.status === "waiting" &&
+    Date.now() - room.createdAt > DUEL_WAIT_EXPIRY_MS
+  ) {
+    duelRooms.delete(req.params.roomId);
+    return res.status(404).json({ error: "Room expired" });
+  }
+
   const playersInfo = Object.values(room.players).map((pl) => ({
     username: pl.username,
     finished: pl.finished,
@@ -816,6 +875,20 @@ app.get("/api/trivia/duel/status/:roomId", (req, res) => {
     players: playersInfo,
     winner,
   });
+});
+
+app.post("/api/trivia/duel/leave", requireAuth, (req, res) => {
+  const { userId } = resolveUser(req);
+  const { roomId } = req.body;
+  if (!roomId) return res.status(400).json({ error: "roomId required" });
+  const room = duelRooms.get(roomId);
+  if (!room) return res.json({ success: true }); // already gone
+  delete room.players[userId];
+  // Delete room if empty
+  if (Object.keys(room.players).length === 0) {
+    duelRooms.delete(roomId);
+  }
+  res.json({ success: true });
 });
 
 /* ═══════════════════════════════════════════════════

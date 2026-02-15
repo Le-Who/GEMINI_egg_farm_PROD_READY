@@ -1,14 +1,16 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Trivia Module
+ *  Game Hub — Trivia Module  (v1.2)
  *  Solo mode, Duel mode, timer, results
+ *  ─ Forfeit, cancel, countdown, clipboard fallback
  * ═══════════════════════════════════════════════════ */
 
 const TriviaGame = (() => {
   let session = null; // { question, startTime, timerId }
-  let duel = null; // { roomId, inviteCode, pollId }
+  let duel = null; // { roomId, inviteCode, pollId, countdownId }
   let view = "menu"; // menu | solo | duel-create | duel-join | duel-wait | duel-play | results
 
   const $ = (id) => document.getElementById(id);
+  const DUEL_TIMEOUT_SEC = 60; // auto-cancel after 60s
 
   function init() {
     showMenu();
@@ -37,11 +39,18 @@ const TriviaGame = (() => {
         : `trivia-${name}`,
     );
     if (el) el.style.display = "";
+
+    // Show/hide forfeit button
+    const forfeitBtn = $("btn-trivia-forfeit");
+    if (forfeitBtn)
+      forfeitBtn.style.display =
+        name === "solo" || name === "duel-play" ? "" : "none";
   }
 
   function showMenu() {
     showView("menu");
     stopTimer();
+    clearDuelPolling();
   }
 
   /* ═══ SOLO MODE ═══ */
@@ -57,7 +66,31 @@ const TriviaGame = (() => {
     renderQuestion(data.question);
   }
 
+  /* ═══ FORFEIT (Solo) ═══ */
+  async function forfeitSolo() {
+    if (!session) return;
+    stopTimer();
+    const data = await api("/api/trivia/forfeit", {
+      userId: HUB.userId,
+    });
+    if (data?.success) {
+      session.score = data.score;
+      showResults({
+        isComplete: true,
+        stats: data.stats,
+        forfeited: true,
+      });
+    } else {
+      showMenu();
+    }
+  }
+
   /* ═══ DUEL MODE ═══ */
+  function clearDuelPolling() {
+    if (duel?.pollId) clearInterval(duel.pollId);
+    if (duel?.countdownId) clearInterval(duel.countdownId);
+  }
+
   async function createDuel() {
     const data = await api("/api/trivia/duel/create", {
       userId: HUB.userId,
@@ -68,11 +101,22 @@ const TriviaGame = (() => {
     duel = { roomId: data.roomId, inviteCode: data.inviteCode };
     showView("duel-create");
     $("duel-invite-code").textContent = data.inviteCode;
+
+    // Start countdown
+    startWaitCountdown("duel-create-countdown");
+
     // Poll for opponent
     duel.pollId = setInterval(async () => {
       const s = await api(`/api/trivia/duel/status/${duel.roomId}`);
+      if (s.error) {
+        // Room expired/deleted
+        clearDuelPolling();
+        showToast("⏰ Room expired");
+        showMenu();
+        return;
+      }
       if (s.status === "active" || s.players?.length >= 2) {
-        clearInterval(duel.pollId);
+        clearDuelPolling();
         startDuelPlay();
       }
     }, 2000);
@@ -101,10 +145,56 @@ const TriviaGame = (() => {
       startDuelPlay();
     } else {
       showView("duel-wait");
+      // Start countdown for joiner too
+      startWaitCountdown("duel-wait-countdown");
+      // Poll for start
+      duel.pollId = setInterval(async () => {
+        const s = await api(`/api/trivia/duel/status/${duel.roomId}`);
+        if (s.error) {
+          clearDuelPolling();
+          showToast("⏰ Room expired");
+          showMenu();
+          return;
+        }
+        if (s.status === "active") {
+          clearDuelPolling();
+          startDuelPlay();
+        }
+      }, 2000);
     }
   }
 
+  /* ─── Wait Countdown ─── */
+  function startWaitCountdown(elId) {
+    let remaining = DUEL_TIMEOUT_SEC;
+    const el = $(elId);
+    if (el) el.textContent = `Auto-cancel in ${remaining}s`;
+
+    duel.countdownId = setInterval(() => {
+      remaining--;
+      if (el) el.textContent = `Auto-cancel in ${remaining}s`;
+      if (remaining <= 0) {
+        cancelDuel();
+        showToast("⏰ Timed out waiting for opponent");
+      }
+    }, 1000);
+  }
+
+  /* ─── Cancel Duel ─── */
+  async function cancelDuel() {
+    clearDuelPolling();
+    if (duel?.roomId) {
+      api("/api/trivia/duel/leave", {
+        userId: HUB.userId,
+        roomId: duel.roomId,
+      }).catch(() => {}); // fire-and-forget
+    }
+    duel = null;
+    showMenu();
+  }
+
   async function startDuelPlay() {
+    clearDuelPolling();
     const data = await api("/api/trivia/duel/start", {
       userId: HUB.userId,
       roomId: duel.roomId,
@@ -227,7 +317,14 @@ const TriviaGame = (() => {
     showView("results");
     $("trivia-final-score").textContent = session.score;
 
-    if (session.mode === "solo" && data.stats) {
+    if (data.forfeited) {
+      $("trivia-results-extra").innerHTML = `
+        <div class="trivia-results-breakdown">
+          <span>🏳️ Forfeited</span>
+          <span>🏆 Total: ${data.stats.totalScore}</span>
+          <span>📊 Games: ${data.stats.totalPlayed}</span>
+        </div>`;
+    } else if (session.mode === "solo" && data.stats) {
       $("trivia-results-extra").innerHTML = `
         <div class="trivia-results-breakdown">
           <span>🏆 Total: ${data.stats.totalScore}</span>
@@ -265,19 +362,61 @@ const TriviaGame = (() => {
     $("trivia-results-extra").innerHTML = html;
   }
 
-  function copyInviteCode() {
+  /* ═══ CLIPBOARD COPY (3-tier fallback) ═══ */
+  async function copyInviteCode() {
     const code = $("duel-invite-code").textContent;
-    navigator.clipboard?.writeText(code);
-    showToast("📋 Code copied!");
+    if (await copyToClipboard(code)) {
+      showToast("📋 Code copied!");
+    } else {
+      showToast("📋 Long-press the code to copy");
+    }
+  }
+
+  async function copyToClipboard(text) {
+    // Tier 1: Clipboard API
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch (_) {}
+
+    // Tier 2: execCommand fallback
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.cssText = "position:fixed;opacity:0;left:-9999px";
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      if (ok) return true;
+    } catch (_) {}
+
+    // Tier 3: Select the code element for manual copy
+    try {
+      const codeEl = $("duel-invite-code");
+      if (codeEl) {
+        const range = document.createRange();
+        range.selectNodeContents(codeEl);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+    } catch (_) {}
+
+    return false;
   }
 
   return {
     init,
     onEnter,
     startSolo,
+    forfeitSolo,
     createDuel,
     showJoinDuel,
     joinDuel,
+    cancelDuel,
     showMenu,
     copyInviteCode,
   };

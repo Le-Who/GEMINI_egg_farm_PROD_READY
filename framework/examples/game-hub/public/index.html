@@ -8,10 +8,10 @@
       name="description"
       content="Unified Game Hub: Farm, Trivia (Solo & Duel), Match-3 with Leaderboard — Discord Activities Framework Demo"
     />
-    <link rel="stylesheet" href="css/base.css?v=1.1" />
-    <link rel="stylesheet" href="css/farm.css?v=1.1" />
-    <link rel="stylesheet" href="css/trivia.css?v=1.1" />
-    <link rel="stylesheet" href="css/match3.css?v=1.1" />
+    <link rel="stylesheet" href="css/base.css?v=1.2" />
+    <link rel="stylesheet" href="css/farm.css?v=1.2" />
+    <link rel="stylesheet" href="css/trivia.css?v=1.2" />
+    <link rel="stylesheet" href="css/match3.css?v=1.2" />
   </head>
   <body>
     <!-- ═══ Nav Arrows ═══ -->
@@ -76,6 +76,13 @@
             <div class="trivia-category" id="trivia-category"></div>
             <div class="trivia-q-text" id="trivia-q-text"></div>
             <div class="trivia-answers" id="trivia-answers"></div>
+            <button
+              class="btn btn-forfeit"
+              id="btn-trivia-forfeit"
+              style="display: none"
+            >
+              🏳️ Give Up
+            </button>
           </div>
 
           <!-- Duel Create -->
@@ -101,11 +108,12 @@
             <div class="trivia-duel-status">
               <span class="spinner">⏳</span> Waiting for opponent...
             </div>
+            <div class="trivia-countdown" id="duel-create-countdown"></div>
             <button
               class="btn btn-secondary btn-sm mt-12"
-              id="btn-duel-create-back"
+              id="btn-duel-create-cancel"
             >
-              ← Back
+              ← Cancel
             </button>
           </div>
 
@@ -145,6 +153,13 @@
             <div class="trivia-duel-status">
               <span class="spinner">⏳</span> Waiting for host to start...
             </div>
+            <div class="trivia-countdown" id="duel-wait-countdown"></div>
+            <button
+              class="btn btn-secondary btn-sm mt-12"
+              id="btn-duel-wait-cancel"
+            >
+              ← Cancel
+            </button>
           </div>
 
           <!-- Results -->
@@ -183,18 +198,15 @@
           <div class="farm-plots" id="farm-plots"></div>
 
           <div class="farm-shop">
-            <div class="farm-shop-title">
-              🌾 Seed Shop
-              <span
-                class="text-dim"
-                style="font-size: 0.65rem; font-weight: 400"
-                >— click to select, right-click to buy</span
-              >
+            <div class="farm-shop-title">🌾 Seed Shop</div>
+            <div class="farm-shop-layout">
+              <div class="farm-buy-panel" id="farm-buy-panel">
+                <div class="buy-panel-preview" id="buy-panel-preview">
+                  <span class="buy-panel-hint">← Select a seed</span>
+                </div>
+              </div>
+              <div class="farm-shop-grid" id="farm-shop-grid"></div>
             </div>
-            <div class="farm-shop-grid" id="farm-shop-grid"></div>
-            <button class="btn btn-primary btn-sm mt-12" id="farm-buy-btn">
-              Buy Selected Seeds
-            </button>
           </div>
         </section>
 
@@ -317,14 +329,14 @@
         font-family: monospace;
       "
     >
-      v1.1
+      v1.2
     </div>
 
     <!-- ═══ Scripts (order matters: discord-sdk.js is served dynamically with config) ═══ -->
     <script src="js/discord-sdk.js"></script>
-    <script src="js/shared.js?v=1.1"></script>
-    <script src="js/farm.js?v=1.1"></script>
-    <script src="js/trivia.js?v=1.1"></script>
-    <script src="js/match3.js?v=1.1"></script>
+    <script src="js/shared.js?v=1.2"></script>
+    <script src="js/farm.js?v=1.2"></script>
+    <script src="js/trivia.js?v=1.2"></script>
+    <script src="js/match3.js?v=1.2"></script>
   </body>
 </html>

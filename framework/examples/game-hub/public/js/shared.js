@@ -227,14 +227,20 @@ function bindNavigation() {
     .getElementById("btn-duel-copy-code")
     ?.addEventListener("click", () => TriviaGame.copyInviteCode());
   document
-    .getElementById("btn-duel-create-back")
-    ?.addEventListener("click", () => TriviaGame.showMenu());
+    .getElementById("btn-duel-create-cancel")
+    ?.addEventListener("click", () => TriviaGame.cancelDuel());
   document
     .getElementById("btn-duel-join-submit")
     ?.addEventListener("click", () => TriviaGame.joinDuel());
   document
     .getElementById("btn-duel-join-back")
     ?.addEventListener("click", () => TriviaGame.showMenu());
+  document
+    .getElementById("btn-duel-wait-cancel")
+    ?.addEventListener("click", () => TriviaGame.cancelDuel());
+  document
+    .getElementById("btn-trivia-forfeit")
+    ?.addEventListener("click", () => TriviaGame.forfeitSolo());
   document
     .getElementById("btn-trivia-play-again")
     ?.addEventListener("click", () => TriviaGame.showMenu());
