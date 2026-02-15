@@ -730,7 +730,14 @@ app.post("/api/trivia/duel/join", requireAuth, (req, res) => {
   }
   if (room.status === "finished")
     return res.status(400).json({ error: "Duel already finished" });
-  if (Object.keys(room.players).length >= 2 && !room.players[userId])
+  // Self-join guard — can't join your own room
+  if (room.players[userId])
+    return res
+      .status(400)
+      .json({
+        error: "You're already in this room — share the code with a friend!",
+      });
+  if (Object.keys(room.players).length >= 2)
     return res.status(400).json({ error: "Room is full" });
 
   const p = getPlayer(userId, username);

@@ -183,12 +183,8 @@ const TriviaGame = (() => {
   /* ─── Cancel Duel ─── */
   async function cancelDuel() {
     clearDuelPolling();
-    if (duel?.roomId) {
-      api("/api/trivia/duel/leave", {
-        userId: HUB.userId,
-        roomId: duel.roomId,
-      }).catch(() => {}); // fire-and-forget
-    }
+    // Don't call /duel/leave — room persists until server sweep (3min)
+    // so others can still join with the code
     duel = null;
     showMenu();
   }
@@ -372,16 +368,29 @@ const TriviaGame = (() => {
     }
   }
 
-  async function copyToClipboard(text) {
-    // Tier 1: Clipboard API
+  function isClipboardAllowed() {
+    // Check via Feature Policy API (Chrome)
     try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(text);
+      if (document.featurePolicy?.allowsFeature?.("clipboard-write"))
         return true;
-      }
     } catch (_) {}
+    // If we're in an iframe, Clipboard API is almost certainly blocked
+    if (window.self !== window.top) return false;
+    return true; // top-level window, probably fine
+  }
 
-    // Tier 2: execCommand fallback
+  async function copyToClipboard(text) {
+    // Tier 1: Clipboard API (only if allowed — avoids console violations)
+    if (isClipboardAllowed()) {
+      try {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(text);
+          return true;
+        }
+      } catch (_) {}
+    }
+
+    // Tier 2: execCommand fallback (works in most iframes)
     try {
       const ta = document.createElement("textarea");
       ta.value = text;

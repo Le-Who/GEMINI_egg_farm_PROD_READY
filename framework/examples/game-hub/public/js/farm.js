@@ -1,8 +1,8 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Farm Module  (v1.2)
+ *  Game Hub — Farm Module  (v1.2 hotfix)
  *  Plots, planting, watering, harvesting, seed shop
  *  ─ Skeleton loading, parallel fetch, client seed validation
- *  ─ Diff-update plots (no blink), qty-stepper buy panel
+ *  ─ Diff-update plots (no blink), horizontal buy bar, plot dispatcher
  * ═══════════════════════════════════════════════════ */
 
 const FarmGame = (() => {
@@ -38,17 +38,14 @@ const FarmGame = (() => {
 
   /* ─── Init (parallel loading) ─── */
   async function init() {
-    // Show skeleton immediately while data loads
     showSkeleton();
 
-    // Use prefetched crops if available (from shared.js), otherwise fetch
     const cropsPromise = window.__cropsPromise || api("/api/content/crops");
     const statePromise = api("/api/farm/state", {
       userId: HUB.userId,
       username: HUB.username,
     });
 
-    // Load both in parallel
     const [cropsData, stateData] = await Promise.all([
       cropsPromise,
       statePromise,
@@ -56,7 +53,6 @@ const FarmGame = (() => {
 
     if (cropsData && !cropsData.error) {
       crops = cropsData;
-      // Cache crops in localStorage (they rarely change)
       try {
         localStorage.setItem("hub_crops_cache", JSON.stringify(cropsData));
       } catch (_) {}
@@ -66,8 +62,7 @@ const FarmGame = (() => {
       state = stateData;
       render();
       renderShop();
-    } else {
-      console.warn("Farm state load failed:", stateData?.error);
+      updateBuyBar();
     }
   }
 
@@ -79,8 +74,25 @@ const FarmGame = (() => {
     if (data && !data.error) {
       state = data;
       render();
+    }
+  }
+
+  /* ─── Plot Click Dispatcher ─── */
+  function onPlotClick(i) {
+    const plot = state?.plots?.[i];
+    if (!plot) return;
+    const pct = plot.growth || 0;
+    const isReady = plot.crop && pct >= 1;
+
+    if (isReady) {
+      // Always harvest ready plots, regardless of seed selection
+      harvest(i);
+    } else if (plot.crop) {
+      // Growing plot — no-op, show tooltip
+      showToast("🌱 Still growing...");
     } else {
-      console.warn("Farm state load failed:", data?.error);
+      // Empty plot — plant if seed selected
+      plant(i);
     }
   }
 
@@ -95,8 +107,8 @@ const FarmGame = (() => {
     const existing = grid.querySelectorAll(".farm-plot:not(.skeleton)");
     const isFirstRender = !firstRenderDone;
 
-    // If structure hasn't changed (same number of plots), diff-update
     if (existing.length === state.plots.length && !isFirstRender) {
+      // Diff-update: only rebuild changed plots
       state.plots.forEach((plot, i) => {
         const div = existing[i];
         const pct = plot.growth || 0;
@@ -105,24 +117,23 @@ const FarmGame = (() => {
         const structureChanged = currentCrop !== (plot.crop || "");
 
         if (structureChanged) {
-          // Full rebuild of this one plot
           rebuildPlot(div, plot, i, pct, isReady, false);
         } else if (plot.crop) {
-          // Just update growth bar + button state
+          // Update growth bar width + button state
           const fill = div.querySelector(".growth-bar-fill");
           if (fill) {
             fill.style.width = Math.round(pct * 100) + "%";
             fill.classList.toggle("done", isReady);
           }
-          // Update water button visibility
           const waterBtn = div.querySelector(".farm-water-btn");
           if (waterBtn && isReady) waterBtn.remove();
         }
-        // Update classes
+        // Always update classes and onclick via dispatcher
         div.className = `farm-plot${plot.crop ? "" : " empty"}${isReady ? " ready" : ""}`;
+        div.onclick = () => onPlotClick(i);
       });
     } else {
-      // Full rebuild (first render or structure change)
+      // Full rebuild (first render)
       grid.innerHTML = "";
       state.plots.forEach((plot, i) => {
         const div = document.createElement("div");
@@ -138,6 +149,8 @@ const FarmGame = (() => {
   function rebuildPlot(div, plot, i, pct, isReady, animate) {
     div.dataset.crop = plot.crop || "";
     div.className = `farm-plot${animate ? " first-load" : ""}${plot.crop ? "" : " empty"}${isReady ? " ready" : ""}`;
+    // Always use dispatcher
+    div.onclick = () => onPlotClick(i);
 
     if (plot.crop) {
       const cfg = crops[plot.crop] || {};
@@ -148,7 +161,6 @@ const FarmGame = (() => {
         ${!plot.watered && !isReady ? '<button class="farm-water-btn" title="Water">💧</button>' : ""}
         ${plot.watered ? '<button class="farm-water-btn watered" disabled>💧</button>' : ""}
       `;
-      // Bind water button
       const waterBtn = div.querySelector(".farm-water-btn:not([disabled])");
       if (waterBtn && !plot.watered && !isReady) {
         waterBtn.addEventListener("click", (e) => {
@@ -156,25 +168,21 @@ const FarmGame = (() => {
           FarmGame.water(i);
         });
       }
-      if (isReady) {
-        div.onclick = () => FarmGame.harvest(i);
-        div.title = "Click to harvest!";
-      }
+      div.title = isReady ? "Click to harvest!" : "Growing...";
     } else {
       div.innerHTML = `<div class="plot-empty-label">Empty Plot</div><div style="font-size:1.4rem;opacity:0.3">🌱</div>`;
-      div.onclick = () => FarmGame.plant(i);
       div.title = selectedSeed
-        ? `Plant ${selectedSeed}`
+        ? `Plant ${crops[selectedSeed]?.name || selectedSeed}`
         : "Select a seed first";
     }
   }
 
-  /* ─── Seed Shop (with qty panel) ─── */
+  /* ─── Seed Shop Grid ─── */
   function renderShop() {
     const grid = $("farm-shop-grid");
     grid.innerHTML = "";
     for (const [id, cfg] of Object.entries(crops)) {
-      const count = (state && state.inventory && state.inventory[id]) || 0;
+      const count = state?.inventory?.[id] || 0;
       const card = document.createElement("div");
       const isSelected = selectedSeed === id;
       const isEmpty = count <= 0;
@@ -188,80 +196,62 @@ const FarmGame = (() => {
       card.onclick = () => selectSeed(id);
       grid.appendChild(card);
     }
-    // Update buy panel
-    updateBuyPanel();
   }
 
   function selectSeed(id) {
-    selectedSeed = id;
-    buyQty = 1;
+    // Toggle: clicking same seed deselects it
+    if (selectedSeed === id) {
+      selectedSeed = null;
+      buyQty = 1;
+    } else {
+      selectedSeed = id;
+      buyQty = 1;
+    }
     renderShop();
-    render();
+    updateBuyBar();
+    render(); // Re-render plots to update titles
   }
 
-  function updateBuyPanel() {
-    const panel = $("farm-buy-panel");
-    const preview = $("buy-panel-preview");
+  /* ─── Horizontal Buy Bar ─── */
+  function updateBuyBar() {
+    const bar = $("farm-buy-bar");
+    if (!bar) return;
+
     if (!selectedSeed || !crops[selectedSeed]) {
-      panel.classList.remove("active");
-      preview.innerHTML = `<span class="buy-panel-hint">← Select a seed</span>`;
+      bar.style.display = "none";
       return;
     }
 
-    panel.classList.add("active");
+    bar.style.display = "";
     const cfg = crops[selectedSeed];
     const totalCost = cfg.seedPrice * buyQty;
     const canAfford = state && state.coins >= totalCost;
 
-    preview.innerHTML = `
-      <div class="buy-panel-emoji">${cfg.emoji}</div>
-      <div class="buy-panel-name">${cfg.name}</div>
-      <div class="buy-panel-price">🪙 ${cfg.seedPrice} each</div>
+    bar.innerHTML = `
+      <span class="buy-bar-seed">${cfg.emoji} ${cfg.name}</span>
+      <span class="buy-bar-stepper">
+        <button id="buy-qty-minus">−</button>
+        <span class="qty-display" id="buy-qty-val">${buyQty}</span>
+        <button id="buy-qty-plus">+</button>
+      </span>
+      <span class="buy-bar-total">🪙 ${totalCost}</span>
+      <button class="buy-bar-btn${canAfford ? "" : " disabled"}" id="buy-bar-go">${canAfford ? "Buy" : "💰?"}</button>
     `;
 
-    // Remove old stepper/button if any (to avoid duplicates)
-    panel
-      .querySelectorAll(".buy-panel-stepper, .buy-panel-total, .buy-panel-btn")
-      .forEach((el) => el.remove());
-
-    // Qty stepper
-    const stepper = document.createElement("div");
-    stepper.className = "buy-panel-stepper";
-    stepper.innerHTML = `
-      <button id="buy-qty-minus">−</button>
-      <span class="qty-display" id="buy-qty-val">${buyQty}</span>
-      <button id="buy-qty-plus">+</button>
-    `;
-    panel.appendChild(stepper);
-
-    // Total
-    const totalEl = document.createElement("div");
-    totalEl.className = "buy-panel-total";
-    totalEl.id = "buy-panel-total";
-    totalEl.textContent = `Total: 🪙 ${totalCost}`;
-    panel.appendChild(totalEl);
-
-    // Buy button
-    const buyBtn = document.createElement("button");
-    buyBtn.className = "buy-panel-btn";
-    buyBtn.textContent = canAfford ? `Buy ×${buyQty}` : "Not enough 🪙";
-    buyBtn.disabled = !canAfford;
-    buyBtn.style.opacity = canAfford ? "1" : "0.45";
-    buyBtn.onclick = () => buySeeds(selectedSeed);
-    panel.appendChild(buyBtn);
-
-    // Bind stepper
     $("buy-qty-minus").onclick = () => {
       if (buyQty > 1) {
         buyQty--;
-        updateBuyPanel();
+        updateBuyBar();
       }
     };
     $("buy-qty-plus").onclick = () => {
       if (buyQty < 99) {
         buyQty++;
-        updateBuyPanel();
+        updateBuyBar();
       }
+    };
+    $("buy-bar-go").onclick = () => {
+      if (canAfford) buySeeds(selectedSeed);
     };
   }
 
@@ -285,7 +275,8 @@ const FarmGame = (() => {
       render();
       renderShop();
       showToast(`Bought ${buyQty}× ${cfg.emoji} ${cfg.name} seeds`);
-      buyQty = 1; // Reset qty after successful buy
+      buyQty = 1;
+      updateBuyBar();
     } else {
       showToast(`❌ ${data.error}`);
     }
@@ -296,23 +287,11 @@ const FarmGame = (() => {
       showToast("Select a seed first!");
       return;
     }
-    // Client-side validation: check seed count before API call
     const seedCount = state?.inventory?.[selectedSeed] || 0;
     if (seedCount <= 0) {
       showToast("🌾 No seeds left! Buy more in the shop ↓");
       const shopEl = document.querySelector(".farm-shop");
       if (shopEl) shopEl.scrollIntoView({ behavior: "smooth" });
-      const cards = document.querySelectorAll(".farm-seed-card");
-      cards.forEach((c) => {
-        if (
-          c.querySelector(".seed-name")?.textContent ===
-          crops[selectedSeed]?.name
-        ) {
-          c.style.animation = "none";
-          c.offsetHeight; // trigger reflow
-          c.style.animation = "plotGlow 0.8s ease-in-out 2";
-        }
-      });
       return;
     }
     const data = await api("/api/farm/plant", {
@@ -326,16 +305,14 @@ const FarmGame = (() => {
       state.coins = data.coins;
       render();
       renderShop();
+      updateBuyBar();
     } else {
-      // Friendly error messages instead of raw server errors
       const msg =
         data.error === "no seeds"
           ? "🌾 No seeds left! Buy more in the shop ↓"
           : data.error === "plot occupied"
             ? "🚫 This plot is already in use"
-            : data.error === "unknown crop"
-              ? "❓ Unknown seed type"
-              : `❌ ${data.error}`;
+            : `❌ ${data.error}`;
       showToast(msg);
     }
   }
@@ -358,6 +335,7 @@ const FarmGame = (() => {
       state.level = data.level;
       render();
       renderShop();
+      updateBuyBar();
       showToast(
         `${data.reward.crop} +${data.reward.coins}🪙 +${data.reward.xp}XP`,
       );
