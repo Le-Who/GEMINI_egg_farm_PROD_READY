@@ -1020,10 +1020,19 @@ app.get("/js/discord-sdk.js", (_req, res) => {
     .send(prefix + sdkBundleCache);
 });
 
+// Prevent Discord proxy from caching static assets
+app.use((req, res, next) => {
+  if (req.path.match(/\.(js|css|html)$/)) {
+    res.set("Cache-Control", "no-cache, no-store, must-revalidate");
+  }
+  next();
+});
+
 app.use(express.static(path.join(__dirname, "public")));
-app.get("*", (_req, res) =>
-  res.sendFile(path.join(__dirname, "public", "index.html")),
-);
+app.get("*", (_req, res) => {
+  res.set("Cache-Control", "no-cache, no-store, must-revalidate");
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
 
 /* ═══════════════════════════════════════════════════
  *  STARTUP

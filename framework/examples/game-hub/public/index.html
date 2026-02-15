@@ -8,10 +8,10 @@
       name="description"
       content="Unified Game Hub: Farm, Trivia (Solo & Duel), Match-3 with Leaderboard — Discord Activities Framework Demo"
     />
-    <link rel="stylesheet" href="css/base.css" />
-    <link rel="stylesheet" href="css/farm.css" />
-    <link rel="stylesheet" href="css/trivia.css" />
-    <link rel="stylesheet" href="css/match3.css" />
+    <link rel="stylesheet" href="css/base.css?v=1.1" />
+    <link rel="stylesheet" href="css/farm.css?v=1.1" />
+    <link rel="stylesheet" href="css/trivia.css?v=1.1" />
+    <link rel="stylesheet" href="css/match3.css?v=1.1" />
   </head>
   <body>
     <!-- ═══ Nav Arrows ═══ -->
@@ -303,11 +303,28 @@
     </div>
     <!-- /viewport -->
 
+    <!-- ═══ Version Badge ═══ -->
+    <div
+      id="version-badge"
+      style="
+        position: fixed;
+        bottom: 4px;
+        right: 6px;
+        font-size: 0.55rem;
+        color: rgba(255, 255, 255, 0.18);
+        pointer-events: none;
+        z-index: 999;
+        font-family: monospace;
+      "
+    >
+      v1.1
+    </div>
+
     <!-- ═══ Scripts (order matters: discord-sdk.js is served dynamically with config) ═══ -->
     <script src="js/discord-sdk.js"></script>
-    <script src="js/shared.js"></script>
-    <script src="js/farm.js"></script>
-    <script src="js/trivia.js"></script>
-    <script src="js/match3.js"></script>
+    <script src="js/shared.js?v=1.1"></script>
+    <script src="js/farm.js?v=1.1"></script>
+    <script src="js/trivia.js?v=1.1"></script>
+    <script src="js/match3.js?v=1.1"></script>
   </body>
 </html>
