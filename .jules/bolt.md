@@ -5,3 +5,7 @@
 ## 2024-05-23 - [Test Artifact Isolation]
 **Learning:** Integration tests running against the real `server.js` logic can generate local artifacts (like `data/db.json`). Always ensure tests use a temporary directory or mocked persistence layer, and verify `git status` before committing to avoid polluting the repo with test data.
 **Action:** Add `data/db.json` to `.gitignore` or ensure test cleanup in `afterAll`.
+
+## 2024-05-24 - [Efficient Random Sampling]
+**Learning:** Using `array.sort(() => Math.random() - 0.5)` to pick a small subset of items is O(N log N) and becomes a bottleneck as N grows. For large datasets, picking random indices in a loop (O(K)) is orders of magnitude faster.
+**Action:** Replace full array shuffles with random index selection when only a small sample is needed from a large collection.
