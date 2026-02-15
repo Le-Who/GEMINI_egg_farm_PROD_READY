@@ -297,7 +297,7 @@ const Match3Game = (() => {
     if (movesLeft <= 0) {
       highScore = Math.max(highScore, score);
       gameActive = false;
-      // Send final state to server
+      // Send final move + end game via dedicated endpoint
       api("/api/game/move", {
         userId: HUB.userId,
         fromX,
@@ -305,6 +305,14 @@ const Match3Game = (() => {
         toX,
         toY,
       }).catch(() => {});
+      // Save score and get server-side highScore
+      const endData = await api("/api/game/end", {
+        userId: HUB.userId,
+        score,
+      }).catch(() => null);
+      if (endData?.highScore) {
+        highScore = endData.highScore;
+      }
       setTimeout(() => showGameOver(score), 500);
       fetchLeaderboard();
     } else {

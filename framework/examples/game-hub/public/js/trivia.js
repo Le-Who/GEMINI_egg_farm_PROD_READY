@@ -1,13 +1,13 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Trivia Module  (v1.2)
+ *  Game Hub — Trivia Module  (v1.3)
  *  Solo mode, Duel mode, timer, results
- *  ─ Forfeit, cancel, countdown, clipboard fallback
+ *  ─ Forfeit, cancel, lobby ready-up, voice invite
  * ═══════════════════════════════════════════════════ */
 
 const TriviaGame = (() => {
   let session = null; // { question, startTime, timerId }
-  let duel = null; // { roomId, inviteCode, pollId, countdownId }
-  let view = "menu"; // menu | solo | duel-create | duel-join | duel-wait | duel-play | results
+  let duel = null; // { roomId, inviteCode, pollId, countdownId, lobbyTimeoutId }
+  let view = "menu"; // menu | solo | duel-create | duel-join | duel-wait | duel-lobby | duel-play | results
 
   const $ = (id) => document.getElementById(id);
   const DUEL_TIMEOUT_SEC = 60; // auto-cancel after 60s
@@ -28,6 +28,7 @@ const TriviaGame = (() => {
       "trivia-duel-create",
       "trivia-duel-join",
       "trivia-duel-wait",
+      "trivia-duel-lobby",
       "trivia-results",
     ].forEach((id) => {
       const el = $(id);
@@ -36,7 +37,9 @@ const TriviaGame = (() => {
     const el = $(
       name === "solo" || name === "duel-play"
         ? "trivia-play"
-        : `trivia-${name}`,
+        : name === "duel-lobby"
+          ? "trivia-duel-lobby"
+          : `trivia-${name}`,
     );
     if (el) el.style.display = "";
 
@@ -51,6 +54,7 @@ const TriviaGame = (() => {
     showView("menu");
     stopTimer();
     clearDuelPolling();
+    if (duel?.lobbyTimeoutId) clearInterval(duel.lobbyTimeoutId);
   }
 
   /* ═══ SOLO MODE ═══ */
@@ -115,9 +119,17 @@ const TriviaGame = (() => {
         showMenu();
         return;
       }
-      if (s.status === "active" || s.players?.length >= 2) {
+      if (
+        s.status === "lobby" ||
+        s.status === "active" ||
+        s.players?.length >= 2
+      ) {
         clearDuelPolling();
-        startDuelPlay();
+        if (s.status === "active") {
+          startDuelPlay();
+        } else {
+          showDuelLobby();
+        }
       }
     }, 2000);
   }
@@ -143,6 +155,8 @@ const TriviaGame = (() => {
     duel = { roomId: data.roomId };
     if (data.status === "active") {
       startDuelPlay();
+    } else if (data.status === "lobby") {
+      showDuelLobby();
     } else {
       showView("duel-wait");
       // Start countdown for joiner too
@@ -159,6 +173,9 @@ const TriviaGame = (() => {
         if (s.status === "active") {
           clearDuelPolling();
           startDuelPlay();
+        } else if (s.status === "lobby") {
+          clearDuelPolling();
+          showDuelLobby();
         }
       }, 2000);
     }
@@ -183,10 +200,107 @@ const TriviaGame = (() => {
   /* ─── Cancel Duel ─── */
   async function cancelDuel() {
     clearDuelPolling();
-    // Don't call /duel/leave — room persists until server sweep (3min)
-    // so others can still join with the code
+    if (duel?.lobbyTimeoutId) clearInterval(duel.lobbyTimeoutId);
     duel = null;
     showMenu();
+  }
+
+  /* ─── Duel Lobby (Issue 8: Ready-up) ─── */
+  function showDuelLobby() {
+    showView("duel-lobby");
+    const lobbyDiv = $("duel-lobby-players");
+    if (lobbyDiv)
+      lobbyDiv.innerHTML = "<p class='text-dim'>Loading lobby...</p>";
+
+    // Poll lobby state
+    let lobbyTimeout = 60;
+    const timeoutEl = $("duel-lobby-timeout");
+    if (timeoutEl) timeoutEl.textContent = `Auto-start in ${lobbyTimeout}s`;
+
+    duel.lobbyTimeoutId = setInterval(() => {
+      lobbyTimeout--;
+      if (timeoutEl) timeoutEl.textContent = `Auto-start in ${lobbyTimeout}s`;
+      if (lobbyTimeout <= 0) {
+        clearInterval(duel.lobbyTimeoutId);
+        // Force ready
+        duelReady();
+      }
+    }, 1000);
+
+    // Poll for ready state
+    duel.pollId = setInterval(async () => {
+      const s = await api(`/api/trivia/duel/status/${duel.roomId}`);
+      if (s.error) {
+        clearDuelPolling();
+        if (duel?.lobbyTimeoutId) clearInterval(duel.lobbyTimeoutId);
+        showToast("⏰ Room expired");
+        showMenu();
+        return;
+      }
+      if (s.status === "active") {
+        clearDuelPolling();
+        if (duel?.lobbyTimeoutId) clearInterval(duel.lobbyTimeoutId);
+        startDuelPlay();
+        return;
+      }
+      // Update lobby UI
+      renderLobbyPlayers(s.players || []);
+    }, 1500);
+
+    // Initial fetch
+    api(`/api/trivia/duel/status/${duel.roomId}`).then((s) => {
+      if (s.players) renderLobbyPlayers(s.players);
+    });
+  }
+
+  function renderLobbyPlayers(players) {
+    const lobbyDiv = $("duel-lobby-players");
+    if (!lobbyDiv) return;
+    lobbyDiv.innerHTML = players
+      .map(
+        (p) => `
+      <div class="duel-lobby-player ${p.ready ? "is-ready" : "is-waiting"}">
+        <div class="lp-name">${p.username}</div>
+        <div class="lp-status">${p.ready ? "✅ Ready" : "⏳ Waiting..."}</div>
+      </div>
+    `,
+      )
+      .join("");
+  }
+
+  async function duelReady() {
+    if (!duel?.roomId) return;
+    const data = await api("/api/trivia/duel/ready", {
+      userId: HUB.userId,
+      roomId: duel.roomId,
+    });
+    if (data?.status === "active") {
+      clearDuelPolling();
+      if (duel?.lobbyTimeoutId) clearInterval(duel.lobbyTimeoutId);
+      startDuelPlay();
+    }
+  }
+
+  /* ─── Voice Chat Invite (Issue 6) ─── */
+  async function inviteFromVoice() {
+    if (typeof HUB.sdk !== "undefined" && HUB.sdk) {
+      try {
+        await HUB.sdk.commands.openInviteDialog();
+        return;
+      } catch (e) {
+        console.warn("SDK invite not available, falling back to copy", e);
+      }
+    }
+    // Fallback: copy invite code to clipboard
+    const code = duel?.inviteCode;
+    if (code) {
+      try {
+        await navigator.clipboard.writeText(code);
+        showToast("🎮 Code copied! Share it in voice chat");
+      } catch {
+        showToast(`🎮 Share this code: ${code}`);
+      }
+    }
   }
 
   async function startDuelPlay() {
@@ -428,5 +542,7 @@ const TriviaGame = (() => {
     cancelDuel,
     showMenu,
     copyInviteCode,
+    duelReady,
+    inviteFromVoice,
   };
 })();

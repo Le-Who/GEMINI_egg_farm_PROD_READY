@@ -2,7 +2,7 @@
 
 > A combined Farm + Trivia + Match-3 game running as a single Discord Embedded App Activity with horizontal screen-swipe navigation.
 
----
+**v1.3** — Content-hash cache busting, duel lobby ready-up, local growth timers, voice invite, farm notifications
 
 ## Quick Start
 
@@ -20,11 +20,16 @@ npm run dev
 - **Skeleton loading** — shimmer UI while data loads
 - **Parallel fetch** — crops + state loaded via `Promise.all`, crops prefetched during Discord auth
 - **Client-side seed validation** — prevents planting with 0 seeds, friendly toast messages, dimmed empty seed cards
+- **Local growth timer** — client-side growth calculation for instant responsiveness; lazy server sync every 30s
+- **Tiered watering bonus** — slow crops (sunflower, golden) get up to 45% time reduction, fast crops 30%
+- **Harvest notifications** — pulsing gold badge on nav-dot + floating badge when plants are ready on another screen
 
 ### 🧠 Trivia
 
 - Solo quiz + async **Trivia Duels** (invite codes)
 - Difficulty tiers, streak/combo scoring
+- **Duel Lobby** — both players must press "Ready" before game starts (60s auto-start timeout)
+- **Voice Chat Invite** — 🎙️ button to share duel code with voice channel participants (SDK + clipboard fallback)
 
 ### 💎 Match-3
 
@@ -33,12 +38,18 @@ npm run dev
 - **Smooth animations** — reduced cascade delays (450ms total vs. 630ms), CSS pop/fall classes
 - Server validation via fire-and-forget sync
 - Leaderboard (global + room-scoped)
+- **Reliable score saving** — dedicated `/api/game/end` endpoint ensures highScore persistence
 
 ### 🖥 Responsive Layout
 
 - `100dvh` viewport units with `100vh` fallback
 - `@media` breakpoints for `<600px` height and `<400px` width
 - Dynamic match-3 cell sizing based on both viewport width and height
+
+### 🔧 Infrastructure
+
+- **Content-hash cache busting** — MD5-based asset hashes auto-injected into HTML at server start
+- **Aggressive cache headers** — `Cache-Control`, `Surrogate-Control`, `Pragma` prevent stale assets in Discord proxy
 
 ## API Endpoints
 
@@ -57,6 +68,8 @@ npm run dev
 | `POST` | `/api/game/state`         | Get active match-3 game state |
 | `POST` | `/api/game/start`         | Start new match-3 game        |
 | `POST` | `/api/game/move`          | Submit match-3 move           |
+| `POST` | `/api/game/end`           | Finalize game, save highScore |
+| `POST` | `/api/trivia/duel/ready`  | Mark player ready in lobby    |
 | `GET`  | `/api/leaderboard`        | Global leaderboard            |
 
 ## Project Structure

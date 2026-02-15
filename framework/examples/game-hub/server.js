@@ -10,6 +10,7 @@ import express from "express";
 import fetch from "node-fetch";
 import fs from "fs";
 import path from "path";
+import crypto from "crypto";
 import { fileURLToPath } from "url";
 import { initStorage, gcsRead, gcsWrite, getBucket } from "./storage.js";
 
@@ -271,17 +272,35 @@ const CROPS = {
   },
 };
 
+/** Tiered watering bonus: slow crops benefit more from watering */
+function getWateringMultiplier(crop) {
+  const cfg = CROPS[crop];
+  if (!cfg) return 0.7;
+  if (cfg.growthTime >= 60000) return 0.55; // slow (sunflower, golden)
+  if (cfg.growthTime >= 30000) return 0.6; // medium (tomato)
+  return 0.7; // fast (strawberry)
+}
+
 function getGrowthPct(plot) {
   if (!plot.crop || !plot.plantedAt) return 0;
   const cfg = CROPS[plot.crop];
   if (!cfg) return 0;
   const elapsed = Date.now() - plot.plantedAt;
-  const time = plot.watered ? cfg.growthTime * 0.7 : cfg.growthTime;
+  const mult = plot.watered ? getWateringMultiplier(plot.crop) : 1;
+  const time = cfg.growthTime * mult;
   return Math.min(1, elapsed / time);
 }
 
 function farmPlotsWithGrowth(farm) {
-  return farm.plots.map((pl) => ({ ...pl, growth: getGrowthPct(pl) }));
+  return farm.plots.map((pl) => {
+    const cfg = pl.crop ? CROPS[pl.crop] : null;
+    return {
+      ...pl,
+      growth: getGrowthPct(pl),
+      growthTime: cfg ? cfg.growthTime : 0,
+      wateringMultiplier: pl.crop ? getWateringMultiplier(pl.crop) : 1,
+    };
+  });
 }
 
 app.get("/api/content/crops", (_req, res) => res.json(CROPS));
@@ -732,11 +751,9 @@ app.post("/api/trivia/duel/join", requireAuth, (req, res) => {
     return res.status(400).json({ error: "Duel already finished" });
   // Self-join guard — can't join your own room
   if (room.players[userId])
-    return res
-      .status(400)
-      .json({
-        error: "You're already in this room — share the code with a friend!",
-      });
+    return res.status(400).json({
+      error: "You're already in this room — share the code with a friend!",
+    });
   if (Object.keys(room.players).length >= 2)
     return res.status(400).json({ error: "Room is full" });
 
@@ -753,8 +770,8 @@ app.post("/api/trivia/duel/join", requireAuth, (req, res) => {
     };
   }
 
-  // Auto-start when 2 players joined
-  if (Object.keys(room.players).length >= 2) room.status = "active";
+  // Move to lobby when 2 players joined (ready-up required)
+  if (Object.keys(room.players).length >= 2) room.status = "lobby";
 
   const playerNames = Object.values(room.players).map((pl) => pl.username);
   res.json({
@@ -856,6 +873,7 @@ app.get("/api/trivia/duel/status/:roomId", (req, res) => {
   const playersInfo = Object.values(room.players).map((pl) => ({
     username: pl.username,
     finished: pl.finished,
+    ready: !!pl.ready,
     score: pl.finished ? pl.score : undefined,
     correctCount: pl.finished
       ? pl.answers.filter((a) => a.correct).length
@@ -896,6 +914,35 @@ app.post("/api/trivia/duel/leave", requireAuth, (req, res) => {
     duelRooms.delete(roomId);
   }
   res.json({ success: true });
+});
+
+/* ─── Duel Ready-Up ─── */
+app.post("/api/trivia/duel/ready", requireAuth, (req, res) => {
+  const { userId } = resolveUser(req);
+  const { roomId } = req.body;
+  const room = duelRooms.get(roomId);
+  if (!room) return res.status(404).json({ error: "Room not found" });
+  const dp = room.players[userId];
+  if (!dp) return res.status(403).json({ error: "Not in this room" });
+
+  dp.ready = true;
+
+  // Check if both players are ready
+  const allReady = Object.values(room.players).every((pl) => pl.ready);
+  if (allReady && Object.keys(room.players).length >= 2) {
+    room.status = "active";
+  }
+
+  const playersInfo = Object.values(room.players).map((pl) => ({
+    username: pl.username,
+    ready: !!pl.ready,
+  }));
+
+  res.json({
+    success: true,
+    status: room.status,
+    players: playersInfo,
+  });
 });
 
 /* ═══════════════════════════════════════════════════
@@ -1050,6 +1097,30 @@ app.post("/api/game/move", requireAuth, (req, res) => {
   res.json({ valid: true, game, points: totalPoints, combo });
 });
 
+/* ─── Game End (dedicated endpoint for highScore save) ─── */
+app.post("/api/game/end", requireAuth, (req, res) => {
+  const { userId } = resolveUser(req);
+  const { score } = req.body;
+  const p = getPlayer(userId);
+  if (typeof score === "number" && score > 0) {
+    p.match3.highScore = Math.max(p.match3.highScore, score);
+  }
+  p.match3.currentGame = null;
+  debouncedSaveDb();
+
+  // Compute rank
+  const allScores = [...players.values()]
+    .filter((pl) => pl.match3.highScore > 0)
+    .sort((a, b) => b.match3.highScore - a.match3.highScore);
+  const rank = allScores.findIndex((pl) => pl.id === p.id) + 1;
+
+  res.json({
+    success: true,
+    highScore: p.match3.highScore,
+    rank: rank || allScores.length + 1,
+  });
+});
+
 /* ─── Leaderboard (enhanced with scope) ─── */
 app.get("/api/leaderboard", (req, res) => {
   const { scope, roomId } = req.query;
@@ -1100,18 +1171,75 @@ app.get("/js/discord-sdk.js", (_req, res) => {
     .send(prefix + sdkBundleCache);
 });
 
+// ─── Content-Hash Cache Busting ───
+const assetHashes = {};
+function computeAssetHashes() {
+  const pubDir = path.join(__dirname, "public");
+  const scanDirs = ["js", "css"];
+  for (const dir of scanDirs) {
+    const dirPath = path.join(pubDir, dir);
+    if (!fs.existsSync(dirPath)) continue;
+    for (const file of fs.readdirSync(dirPath)) {
+      if (file === "discord-sdk-bundle.js") continue; // served dynamically
+      const filePath = path.join(dirPath, file);
+      const content = fs.readFileSync(filePath);
+      const hash = crypto
+        .createHash("md5")
+        .update(content)
+        .digest("hex")
+        .slice(0, 8);
+      assetHashes[`${dir}/${file}`] = hash;
+    }
+  }
+  console.log(
+    "  📦 Asset hashes computed:",
+    Object.keys(assetHashes).length,
+    "files",
+  );
+}
+
+// Serve index.html with injected content hashes
+let indexHtmlTemplate = null;
+function getIndexHtml() {
+  if (!indexHtmlTemplate) {
+    indexHtmlTemplate = fs.readFileSync(
+      path.join(__dirname, "public", "index.html"),
+      "utf-8",
+    );
+  }
+  // Replace all ?v=1.x with ?v=<content-hash>
+  let html = indexHtmlTemplate;
+  for (const [asset, hash] of Object.entries(assetHashes)) {
+    // Match href="css/file.css?v=..." or src="js/file.js?v=..."
+    const escaped = asset.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    html = html.replace(
+      new RegExp(`(${escaped})\\?v=[^"']+`, "g"),
+      `$1?v=${hash}`,
+    );
+  }
+  return html;
+}
+
 // Prevent Discord proxy from caching static assets
 app.use((req, res, next) => {
   if (req.path.match(/\.(js|css|html)$/)) {
     res.set("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.set("Surrogate-Control", "no-store");
+    res.set("Pragma", "no-cache");
   }
   next();
 });
 
-app.use(express.static(path.join(__dirname, "public")));
+app.use(
+  express.static(path.join(__dirname, "public"), {
+    index: false, // Don't serve index.html statically — we inject hashes
+  }),
+);
 app.get("*", (_req, res) => {
   res.set("Cache-Control", "no-cache, no-store, must-revalidate");
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+  res.set("Surrogate-Control", "no-store");
+  res.set("Pragma", "no-cache");
+  res.type("html").send(getIndexHtml());
 });
 
 /* ═══════════════════════════════════════════════════
@@ -1119,6 +1247,7 @@ app.get("*", (_req, res) => {
  * ═══════════════════════════════════════════════════ */
 async function start() {
   await loadDb();
+  computeAssetHashes();
   app.listen(PORT, () => {
     console.log(`\n  🎮 Game Hub — http://localhost:${PORT}`);
     console.log(`     Farm 🌱 | Trivia 🧠 | Match-3 💎`);

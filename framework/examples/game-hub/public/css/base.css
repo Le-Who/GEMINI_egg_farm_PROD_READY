@@ -370,3 +370,58 @@ body {
   .nav-left { left: 4px; }
   .nav-right { right: 4px; }
 }
+
+/* ─── Farm Notification Badge (Issue 7) ─── */
+@keyframes badgePulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.7; }
+}
+.nav-dot.has-notification::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 7px;
+  height: 7px;
+  background: var(--gold);
+  border-radius: 50%;
+  border: 1px solid var(--bg);
+  animation: badgePulse 2s ease-in-out infinite;
+}
+.nav-dot { position: relative; }
+
+.farm-ready-badge {
+  display: none;
+  position: fixed;
+  bottom: 38px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 101;
+  padding: 4px 12px;
+  background: rgba(30, 32, 50, 0.92);
+  border: 1px solid var(--gold);
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--gold);
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 0 16px rgba(251, 191, 36, 0.15);
+  transition: all 0.3s ease;
+  animation: badgePulse 3s ease-in-out infinite;
+}
+.farm-ready-badge.show {
+  display: block;
+}
+.farm-ready-badge:hover {
+  box-shadow: 0 0 24px rgba(251, 191, 36, 0.3);
+}
+
+/* ─── Water Splash Animation (Issue 3) ─── */
+@keyframes waterSplash {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.3); filter: brightness(1.5); }
+  60% { transform: scale(0.95); }
+  100% { transform: scale(1); filter: brightness(1); }
+}
+.water-splash { animation: waterSplash 0.5s ease-out; }

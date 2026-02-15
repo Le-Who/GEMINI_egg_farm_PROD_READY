@@ -1,14 +1,13 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Farm Module  (v1.2 hotfix)
+ *  Game Hub — Farm Module  (v1.3)
  *  Plots, planting, watering, harvesting, seed shop
- *  ─ Skeleton loading, parallel fetch, client seed validation
+ *  ─ Local growth timer, diff-update fix, farm badge
  *  ─ Diff-update plots (no blink), horizontal buy bar, plot dispatcher
  * ═══════════════════════════════════════════════════ */
 
 const FarmGame = (() => {
   let state = null;
   let crops = {};
-  let pollInterval = null;
   let selectedSeed = null;
   let firstRenderDone = false;
   let buyQty = 1;
@@ -81,7 +80,7 @@ const FarmGame = (() => {
   function onPlotClick(i) {
     const plot = state?.plots?.[i];
     if (!plot) return;
-    const pct = plot.growth || 0;
+    const pct = getLocalGrowth(plot);
     const isReady = plot.crop && pct >= 1;
 
     if (isReady) {
@@ -111,12 +110,14 @@ const FarmGame = (() => {
       // Diff-update: only rebuild changed plots
       state.plots.forEach((plot, i) => {
         const div = existing[i];
-        const pct = plot.growth || 0;
+        const pct = getLocalGrowth(plot);
         const isReady = plot.crop && pct >= 1;
         const currentCrop = div.dataset.crop || "";
+        const currentWatered = div.dataset.watered === "true";
         const structureChanged = currentCrop !== (plot.crop || "");
+        const wateredChanged = !!plot.watered !== currentWatered;
 
-        if (structureChanged) {
+        if (structureChanged || wateredChanged) {
           rebuildPlot(div, plot, i, pct, isReady, false);
         } else if (plot.crop) {
           // Update growth bar width + button state
@@ -137,7 +138,7 @@ const FarmGame = (() => {
       grid.innerHTML = "";
       state.plots.forEach((plot, i) => {
         const div = document.createElement("div");
-        const pct = plot.growth || 0;
+        const pct = getLocalGrowth(plot);
         const isReady = plot.crop && pct >= 1;
         rebuildPlot(div, plot, i, pct, isReady, isFirstRender);
         grid.appendChild(div);
@@ -148,6 +149,7 @@ const FarmGame = (() => {
 
   function rebuildPlot(div, plot, i, pct, isReady, animate) {
     div.dataset.crop = plot.crop || "";
+    div.dataset.watered = plot.watered ? "true" : "false";
     div.className = `farm-plot${animate ? " first-load" : ""}${plot.crop ? "" : " empty"}${isReady ? " ready" : ""}`;
     // Always use dispatcher
     div.onclick = () => onPlotClick(i);
@@ -322,7 +324,14 @@ const FarmGame = (() => {
     if (data.success) {
       state.plots = data.plots;
       render();
-      showToast("💧 Watered!");
+      // Splash animation on the water button
+      const btn = document.querySelectorAll(".farm-water-btn")[plotId];
+      if (btn) btn.classList.add("water-splash");
+      // Calculate watering bonus percentage for toast
+      const plot = state.plots[plotId];
+      const mult = plot?.wateringMultiplier;
+      const bonusPct = mult ? Math.round((1 - mult) * 100) : 30;
+      showToast(`💧 Watered! Growth +${bonusPct}% faster`);
     }
   }
 
@@ -343,18 +352,86 @@ const FarmGame = (() => {
     }
   }
 
-  /* ─── Growth Polling ─── */
-  function onEnter() {
-    if (pollInterval) clearInterval(pollInterval);
-    pollInterval = setInterval(async () => {
-      if (HUB.currentScreen !== 1) {
-        clearInterval(pollInterval);
-        pollInterval = null;
-        return;
-      }
-      await loadState();
-    }, 2000);
+  /* ─── Local Growth Computation (Issue 5) ─── */
+  function getLocalGrowth(plot) {
+    if (!plot.crop || !plot.plantedAt) return 0;
+    const elapsed = Date.now() - plot.plantedAt;
+    const mult = plot.watered ? plot.wateringMultiplier || 0.7 : 1;
+    const gt = plot.growthTime || 15000;
+    return Math.min(1, elapsed / (gt * mult));
   }
 
-  return { init, onEnter, plant, water, harvest, buySeeds, selectSeed };
+  /* ─── Local Growth Tick (replaces 2s polling) ─── */
+  let growthTickId = null;
+  let syncInterval = null;
+
+  function startLocalGrowthTick() {
+    stopLocalGrowthTick();
+    growthTickId = setInterval(() => {
+      if (!state?.plots) return;
+      render(); // re-render with locally computed growth
+      updateFarmBadge();
+    }, 500);
+    // Lazy server sync every 30s for drift correction
+    syncInterval = setInterval(async () => {
+      if (HUB.userId) await loadState();
+    }, 30000);
+  }
+
+  function stopLocalGrowthTick() {
+    if (growthTickId) {
+      clearInterval(growthTickId);
+      growthTickId = null;
+    }
+    if (syncInterval) {
+      clearInterval(syncInterval);
+      syncInterval = null;
+    }
+  }
+
+  /* ─── Farm Badge Notification (Issue 7) ─── */
+  function updateFarmBadge() {
+    if (!state?.plots) return;
+    const readyCount = state.plots.filter(
+      (p) => p.crop && getLocalGrowth(p) >= 1,
+    ).length;
+    const dot = document.querySelectorAll(".nav-dot")[1]; // farm is center dot
+    const badge = document.getElementById("farm-ready-badge");
+    if (dot) {
+      dot.classList.toggle(
+        "has-notification",
+        readyCount > 0 && HUB.currentScreen !== 1,
+      );
+    }
+    if (badge) {
+      if (readyCount > 0 && HUB.currentScreen !== 1) {
+        badge.textContent = `🌾 ×${readyCount}`;
+        badge.classList.add("show");
+        badge.onclick = () => {
+          if (typeof goToScreen === "function") goToScreen(1);
+        };
+      } else {
+        badge.classList.remove("show");
+      }
+    }
+  }
+
+  /* ─── Screen Enter/Exit ─── */
+  function onEnter() {
+    // Sync with server on enter, then rely on local timer
+    loadState();
+    startLocalGrowthTick();
+  }
+
+  return {
+    init,
+    onEnter,
+    plant,
+    water,
+    harvest,
+    buySeeds,
+    selectSeed,
+    updateFarmBadge,
+    getLocalGrowth,
+  };
 })();

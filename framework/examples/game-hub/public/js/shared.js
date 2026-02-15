@@ -8,6 +8,7 @@ const HUB = {
   userId: null,
   username: "Player",
   accessToken: null,
+  sdk: null,
   currentScreen: 1, // 0=Trivia, 1=Farm, 2=Match3
   screenNames: ["trivia", "farm", "match3"],
   initialized: { trivia: false, farm: false, match3: false },
@@ -87,6 +88,7 @@ async function initDiscord() {
 
         // Notify SDK we're authenticated
         await sdk.commands.authenticate({ access_token: HUB.accessToken });
+        HUB.sdk = sdk; // Store for voice invite access
         console.log(`Discord auth OK: ${HUB.username} (${HUB.userId})`);
         return;
       }
@@ -141,6 +143,10 @@ function goToScreen(index) {
   applyScreenPosition();
   updateNavUI();
   triggerScreenCallbacks();
+  // Update farm notification badge when switching screens
+  if (typeof FarmGame !== "undefined" && FarmGame.updateFarmBadge) {
+    FarmGame.updateFarmBadge();
+  }
 }
 
 function applyScreenPosition() {
@@ -244,6 +250,16 @@ function bindNavigation() {
   document
     .getElementById("btn-trivia-play-again")
     ?.addEventListener("click", () => TriviaGame.showMenu());
+  // New v1.3 buttons
+  document
+    .getElementById("btn-duel-voice-invite")
+    ?.addEventListener("click", () => TriviaGame.inviteFromVoice());
+  document
+    .getElementById("btn-duel-ready")
+    ?.addEventListener("click", () => TriviaGame.duelReady());
+  document
+    .getElementById("btn-duel-lobby-cancel")
+    ?.addEventListener("click", () => TriviaGame.cancelDuel());
 
   // Match-3 buttons
   document
