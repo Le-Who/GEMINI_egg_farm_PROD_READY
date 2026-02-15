@@ -534,11 +534,36 @@ async function startServer(port = PORT) {
         .filter(Boolean);
       neighborCache = { data: profiles, timestamp: now };
     }
-    // Filter out self, shuffle, return 5
-    const neighbors = neighborCache.data
-      .filter((n) => n.id !== req.discordUser.id)
-      .sort(() => 0.5 - Math.random())
-      .slice(0, 5);
+    // Pick 5 random neighbors (O(1) instead of O(N log N))
+    const pool = neighborCache.data;
+    const poolSize = pool.length;
+
+    // For small pools, simple shuffle is fine
+    if (poolSize < 50) {
+      const filtered = pool.filter((n) => n.id !== req.discordUser.id);
+      filtered.sort(() => 0.5 - Math.random());
+      return res.json(filtered.slice(0, 5));
+    }
+
+    const neighbors = [];
+    const seen = new Set();
+    const selfId = req.discordUser.id;
+    let attempts = 0;
+
+    // Try to pick 5 unique neighbors
+    while (neighbors.length < 5 && attempts < 50) {
+      attempts++;
+      const idx = Math.floor(Math.random() * poolSize);
+      const candidate = pool[idx];
+
+      if (!candidate) continue;
+      if (candidate.id === selfId) continue;
+      if (seen.has(candidate.id)) continue;
+
+      seen.add(candidate.id);
+      neighbors.push(candidate);
+    }
+
     res.json(neighbors);
   });
 
