@@ -15,19 +15,8 @@ const HUB = {
 
 /* ─── Discord SDK Init ─── */
 async function initDiscord() {
-  // Fetch client_id from server config
-  let clientId = "";
-  try {
-    const cfgRes = await fetch("/api/config");
-    const cfg = await cfgRes.json();
-    clientId = cfg.clientId || "";
-    if (!cfg.discordEnabled) {
-      console.log("Discord not enabled on server — demo mode");
-      throw new Error("demo");
-    }
-  } catch (e) {
-    if (e.message !== "demo") console.warn("Config fetch failed:", e.message);
-  }
+  // client_id is injected by server into the HTML as window.__DISCORD_CLIENT_ID
+  const clientId = window.__DISCORD_CLIENT_ID || "";
 
   // Try Discord Embedded App SDK (only works inside Discord iframe)
   if (clientId && typeof DiscordSDK !== "undefined") {

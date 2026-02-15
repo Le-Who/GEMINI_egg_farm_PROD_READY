@@ -987,10 +987,26 @@ app.get("/api/leaderboard", (req, res) => {
 /* ═══════════════════════════════════════════════════
  *  STATIC FILES
  * ═══════════════════════════════════════════════════ */
+/* ─── Serve index.html with injected config (must be before express.static) ─── */
+const INDEX_HTML_PATH = path.join(__dirname, "public", "index.html");
+let indexHtmlTemplate = null;
+
+function getIndexHtml() {
+  if (!indexHtmlTemplate) {
+    indexHtmlTemplate = fs.readFileSync(INDEX_HTML_PATH, "utf-8");
+  }
+  // Inject config as synchronous script right before </head>
+  const configScript = `<script>window.__DISCORD_CLIENT_ID="${CLIENT_ID || ""}";</script>`;
+  return indexHtmlTemplate.replace("</head>", configScript + "\n</head>");
+}
+
+app.get("/", (_req, res) => {
+  res.type("html").send(getIndexHtml());
+});
 app.use(express.static(path.join(__dirname, "public")));
-app.get("*", (_req, res) =>
-  res.sendFile(path.join(__dirname, "public", "index.html")),
-);
+app.get("*", (_req, res) => {
+  res.type("html").send(getIndexHtml());
+});
 
 /* ═══════════════════════════════════════════════════
  *  STARTUP
