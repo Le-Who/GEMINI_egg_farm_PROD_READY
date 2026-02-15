@@ -15,18 +15,30 @@ const HUB = {
 
 /* ─── Discord SDK Init ─── */
 async function initDiscord() {
-  // DiscordSDK is set as window.DiscordSDK by discord-sdk.js bundle
-  if (typeof DiscordSDK !== "undefined") {
+  // Fetch client_id from server config
+  let clientId = "";
+  try {
+    const cfgRes = await fetch("/api/config");
+    const cfg = await cfgRes.json();
+    clientId = cfg.clientId || "";
+    if (!cfg.discordEnabled) {
+      console.log("Discord not enabled on server — demo mode");
+      throw new Error("demo");
+    }
+  } catch (e) {
+    if (e.message !== "demo") console.warn("Config fetch failed:", e.message);
+  }
+
+  // Try Discord Embedded App SDK (only works inside Discord iframe)
+  if (clientId && typeof DiscordSDK !== "undefined") {
     try {
-      const sdk = new DiscordSDK(
-        document.querySelector('meta[name="discord-client-id"]')?.content || "",
-      );
+      const sdk = new DiscordSDK(clientId);
       await sdk.ready();
       console.log("Discord SDK ready");
 
       // Authorize and get code
       const { code } = await sdk.commands.authorize({
-        client_id: sdk.clientId,
+        client_id: clientId,
         response_type: "code",
         state: "",
         prompt: "none",
@@ -62,6 +74,8 @@ async function initDiscord() {
         e.message || e,
       );
     }
+  } else if (!clientId) {
+    console.log("No client_id configured — running in demo mode");
   } else {
     console.log("DiscordSDK not available — running in demo mode");
   }

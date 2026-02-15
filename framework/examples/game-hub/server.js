@@ -124,6 +124,14 @@ function resolveUser(req) {
   return { userId: req.body.userId, username: req.body.username || "Player" };
 }
 
+/* ─── Public Config (exposes non-secret settings to frontend) ─── */
+app.get("/api/config", (_req, res) => {
+  res.json({
+    clientId: CLIENT_ID || "",
+    discordEnabled: DISCORD_ENABLED,
+  });
+});
+
 /* ─── Discord Token Exchange ─── */
 app.post("/api/token", async (req, res) => {
   if (!DISCORD_ENABLED)
