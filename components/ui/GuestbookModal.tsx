@@ -53,6 +53,7 @@ export const GuestbookModal: React.FC<GuestbookModalProps> = ({
           <button
             onClick={onClose}
             className="absolute top-2 right-2 text-white/80 hover:text-white hover:bg-white/10 rounded-full p-1"
+            aria-label={t("common.close")}
           >
             <X size={20} />
           </button>

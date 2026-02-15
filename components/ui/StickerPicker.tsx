@@ -69,6 +69,7 @@ export const StickerPicker: React.FC<StickerPickerProps> = ({
           <button
             onClick={onClose}
             className="w-7 h-7 flex items-center justify-center rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white transition-colors"
+            aria-label={t("common.close")}
           >
             <X size={14} />
           </button>
