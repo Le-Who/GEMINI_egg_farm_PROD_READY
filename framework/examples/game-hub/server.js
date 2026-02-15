@@ -132,6 +132,10 @@ app.get("/api/config", (_req, res) => {
   });
 });
 
+app.get("/api/config/discord", (_req, res) => {
+  res.json({ clientId: CLIENT_ID });
+});
+
 /* ─── Discord Token Exchange ─── */
 app.post("/api/token", async (req, res) => {
   if (!DISCORD_ENABLED)

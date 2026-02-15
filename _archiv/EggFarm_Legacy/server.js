@@ -239,6 +239,11 @@ async function startServer(port = PORT) {
   const CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
   const REDIRECT_URI = process.env.DISCORD_REDIRECT_URI || "";
 
+  // --- Public Config ---
+  app.get("/api/config/discord", (req, res) => {
+    res.json({ clientId: CLIENT_ID });
+  });
+
   // --- Health Check ---
   app.get("/api/health", (req, res) => {
     res.json({

@@ -14,12 +14,32 @@ const HUB = {
 };
 
 /* ─── Discord SDK Init ─── */
+/* ─── Discord SDK Init ─── */
 async function initDiscord() {
-  // client_id is injected by server into the HTML as window.__DISCORD_CLIENT_ID
-  const clientId = window.__DISCORD_CLIENT_ID || "";
+  // 1. Fetch Client ID Config
+  let clientId = "";
+  try {
+    const res = await fetch("/api/config/discord");
+    if (res.ok) {
+      const data = await res.json();
+      clientId = data.clientId;
+    }
+  } catch (e) {
+    console.warn("Failed to fetch Discord config:", e.message);
+  }
+
+  // Fallback / Demo Mode
+  if (!clientId) {
+    console.log("No client_id configured — running in demo mode");
+    // Fallback: demo mode — random userId
+    HUB.userId = "hub_" + Math.random().toString(36).slice(2, 8);
+    HUB.username = "Player";
+    console.log(`Demo mode: ${HUB.userId}`);
+    return;
+  }
 
   // Try Discord Embedded App SDK (only works inside Discord iframe)
-  if (clientId && typeof DiscordSDK !== "undefined") {
+  if (typeof DiscordSDK !== "undefined") {
     try {
       const sdk = new DiscordSDK(clientId);
       await sdk.ready();
@@ -63,16 +83,14 @@ async function initDiscord() {
         e.message || e,
       );
     }
-  } else if (!clientId) {
-    console.log("No client_id configured — running in demo mode");
   } else {
     console.log("DiscordSDK not available — running in demo mode");
   }
 
-  // Fallback: demo mode — random userId
+  // If we reached here, auth failed or SDK missing -> Demo Mode as fallback
   HUB.userId = "hub_" + Math.random().toString(36).slice(2, 8);
   HUB.username = "Player";
-  console.log(`Demo mode: ${HUB.userId}`);
+  console.log(`Fallback Demo mode: ${HUB.userId}`);
 }
 
 /* ─── API Helper (auto-attaches auth) ─── */

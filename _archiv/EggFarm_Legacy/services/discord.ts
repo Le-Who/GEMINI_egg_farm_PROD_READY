@@ -1,20 +1,7 @@
 // DiscordSDKMock is intentionally kept — used for local dev outside Discord iframe
 import { DiscordSDK, DiscordSDKMock } from "@discord/embedded-app-sdk";
 
-// Client ID injected by Vite at build time, or fallback for local dev
-const CLIENT_ID =
-  (typeof process !== "undefined" && process.env?.DISCORD_CLIENT_ID) ||
-  "1471622547983306833"; // Replace with your real CLIENT_ID
-
 const isEmbedded = window.location.search.includes("frame_id");
-
-let discordSdk: DiscordSDK;
-
-if (isEmbedded) {
-  discordSdk = new DiscordSDK(CLIENT_ID);
-} else {
-  discordSdk = new DiscordSDKMock(CLIENT_ID, null, "123456", null) as any;
-}
 
 export interface DiscordUser {
   id: string;
@@ -29,29 +16,55 @@ class DiscordService {
   public user: DiscordUser | null = null;
   public isReady: boolean = false;
   public accessToken: string | null = null;
+  private sdk: DiscordSDK | DiscordSDKMock | null = null;
 
   async init() {
     if (this.isReady) return;
 
-    await discordSdk.ready();
+    // 1. Fetch Client ID Config
+    let clientId = "";
+    try {
+      const res = await fetch("/api/config/discord");
+      if (res.ok) {
+        const data = await res.json();
+        clientId = data.clientId;
+      }
+    } catch (e) {
+      console.warn("Failed to fetch Discord config:", e);
+    }
 
-    // 1. Authorize
-    const { code } = await discordSdk.commands.authorize({
-      client_id: CLIENT_ID,
+    // Fallback if fetch fails (e.g. local dev without server or different port)
+    if (!clientId) {
+      console.warn("No Client ID found from server, using fallback/mock.");
+      clientId = "1471622547983306833";
+    }
+
+    // 2. Initialize SDK
+    if (isEmbedded) {
+      this.sdk = new DiscordSDK(clientId);
+    } else {
+      this.sdk = new DiscordSDKMock(clientId, null, "123456", null) as any;
+    }
+
+    await this.sdk!.ready();
+
+    // 3. Authorize
+    const { code } = await this.sdk!.commands.authorize({
+      client_id: clientId,
       response_type: "code",
       state: "",
       prompt: "none",
       scope: ["identify", "rpc.activities.write", "guilds.members.read"],
     });
 
-    // 2. Exchange Code for Token (via Backend)
+    // 4. Exchange Code for Token (via Backend)
     const response = await this.exchangeCodeForToken(code);
 
     if (response.access_token) {
       this.accessToken = response.access_token;
 
-      // 3. Authenticate SDK
-      this.auth = await discordSdk.commands.authenticate({
+      // 5. Authenticate SDK
+      this.auth = await this.sdk!.commands.authenticate({
         access_token: response.access_token,
       });
 
@@ -96,9 +109,9 @@ class DiscordService {
   }
 
   async setActivity(details: string, state: string) {
-    if (!this.isReady) return;
+    if (!this.isReady || !this.sdk) return;
     try {
-      await discordSdk.commands.setActivity({
+      await this.sdk.commands.setActivity({
         activity: {
           type: 0,
           details: details,
@@ -115,7 +128,8 @@ class DiscordService {
   }
 
   getChannelId() {
-    return discordSdk.channelId;
+    if (!this.sdk) return null;
+    return this.sdk.channelId;
   }
 }
 
