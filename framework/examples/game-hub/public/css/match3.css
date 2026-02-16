@@ -382,43 +382,11 @@
   font-size: 0.8rem;
 }
 
-/* ─── Wide screens: side-by-side layout ─── */
+/* ─── Wide screens: keep leaderboard as fixed overlay (prevents game shift) ─── */
 @media (min-width: 680px) {
-  .m3-layout {
-    flex-direction: row;
-    align-items: flex-start;
-    justify-content: center;
-  }
   .m3-lb-panel {
-    /* Override fixed positioning for wide screens */
-    position: static;
-    height: auto;
-    width: auto;
-    min-width: 200px;
-    max-width: 260px;
-    flex-shrink: 0;
-    border-radius: 20px;
-    border: 1px solid var(--border);
-    border-right: 1px solid var(--border);
-    transform: none;
-    background: var(--surface);
-    backdrop-filter: blur(12px);
-    padding: 16px;
-    overflow-y: visible;
-    display: none; /* toggled by JS */
-  }
-  .m3-lb-panel.open {
-    display: block;
-    transform: none;
-  }
-  .m3-lb-close {
-    display: none;
-  }
-  .m3-lb-backdrop {
-    display: none !important;
-  }
-  .m3-lb-tabs {
-    margin-top: 0;
+    /* Wider panel on larger screens, still fixed overlay */
+    width: min(340px, 40vw);
   }
 }
 

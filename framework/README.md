@@ -837,6 +837,15 @@ npm test
 | Config       | 4      | дефолты, merge, deep merge, env            |
 | Persistence  | 7      | CRUD, deep clone, batch, cleanup           |
 
+#### Game Hub (`examples/game-hub`)
+
+Game Hub имеет собственный набор тестов (80 штук) на `node:test` — см. `examples/game-hub/README.md`:
+
+```bash
+cd examples/game-hub
+npm test          # Unit (49) + API (24) + Perf (7)
+```
+
 ### CI
 
 GitHub Actions (`.github/workflows/framework-ci.yml`):

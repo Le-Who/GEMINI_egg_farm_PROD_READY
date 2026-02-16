@@ -17,3 +17,4 @@ data/db.json
 .profile
 .sudo_as_admin_successful
 README-cloudshell.txt
+tests/

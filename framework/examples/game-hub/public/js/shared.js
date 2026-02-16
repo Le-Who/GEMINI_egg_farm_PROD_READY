@@ -207,6 +207,16 @@ async function triggerScreenCallbacks() {
   await SmartLoader.loadScreen(HUB.currentScreen);
   // Prefetch neighbors in background
   SmartLoader.prefetchNeighbors(HUB.currentScreen);
+
+  // Screen leave callbacks (hide elements that might leak into other screens)
+  if (
+    name !== "trivia" &&
+    typeof TriviaGame !== "undefined" &&
+    TriviaGame.onLeave
+  ) {
+    TriviaGame.onLeave();
+  }
+
   // Lazy init
   if (!HUB.initialized[name]) {
     HUB.initialized[name] = true;
@@ -474,6 +484,13 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   // Bounce hint for first-time visitors
   triggerSwipeHint();
+
+  // Dismiss boot-loader overlay
+  const bootLoader = document.getElementById("boot-loader");
+  if (bootLoader) {
+    bootLoader.classList.add("hidden");
+    setTimeout(() => bootLoader.remove(), 600); // Remove from DOM after fade
+  }
 
   // Cell size for match-3 based on viewport (responsive)
   function updateM3CellSize() {

@@ -3,3 +3,7 @@ node_modules/
 data/
 *.log
 .git/
+tests/
+*.test.js
+.env.example
+README.md

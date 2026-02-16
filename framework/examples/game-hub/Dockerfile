@@ -9,6 +9,7 @@ RUN npm install
 COPY src/ ./src/
 COPY public/ ./public/
 COPY server.js .
+COPY game-logic.js .
 COPY storage.js .
 
 # Bundle Discord SDK into public/js/

@@ -345,35 +345,26 @@ npm start
 
 ## 🧪 Testing
 
-The project employs a comprehensive testing strategy using **Vitest** for unit/integration/performance and **Playwright** for end-to-end testing.
+The Game Hub uses Node.js built-in `node:test` runner — zero test dependencies.
 
-| Type            | Tool                | Target                    | Command             |
-| :-------------- | :------------------ | :------------------------ | :------------------ |
-| **All Tests**   | Vitest + Playwright | Full Suite                | `npm run test`      |
-| **Unit**        | Vitest              | `services/gameEngine.ts`  | `npm run test:unit` |
-| **Integration** | Vitest + Supertest  | `server.js` API endpoints | `npm run test:unit` |
-| **Performance** | Vitest              | AI, Renderer, API, I/O    | `npm run test:perf` |
-| **E2E**         | Playwright          | Full Browser Flow         | `npm run test:e2e`  |
+```bash
+cd framework/examples/game-hub
+npm test          # All 80 tests (unit + API + perf)
+npm run test:perf # Performance benchmarks only
+```
 
-### Key Test Features
+| Type            | File                 | Tests | Coverage                                                                                                  |
+| :-------------- | :------------------- | ----: | :-------------------------------------------------------------------------------------------------------- |
+| **Unit**        | `tests/unit.test.js` |    49 | Player factory, energy regen, offline simulation, farm growth, match-3 board, trivia questions, constants |
+| **API**         | `tests/api.test.js`  |    24 | Farm CRUD, pet feeding, trivia start/answer, harvest, buy-seeds, match-3 state, health                    |
+| **Performance** | `tests/perf.test.js` |     7 | Board generation, match detection, offline processing, question picking                                   |
 
-- **Mocked Discord Auth**: Integration and E2E tests bypass real Discord auth using extensive mocking. E2E tests use `page.route` to simulate API responses.
-- **Optimistic UI Checks**: E2E tests verify canvas rendering and title correctness.
-- **Game Logic Validation**: Unit tests cover all core actions (buy, plant, harvest, hatch).
-- **Prerequisites**: E2E tests require the dev server to be running (`npm start`) if not using the automated `npm run test:e2e` script which handles it (via Playwright webServer).
+### Key Features
 
-### Performance Tests (`npm run test:perf`)
-
-23 tests with **statistical p95 budget assertions** — tests fail automatically if performance degrades beyond the threshold:
-
-| Suite                   | Tests | Key Metrics                                                                                     |
-| :---------------------- | ----: | :---------------------------------------------------------------------------------------------- |
-| **Pet AI Stress**       |     8 | `updatePetAI()` at 10→500 items, full grid, state transitions (budget: 1μs–1ms)                 |
-| **Renderer Benchmarks** |     6 | `getCropSprite()` with 0→20 growth stages, batch sweep (budget: 5–50μs)                         |
-| **API Latency**         |     4 | Health, content, version, state endpoints via supertest (budget: 20–150ms)                      |
-| **Content Load**        |     5 | Cold/warm `loadContent()`, single/all `saveContent()`, missing file fallback (budget: 50–200ms) |
-
-Each test runs N iterations with warmup, measures `p50`/`p95`/`max`/`avg` in μs, and asserts `p95 < budget`.
+- **Extracted Game Logic**: Pure functions in `game-logic.js` — deterministic `now` parameter for time-dependent tests.
+- **Bug Fix Regression Guards**: `_lastSeen` initialization and 2-minute offline threshold are specifically tested.
+- **p95 Budget Assertions**: Performance tests auto-fail if latency degrades beyond thresholds.
+- **Zero Dependencies**: Uses `node:test`, `node:assert`, `node:perf_hooks` — nothing to install.
 
 ---
 

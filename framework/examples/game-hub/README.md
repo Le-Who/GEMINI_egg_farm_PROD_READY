@@ -89,21 +89,43 @@ npm run dev
 ```
 game-hub/
 ├── server.js            # Express backend (Game logic + Discord auth)
+├── game-logic.js        # Extracted pure game logic (testable)
+├── storage.js           # GCS + local file persistence
 ├── public/
-    ├── index.html       # 3-screen slider layout + energy modal
-    ├── css/
-    │   ├── base.css     # Design tokens, scrollbar fixes, feed-item styles
-    │   ├── hud.css      # TopHUD resource bar
-    │   ├── pet.css      # Pet overlay + smart docking (ground/perch)
-    │   └── ...
-    └── js/
-        ├── store.js     # GameStore (Zustand-pattern state manager)
-        ├── shared.js    # Init, Navigation & Pet Dock orchestration
-        ├── hud.js       # Resources management + Quick-Feed Modal
-        ├── pet.js       # Pet behaviors, dock mode & interaction
-        ├── farm.js      # Farm logic + Welcome Back modal
-        └── ...
+│   ├── index.html       # 3-screen slider layout + energy modal
+│   ├── css/
+│   │   ├── base.css     # Design tokens, scrollbar fixes, feed-item styles
+│   │   ├── hud.css      # TopHUD resource bar
+│   │   ├── pet.css      # Pet overlay + smart docking (ground/perch)
+│   │   └── ...
+│   └── js/
+│       ├── store.js     # GameStore (Zustand-pattern state manager)
+│       ├── shared.js    # Init, Navigation & Pet Dock orchestration
+│       ├── hud.js       # Resources management + Quick-Feed Modal
+│       ├── pet.js       # Pet behaviors, dock mode & interaction
+│       ├── farm.js      # Farm logic + Welcome Back modal
+│       └── ...
+├── tests/
+│   ├── unit.test.js     # 49 unit tests (game logic)
+│   ├── api.test.js      # 24 API integration tests
+│   └── perf.test.js     # 7 performance benchmarks
+└── Dockerfile           # Cloud Run deployment
 ```
+
+## 🧪 Testing
+
+```bash
+npm test          # All 80 tests (unit + API + perf)
+npm run test:perf # Performance benchmarks only
+```
+
+| Type     | Tests | Coverage                                                                             |
+| -------- | ----: | ------------------------------------------------------------------------------------ |
+| **Unit** |    49 | Player factory, energy regen, offline simulation, farm growth, match-3 board, trivia |
+| **API**  |    24 | All REST endpoints (farm, pet, trivia, match-3, health)                              |
+| **Perf** |     7 | Board generation, match detection, offline processing                                |
+
+Uses Node.js built-in `node:test` — zero test dependencies.
 
 ## Environment Variables
 

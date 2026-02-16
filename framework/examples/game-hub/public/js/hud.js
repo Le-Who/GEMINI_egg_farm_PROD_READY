@@ -206,7 +206,17 @@ const HUD = (function () {
 
     descEl.textContent = `Need ${needed} more ⚡ — Feed your pet to restore energy!`;
 
-    // Render food items
+    // Render food items — ensure crop metadata is available via cache fallback
+    const cropsCache =
+      window.__cropsCache ||
+      (() => {
+        try {
+          const cached = localStorage.getItem("hub_crops_cache");
+          return cached ? JSON.parse(cached) : null;
+        } catch (_) {
+          return null;
+        }
+      })();
     const entries = Object.entries(harvested).filter(([, qty]) => qty > 0);
     if (entries.length === 0) {
       itemsEl.innerHTML =
@@ -214,7 +224,7 @@ const HUD = (function () {
     } else {
       itemsEl.innerHTML = entries
         .map(([cropId, qty]) => {
-          const crop = window.__cropsCache ? window.__cropsCache[cropId] : null;
+          const crop = cropsCache ? cropsCache[cropId] : null;
           const emoji = crop ? crop.emoji : "🌿";
           const name = crop ? crop.name : cropId;
           return `

@@ -89,6 +89,19 @@ const PetCompanion = (function () {
 
     // Start auto-water butler ability
     startAutoWater();
+
+    // Click-outside to close info panel (Fix 3)
+    document.addEventListener("click", (e) => {
+      if (!panelOpen) return;
+      const panel = document.getElementById("pet-info-panel");
+      const petContainer = document.getElementById("pet-container");
+      if (!panel) return;
+      // Close if click is outside both the panel and the pet itself
+      if (!panel.contains(e.target) && !petContainer?.contains(e.target)) {
+        panelOpen = false;
+        panel.style.display = "none";
+      }
+    });
   }
 
   /* ─── State Machine ─── */
@@ -127,9 +140,9 @@ const PetCompanion = (function () {
         return;
       }
 
-      // Pick next state: 60% idle, 40% roam (only in ground mode)
+      // Pick next state: 45% idle, 55% roam (only in ground mode)
       const roll = Math.random();
-      if (roll < 0.6 || dockMode === "perch") {
+      if (roll < 0.45 || dockMode === "perch") {
         setState(STATES.IDLE);
       } else {
         setState(STATES.ROAM);
@@ -144,8 +157,16 @@ const PetCompanion = (function () {
     const overlay = document.getElementById("pet-overlay");
     if (!container || !overlay) return;
 
-    const maxX = overlay.offsetWidth - 60;
-    const newX = 30 + Math.random() * (maxX - 60);
+    // Don't roam in perch mode — pet sits still
+    if (dockMode === "perch") {
+      setState(STATES.IDLE);
+      return;
+    }
+
+    // Use window width for full-screen roaming with edge padding
+    const padding = 40;
+    const maxX = window.innerWidth - padding;
+    const newX = padding + Math.random() * (maxX - padding * 2);
 
     // Determine direction from current position
     const computedStyle = getComputedStyle(container);
@@ -364,6 +385,16 @@ const PetCompanion = (function () {
     setState(STATES.HAPPY);
     spawnHeart();
     spawnHeart();
+
+    // Optimistic food list update: decrement locally and re-render buttons
+    if (typeof GameStore !== "undefined") {
+      const rState = GameStore.getState("resources");
+      if (rState?.__harvested?.[cropId]) {
+        rState.__harvested[cropId]--;
+        if (rState.__harvested[cropId] <= 0) delete rState.__harvested[cropId];
+        if (panelOpen) renderFeedButtons();
+      }
+    }
 
     try {
       const data = await api("/api/pet/feed", {

@@ -40,6 +40,14 @@ const TriviaGame = (() => {
     fetchDuelHistory();
   }
 
+  /** Called when leaving the trivia screen — hide floating panels */
+  function onLeave() {
+    const histPanel = document.getElementById("trivia-duel-history");
+    const histBar = document.getElementById("trivia-duel-history-bar");
+    if (histPanel) histPanel.style.display = "none";
+    if (histBar) histBar.style.display = "none";
+  }
+
   /* ─── View Management ─── */
   function showView(name) {
     view = name;
@@ -703,6 +711,7 @@ const TriviaGame = (() => {
   return {
     init,
     onEnter,
+    onLeave,
     startSolo,
     forfeitSolo,
     createDuel,

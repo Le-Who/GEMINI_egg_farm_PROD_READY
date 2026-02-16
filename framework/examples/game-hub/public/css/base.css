@@ -637,3 +637,38 @@ body.touch-device .nav-dots {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.04); }
 }
+
+/* ─── Boot Loading Overlay ─── */
+.boot-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  transition: opacity 0.5s ease;
+}
+.boot-loader.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+.boot-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(167, 139, 250, 0.2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: bootSpin 0.8s linear infinite;
+}
+@keyframes bootSpin {
+  to { transform: rotate(360deg); }
+}
+.boot-text {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
