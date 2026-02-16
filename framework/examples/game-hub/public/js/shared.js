@@ -166,22 +166,58 @@ function goToScreen(index) {
   }
 }
 
-/** Smart Docking: move pet between ground (Farm) and perch (games) */
+/** Smart Docking: FLIP-based smooth transition between dock positions */
 function updatePetDock() {
   const overlay = document.getElementById("pet-overlay");
-  if (!overlay) return;
-  const isFarm = HUB.currentScreen === 1;
-  overlay.classList.toggle("dock-ground", isFarm);
-  overlay.classList.toggle("dock-perch", !isFarm);
-  // Jump animation
   const container = document.getElementById("pet-container");
-  if (container) {
-    container.classList.add("docking");
-    setTimeout(() => container.classList.remove("docking"), 500);
+  if (!overlay || !container) return;
+
+  const isFarm = HUB.currentScreen === 1;
+  const isTrivia = HUB.currentScreen === 0;
+  const isMatch3 = HUB.currentScreen === 2;
+
+  // Determine new dock mode
+  const newDockClass = isFarm
+    ? "dock-ground"
+    : isMatch3
+      ? "dock-match3"
+      : "dock-trivia";
+  const newPetMode = isFarm ? "ground" : isMatch3 ? "match3" : "trivia";
+
+  // FLIP Step 1: Record current position (First)
+  const firstRect = container.getBoundingClientRect();
+
+  // FLIP Step 2: Apply new dock class (Last)
+  overlay.classList.remove("dock-ground", "dock-match3", "dock-trivia");
+  overlay.classList.add(newDockClass);
+
+  // FLIP Step 3: Get new position (Last)
+  const lastRect = container.getBoundingClientRect();
+
+  // FLIP Step 4: Invert — calculate delta and apply as transform offset
+  const deltaX = firstRect.left - lastRect.left;
+  const deltaY = firstRect.top - lastRect.top;
+
+  if (Math.abs(deltaX) > 1 || Math.abs(deltaY) > 1) {
+    // Apply inverted position instantly (looks like pet is still in old spot)
+    container.style.transform = `translate3d(${lastRect.left + deltaX}px, ${deltaY}px, 0) translateX(-50%)`;
+
+    // FLIP Step 5: Play — animate to final position
+    requestAnimationFrame(() => {
+      container.classList.add("pet-transitioning");
+      // Remove the invert offset so it animates to the natural dock position
+      container.style.transform = "";
+
+      // Clean up transition class after animation completes
+      setTimeout(() => {
+        container.classList.remove("pet-transitioning");
+      }, 550);
+    });
   }
-  // Notify pet module
+
+  // Notify pet module of new dock mode
   if (typeof PetCompanion !== "undefined" && PetCompanion.setDockMode) {
-    PetCompanion.setDockMode(isFarm ? "ground" : "perch");
+    PetCompanion.setDockMode(newPetMode);
   }
 }
 
@@ -492,11 +528,15 @@ window.addEventListener("DOMContentLoaded", async () => {
     setTimeout(() => bootLoader.remove(), 600); // Remove from DOM after fade
   }
 
-  // Cell size for match-3 based on viewport (responsive)
+  // Cell size for match-3 based on viewport (responsive, mobile-aware)
   function updateM3CellSize() {
     const maxByWidth = Math.floor((window.innerWidth - 80) / 8);
     const maxByHeight = Math.floor((window.innerHeight - 280) / 8);
-    const cs = Math.max(28, Math.min(48, maxByWidth, maxByHeight));
+    const isMobile = window.innerWidth <= 480 || HUB.isTouchDevice;
+    const cs = Math.max(
+      isMobile ? 36 : 28,
+      Math.min(isMobile ? 56 : 48, maxByWidth, maxByHeight),
+    );
     document.documentElement.style.setProperty("--m3-cell", cs + "px");
   }
   updateM3CellSize();

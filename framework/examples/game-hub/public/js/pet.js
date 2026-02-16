@@ -1,6 +1,7 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Pet Module (v1.6)
+ *  Game Hub — Pet Module (v1.8)
  *  Living Pet Entity with state machine & interactions
+ *  v1.8: Weighted behavior, zone roaming, FLIP dock
  * ═══════════════════════════════════════════════════ */
 const PetCompanion = (function () {
   "use strict";
@@ -24,8 +25,11 @@ const PetCompanion = (function () {
   let clickResetTimer = null;
   let stateTimer = null;
   let inactivityTimer = null;
+  let sleepTimer = null;
+  let previousState = STATES.IDLE; // For anti-repeat logic
   let panelOpen = false;
-  let dockMode = "ground"; // "ground" (Farm) | "perch" (Match3/Trivia)
+  let dockMode = "ground"; // "ground" | "match3" | "trivia"
+  let zoneBounds = null; // Cached {left, right, top} for zone-restricted roaming
 
   /* ─── GameStore Slice ─── */
   function registerSlice() {
@@ -128,7 +132,7 @@ const PetCompanion = (function () {
 
   function scheduleNextState() {
     if (stateTimer) clearTimeout(stateTimer);
-    const delay = 5000 + Math.random() * 8000; // 5-13s
+    const delay = 4000 + Math.random() * 7000; // 4-11s (slightly faster tempo)
     stateTimer = setTimeout(() => {
       if (currentState === STATES.HAPPY || currentState === STATES.DIZZY) {
         // Don't interrupt reaction states
@@ -136,20 +140,50 @@ const PetCompanion = (function () {
         return;
       }
       if (currentState === STATES.SLEEP) {
-        // Stay asleep until interaction
+        // Stay asleep until interaction or auto-wake
         return;
       }
 
-      // Pick next state: 45% idle, 55% roam (only in ground mode)
-      const roll = Math.random();
-      if (roll < 0.45 || dockMode === "perch") {
-        setState(STATES.IDLE);
-      } else {
+      // Weighted behavior: 65% ROAM, 25% IDLE, 10% SLEEP
+      // Anti-repeat: skip SLEEP if previous was SLEEP; boost IDLE after consecutive ROAMs
+      let roll = Math.random();
+      const canRoam =
+        dockMode === "ground" || dockMode === "match3" || dockMode === "trivia";
+
+      // Anti-repeat adjustments
+      if (previousState === STATES.SLEEP) {
+        // After waking, never immediately sleep again — redistribute to ROAM/IDLE
+        roll = Math.random() * 0.9; // Clamp out SLEEP range (0.9-1.0)
+      }
+
+      previousState = currentState;
+
+      if (roll < 0.65 && canRoam) {
+        // 65%: ROAM (most movement)
         setState(STATES.ROAM);
         roamToRandomPosition();
+      } else if (roll < 0.9) {
+        // 25%: IDLE (standing still)
+        setState(STATES.IDLE);
+      } else {
+        // 10%: SLEEP (interruptible, 30s max)
+        enterSleep();
       }
       scheduleNextState();
     }, delay);
+  }
+
+  /** Enter sleep state with 30s auto-wake timer */
+  function enterSleep() {
+    setState(STATES.SLEEP);
+    if (sleepTimer) clearTimeout(sleepTimer);
+    sleepTimer = setTimeout(() => {
+      // Auto-wake after 30 seconds
+      if (currentState === STATES.SLEEP) {
+        setState(STATES.IDLE);
+        scheduleNextState();
+      }
+    }, 30000);
   }
 
   function roamToRandomPosition() {
@@ -157,16 +191,37 @@ const PetCompanion = (function () {
     const overlay = document.getElementById("pet-overlay");
     if (!container || !overlay) return;
 
-    // Don't roam in perch mode — pet sits still
-    if (dockMode === "perch") {
+    let minX, maxX;
+    const padding = 40;
+
+    if (dockMode === "ground") {
+      // Farm: full-screen roaming
+      minX = padding;
+      maxX = window.innerWidth - padding;
+    } else if (dockMode === "match3" || dockMode === "trivia") {
+      // Game screens: zone-restricted roaming along cached bounds
+      if (zoneBounds) {
+        minX = zoneBounds.left + 10;
+        maxX = zoneBounds.right - 10;
+      } else {
+        // Fallback: compact central area
+        const w = window.innerWidth;
+        minX = w * 0.15;
+        maxX = w * 0.85;
+      }
+    } else {
+      // Unknown mode — idle
       setState(STATES.IDLE);
       return;
     }
 
-    // Use window width for full-screen roaming with edge padding
-    const padding = 40;
-    const maxX = window.innerWidth - padding;
-    const newX = padding + Math.random() * (maxX - padding * 2);
+    // Ensure valid range
+    if (maxX <= minX) {
+      setState(STATES.IDLE);
+      return;
+    }
+
+    const newX = minX + Math.random() * (maxX - minX);
 
     // Determine direction from current position
     const computedStyle = getComputedStyle(container);
@@ -237,8 +292,12 @@ const PetCompanion = (function () {
   function onPetClick() {
     resetInactivityTimer();
 
-    // Wake up from sleep
+    // Wake up from sleep (cancel auto-wake timer)
     if (currentState === STATES.SLEEP) {
+      if (sleepTimer) {
+        clearTimeout(sleepTimer);
+        sleepTimer = null;
+      }
       setState(STATES.IDLE);
       scheduleNextState();
       spawnHeart();
@@ -471,15 +530,46 @@ const PetCompanion = (function () {
   }
 
   /* ─── Smart Docking ─── */
+  function cacheZoneBounds() {
+    zoneBounds = null;
+    let zoneEl = null;
+    if (dockMode === "match3") {
+      // Zone: stats-bar at top of match-3 screen
+      zoneEl = document.querySelector("#screen-match3 .stats-bar");
+    } else if (dockMode === "trivia") {
+      // Zone: screen header area of trivia screen
+      zoneEl = document.querySelector("#screen-trivia .screen-header");
+    }
+    if (zoneEl) {
+      const rect = zoneEl.getBoundingClientRect();
+      zoneBounds = { left: rect.left, right: rect.right, top: rect.top };
+    }
+  }
+
   function setDockMode(mode) {
     dockMode = mode;
-    if (mode === "perch") {
-      // Cancel roaming, force idle
+    if (mode === "match3" || mode === "trivia") {
+      // Cache zone bounds for restricted roaming
+      cacheZoneBounds();
+      // Cancel active roam, let state machine pick zone-aware roam
       if (currentState === STATES.ROAM) {
         setState(STATES.IDLE);
       }
+    } else if (mode === "ground") {
+      zoneBounds = null; // No zone restriction on farm
     }
   }
+
+  function getDockMode() {
+    return dockMode;
+  }
+
+  // Recalculate zone bounds on resize
+  window.addEventListener("resize", () => {
+    if (dockMode === "match3" || dockMode === "trivia") {
+      cacheZoneBounds();
+    }
+  });
 
   return {
     init,
@@ -487,5 +577,6 @@ const PetCompanion = (function () {
     feedPet,
     toggleInfoPanel,
     setDockMode,
+    getDockMode,
   };
 })();

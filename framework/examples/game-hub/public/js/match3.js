@@ -410,13 +410,13 @@ const Match3Game = (() => {
   /* ═══ Cascade Animation (smooth CSS transitions) ═══ */
   async function animateCascade(steps) {
     for (const step of steps) {
-      // Phase 1: Pop matched gems
+      // Phase 1: Pop matched gems (with brightness flash)
       for (const { x, y } of step.cleared) {
         getCell(x, y)?.classList.add("popping");
       }
-      await sleep(250);
+      await sleep(300); // Longer pop phase for satisfying clear feel
 
-      // Phase 2: Update cells with new types + falling animation
+      // Phase 2: Update cells with new types + staggered falling animation
       const $b = $("m3-board");
       $b.innerHTML = "";
       const changedSet = new Set();
@@ -435,13 +435,14 @@ const Match3Game = (() => {
           cell.innerHTML = `<span class="gem-icon">${GEM_ICONS[type] || "?"}</span>`;
           if (changedSet.has(`${x},${y}`)) {
             cell.classList.add("falling");
-            cell.style.animationDelay = `${x * 20}ms`;
+            // Column-based stagger: each column starts slightly later for cascade effect
+            cell.style.animationDelay = `${x * 25 + y * 15}ms`;
           }
           cell.addEventListener("click", () => onCellClick(x, y));
           $b.appendChild(cell);
         }
       }
-      await sleep(200);
+      await sleep(260); // Longer settle phase for bounce to complete
     }
   }
 

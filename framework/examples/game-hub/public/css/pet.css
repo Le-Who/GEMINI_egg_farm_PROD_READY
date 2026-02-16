@@ -32,25 +32,41 @@
   height: 80px;
 }
 
-/* ─── Dock: Perch (Match3/Trivia — top-right, compact) ─── */
-.pet-overlay.dock-perch {
+/* ─── Dock: Match-3 (top area, zone-restricted roaming) ─── */
+.pet-overlay.dock-match3 {
   bottom: auto;
-  top: 44px;
-  left: auto;
+  top: 36px;
+  left: 0;
   right: 0;
-  width: 80px;
+  width: auto;
   height: 60px;
   z-index: 60;
   overflow: visible;
 }
-
-/* Perch: pet sits still, smaller */
-.dock-perch .pet-container {
-  transform: translate3d(40px, 0, 0) scale(0.7) !important;
-  transition: transform 0.5s ease-in-out !important;
+.dock-match3 .pet-container {
+  transform: translate3d(50vw, 0, 0) translateX(-50%) scale(0.8);
+  transition: transform 3s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
-.dock-perch .pet-sprite {
-  animation: petBob 3s ease-in-out infinite !important;
+
+/* ─── Dock: Trivia (top area, zone-restricted roaming) ─── */
+.pet-overlay.dock-trivia {
+  bottom: auto;
+  top: 36px;
+  left: 0;
+  right: 0;
+  width: auto;
+  height: 60px;
+  z-index: 60;
+  overflow: visible;
+}
+.dock-trivia .pet-container {
+  transform: translate3d(50vw, 0, 0) translateX(-50%) scale(0.8);
+  transition: transform 3s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+/* ─── FLIP Transition (smooth dock-to-dock movement) ─── */
+.pet-container.pet-transitioning {
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 /* ─── Dock Jump Animation ─── */
@@ -85,7 +101,7 @@
 }
 
 .pet-sprite {
-  font-size: 2rem;
+  font-size: 2.7rem; /* +35% on PC (was 2rem) */
   line-height: 1;
   filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
   transition: transform 0.3s ease;
@@ -420,5 +436,12 @@
   100% {
     opacity: 0;
     transform: translateX(-50%) translateY(-8px);
+  }
+}
+
+/* ─── Mobile: +25% pet size (was 2rem → 2.5rem) ─── */
+@media (max-width: 480px) {
+  .pet-sprite {
+    font-size: 2.5rem;
   }
 }
