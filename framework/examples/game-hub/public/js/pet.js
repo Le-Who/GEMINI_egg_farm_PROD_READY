@@ -26,6 +26,7 @@ const PetCompanion = (function () {
   let stateTimer = null;
   let inactivityTimer = null;
   let sleepTimer = null;
+  let roamTimeoutId = null; // Track active roam timeout for cancellation
   let previousState = STATES.IDLE; // For anti-repeat logic
   let panelOpen = false;
   let dockMode = "ground"; // "ground" | "match3" | "trivia"
@@ -111,9 +112,22 @@ const PetCompanion = (function () {
   function setState(newState) {
     currentState = newState;
     const container = document.getElementById("pet-container");
-    if (container) {
-      container.setAttribute("data-state", newState);
+    if (!container) return;
+
+    // Cancel any active roam (prevents orphaned timeout removing classes later)
+    if (roamTimeoutId) {
+      clearTimeout(roamTimeoutId);
+      roamTimeoutId = null;
     }
+    container.classList.remove("pet-roaming");
+
+    // Debounce animation restart: reset to none, then set new state on next frame
+    const sprite = document.getElementById("pet-sprite");
+    if (sprite) sprite.style.animation = "none";
+    requestAnimationFrame(() => {
+      if (sprite) sprite.style.animation = "";
+      container.setAttribute("data-state", newState);
+    });
 
     // Sleep overlay
     const heartsEl = document.getElementById("pet-hearts");
@@ -231,7 +245,8 @@ const PetCompanion = (function () {
     });
 
     // Return to idle after reaching destination, remove roaming class
-    setTimeout(() => {
+    roamTimeoutId = setTimeout(() => {
+      roamTimeoutId = null;
       container.classList.remove("pet-roaming");
       if (currentState === STATES.ROAM) {
         setState(STATES.IDLE);

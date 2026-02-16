@@ -38,6 +38,7 @@ framework/examples/game-hub/
 └── tests/
     ├── unit.test.js       # 49 unit tests (pure functions)
     ├── api.test.js        # 24 API integration tests
+    ├── ux.test.js         # 29 UX diagnostic tests (flicker, lag, race conditions)
     └── perf.test.js       # 7 performance benchmarks
 ```
 

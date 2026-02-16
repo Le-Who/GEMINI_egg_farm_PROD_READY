@@ -116,6 +116,18 @@ const FarmGame = (() => {
       renderShop();
       updateBuyBar();
     }
+
+    // Event delegation: single click handler on grid (never lost during DOM rebuild)
+    const grid = $("farm-plots");
+    grid.addEventListener("click", (e) => {
+      // Skip water button clicks (handled by their own listener)
+      if (e.target.closest(".farm-water-btn")) return;
+      const plot = e.target.closest(".farm-plot");
+      if (!plot || plot.classList.contains("skeleton")) return;
+      const idx = parseInt(plot.dataset.index, 10);
+      if (!isNaN(idx)) onPlotClick(idx);
+      else if (plot.classList.contains("buy-plot-card")) buyPlot();
+    });
   }
 
   async function loadState() {
@@ -264,9 +276,9 @@ const FarmGame = (() => {
           const waterBtn = div.querySelector(".farm-water-btn");
           if (waterBtn && isReady) waterBtn.remove();
         }
-        // Always update classes and onclick via dispatcher
+        // Always update classes (no onclick — delegation handles it)
         div.className = `farm-plot${plot.crop ? "" : " empty"}${isReady ? " ready" : ""}`;
-        div.onclick = () => onPlotClick(i);
+        div.dataset.index = i;
       });
     } else {
       // Full rebuild (first render)
@@ -287,9 +299,9 @@ const FarmGame = (() => {
   function rebuildPlot(div, plot, i, pct, isReady, animate) {
     div.dataset.crop = plot.crop || "";
     div.dataset.watered = plot.watered ? "true" : "false";
+    div.dataset.index = i;
     div.className = `farm-plot${animate ? " first-load" : ""}${plot.crop ? "" : " empty"}${isReady ? " ready" : ""}`;
-    // Always use dispatcher
-    div.onclick = () => onPlotClick(i);
+    // No onclick — event delegation handles all clicks
 
     if (plot.crop) {
       const cfg = crops[plot.crop] || {};
@@ -497,12 +509,10 @@ const FarmGame = (() => {
         // Ignore stale response if more plants happened while this was in-flight
         if (plantVersion !== myVersion) return;
         if (data.success) {
+          // Silently sync server state — NO re-render (optimistic UI is correct)
           state.plots = data.plots;
           state.inventory = data.inventory;
           syncToStore();
-          render();
-          renderShop();
-          updateBuyBar();
         } else {
           // Error: full resync from server
           const msg =
@@ -538,9 +548,9 @@ const FarmGame = (() => {
         wateringInFlight.delete(plotId);
         if (waterVersion !== myVersion) return;
         if (data.success) {
+          // Silently sync server state — NO re-render (optimistic UI is correct)
           state.plots = data.plots;
           syncToStore();
-          render();
         } else {
           loadState();
         }
@@ -575,6 +585,7 @@ const FarmGame = (() => {
       .then((data) => {
         if (harvestVersion !== myVersion) return;
         if (data.success) {
+          // Silently sync server state — NO re-render (optimistic UI is correct)
           state.plots = data.plots;
           state.xp = data.xp;
           state.level = data.level;
@@ -582,9 +593,6 @@ const FarmGame = (() => {
             HUD.syncFromServer(data.resources);
           }
           syncToStore();
-          render();
-          renderShop();
-          updateBuyBar();
           if (data.leveledUp) showToast(`🎉 Level Up! Lv${data.level}`);
         } else {
           // Error: full resync
