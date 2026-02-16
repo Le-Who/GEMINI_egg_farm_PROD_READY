@@ -2,7 +2,7 @@
 
 > A combined Farm + Trivia + Match-3 game running as a single Discord Embedded App Activity with horizontal screen-swipe navigation.
 
-**v1.9** — Flicker-Free Pet, Instant Harvest/Water, Event Delegation, Smart Growth Tick.
+**v2.0** — Zero-Flicker Pet (CSS class states), GPU-Optimized, All Farm Actions Fire-and-Forget.
 
 ## Quick Start
 
@@ -21,7 +21,7 @@ npm run dev
 - **Quick-Feed Modal** (v1.7): When energy is too low to play, an inline modal lets players feed harvested crops to their pet — restoring +2⚡ each — then jump straight into the game via a **PLAY NOW** button. Replaces old toast notifications.
 - **TopHUD**: Global bar showing Energy/Gold, syncs across all screens.
 
-### 🐾 Living Pet (v1.6 → v1.9)
+### 🐾 Living Pet (v1.6 → v2.0)
 
 - **Pet Companion**: A virtual pet that lives on visiting players' screens.
 - **Interactions**: Click to pet (❤️), feed crops to restore Energy (+2⚡) and gain XP.
@@ -31,17 +31,18 @@ npm run dev
   - **Game Mode** (Match-3/Trivia): Roams within stats-bar panel bounds (`min(520px, 100vw-80px)`).
   - `.pet-roaming` class applied only during walks (prevents CSS transition flicker).
   - `.pet-transitioning` 0.5s class-based animation for screen switches.
-- **Flicker-Free Animations** (v1.9):
-  - `transition: none` on `.pet-container` — opt-in only via `.pet-roaming`/`.pet-transitioning`.
-  - No transitions on `.pet-sprite` — CSS animations drive all transforms.
-  - No layout transitions on `.pet-overlay` — eliminates double-animation on dock.
-  - Debounced `setState()` resets animation to `none` → rAF → set `data-state` (prevents mid-flight glitch).
+- **Zero-Flicker Animations** (v2.0):
+  - **CSS class-based states** (`.state-idle`, `.state-roam`, etc.) — synchronous class swap, no rAF animation reset hack.
+  - `animation-fill-mode: both` on all keyframes prevents 0%-keyframe flash.
+  - `will-change: transform` only active during `.pet-roaming`/`.pet-transitioning` (was GPU-thrashing permanently).
+  - Removed `transform-style: preserve-3d`, `backface-visibility: hidden` from sprite (reduced GPU layers from 2+ to 1).
+  - `filter: drop-shadow()` moved from sprite to container (fewer repaints per animation frame).
+  - Unified roam flow — state class + position set in single frame (no competing rAFs).
   - Roam timeout cancellation prevents orphaned class removal.
 - **Offline Simulation** (v1.7): While you're away, your pet autonomously:
   - 🌾 Harvests ripe crops (1⚡ per crop)
   - 🌱 Plants random seeds (2⚡ per plant, partial growth applied)
   - 💧 Waters unwatered crops (free, ability-gated)
-  - 🌱 Auto-plants random seeds (Level 7+ ability)
   - Returns a **Welcome Back** modal summarizing all offline activity.
 - **Persistence**: Pet stats (Level, XP, Happiness) saved to server.
 
@@ -52,15 +53,17 @@ npm run dev
 - **Optimistic Updates**: UI updates instantly; server sync happens in background.
 - **Decoupled**: HUD and components subscribe to specific slices, reducing coupling.
 
-### 🌱 Farm (v1.8 → v1.9)
+### 🌱 Farm (v1.8 → v2.0)
 
 - **8 crops**: Tomato, Corn, Sunflower, Golden Rose, Blueberry, Watermelon, Pumpkin, Wheat.
 - **6–12 plots**: Start with 6, buy up to 12 (doubling cost: 200→6400🪙).
-- **Fire-and-Forget All Actions** (v1.9): Plant, harvest, and water are all fire-and-forget with version guards.
-  - **Optimistic Harvest**: Reward toast shows instantly from `CROPS[]` config, server validates in background.
-  - **Water Race Guard**: `wateringInFlight` Set prevents duplicate auto-water requests.
-- **Event Delegation** (v1.9): Single click handler on `#farm-plots` grid — never lost during DOM rebuild.
-- **Smart Growth Tick** (v1.9): 500ms interval skips render when no plots are growing.
+- **All Actions Fire-and-Forget** (v2.0): Plant, harvest, water, buy seeds, buy plot — all instant with version guards.
+  - **Optimistic Harvest**: Reward toast shows instantly from `CROPS[]` config.
+  - **Optimistic Buy Plot**: New plot appears instantly; rollback on server error.
+  - **Water Race Guard**: `wateringInFlight` Set prevents duplicate auto-water.
+  - **Buy Seed Version Guard**: Version counter prevents stale responses.
+- **Event Delegation** (v1.9): Single click handler on `#farm-plots` grid.
+- **Smart Growth Tick** (v1.9): 500ms interval skips render when no plots growing.
 - **Unified Economy**: Uses global Gold (syncs with TopHUD).
 - **Offline Progress**: `processOfflineActions()` server-side simulation.
 - **Skeleton loading** & **Parallel fetch** for fast UX.

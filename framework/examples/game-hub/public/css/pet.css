@@ -58,11 +58,13 @@
 /* ─── Walk transition (applied only during active roam via JS) ─── */
 .pet-container.pet-roaming {
   transition: transform 2.5s cubic-bezier(0.25, 0.1, 0.25, 1);
+  will-change: transform; /* GPU layer only when actively moving */
 }
 
 /* ─── FLIP Transition (smooth dock-to-dock movement) ─── */
 .pet-container.pet-transitioning {
   transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  will-change: transform;
 }
 
 /* ─── Dock Jump Animation ─── */
@@ -92,40 +94,34 @@
   pointer-events: auto;
   cursor: pointer;
   transition: none; /* Opt-in only via .pet-roaming / .pet-transitioning */
-  will-change: transform;
-  transform-style: preserve-3d;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4)); /* Shadow on container, not sprite */
 }
 
 .pet-sprite {
   font-size: 2.7rem; /* +35% on PC (was 2rem) */
   line-height: 1;
-  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
-  /* No transition — CSS animations handle all transforms (prevents pop on state change) */
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  will-change: transform;
 }
 
-/* ─── State Animations ─── */
-.pet-container[data-state="idle"] .pet-sprite {
-  animation: petBob 2s ease-in-out infinite;
+/* ─── State Animations (class-based — synchronous swap, no rAF needed) ─── */
+.pet-container.state-idle .pet-sprite {
+  animation: petBob 2s ease-in-out infinite both;
 }
 
-.pet-container[data-state="roam"] .pet-sprite {
-  animation: petWalk 0.5s steps(2) infinite;
+.pet-container.state-roam .pet-sprite {
+  animation: petWalk 0.5s steps(2) infinite both;
 }
 
-.pet-container[data-state="sleep"] .pet-sprite {
-  animation: petSleep 3s ease-in-out infinite;
+.pet-container.state-sleep .pet-sprite {
+  animation: petSleep 3s ease-in-out infinite both;
   opacity: 0.7;
 }
 
-.pet-container[data-state="happy"] .pet-sprite {
-  animation: petHappy 0.4s ease 3;
+.pet-container.state-happy .pet-sprite {
+  animation: petHappy 0.4s ease 3 both;
 }
 
-.pet-container[data-state="dizzy"] .pet-sprite {
-  animation: petDizzy 0.3s ease-in-out infinite;
+.pet-container.state-dizzy .pet-sprite {
+  animation: petDizzy 0.3s ease-in-out infinite both;
 }
 
 @keyframes petBob {
@@ -391,14 +387,6 @@
   color: #fff;
 }
 
-/* ─── Mobile: Larger Pet Sprite ─── */
-@media (max-width: 480px) {
-  .pet-sprite {
-    transform: scale(1.25);
-    transform-origin: bottom center;
-  }
-}
-
 /* ─── Pet Action Bubble ─── */
 .pet-bubble {
   position: absolute;
@@ -435,7 +423,7 @@
   }
 }
 
-/* ─── Mobile: +25% pet size (was 2rem → 2.5rem) ─── */
+/* ─── Mobile: Larger Pet (via font-size only — no transform conflict) ─── */
 @media (max-width: 480px) {
   .pet-sprite {
     font-size: 2.5rem;

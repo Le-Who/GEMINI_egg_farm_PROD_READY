@@ -424,7 +424,8 @@ const FarmGame = (() => {
   }
 
   /* ─── Actions ─── */
-  async function buySeeds(cropId) {
+  let buySeedVersion = 0;
+  function buySeeds(cropId) {
     const cfg = crops[cropId];
     if (!cfg) return;
     const totalCost = cfg.seedPrice * buyQty;
@@ -434,40 +435,47 @@ const FarmGame = (() => {
       showToast("❌ Not enough gold!");
       return;
     }
-    // Optimistic update
-    const snapshot = { inventory: { ...state.inventory } };
-    state.inventory[cropId] = (state.inventory[cropId] || 0) + buyQty;
+    // Optimistic update (instant UI)
+    const prevInventory = { ...state.inventory };
+    const savedQty = buyQty;
+    state.inventory[cropId] = (state.inventory[cropId] || 0) + savedQty;
     syncToStore();
     render();
     renderShop();
+    showToast(`Bought ${savedQty}× ${cfg.emoji} ${cfg.name} seeds`);
+    if (typeof HUD !== "undefined") HUD.animateGoldChange(-totalCost);
+    buyQty = 1;
+    if (selectedSeed) saveBuyQty(selectedSeed, 1);
+    updateBuyBar();
 
-    const data = await api("/api/farm/buy-seeds", {
+    // Fire-and-forget with version guard
+    const myVersion = ++buySeedVersion;
+    api("/api/farm/buy-seeds", {
       userId: HUB.userId,
       cropId,
-      amount: buyQty,
-    });
-    if (data.success) {
-      // Sync resources (gold deducted)
-      if (data.resources && typeof HUD !== "undefined") {
-        HUD.syncFromServer(data.resources);
-        HUD.animateGoldChange(-totalCost);
-      }
-      state.inventory = data.inventory;
-      syncToStore();
-      render();
-      renderShop();
-      showToast(`Bought ${buyQty}× ${cfg.emoji} ${cfg.name} seeds`);
-      buyQty = 1;
-      if (selectedSeed) saveBuyQty(selectedSeed, 1);
-      updateBuyBar();
-    } else {
-      // Rollback
-      state.inventory = snapshot.inventory;
-      syncToStore();
-      render();
-      renderShop();
-      showToast(`❌ ${data.error}`);
-    }
+      amount: savedQty,
+    })
+      .then((data) => {
+        if (buySeedVersion !== myVersion) return;
+        if (data.success) {
+          // Silently sync server state
+          if (data.resources && typeof HUD !== "undefined") {
+            HUD.syncFromServer(data.resources);
+          }
+          state.inventory = data.inventory;
+          syncToStore();
+        } else {
+          // Rollback
+          state.inventory = prevInventory;
+          syncToStore();
+          render();
+          renderShop();
+          showToast(`❌ ${data.error}`);
+        }
+      })
+      .catch(() => {
+        if (buySeedVersion === myVersion) loadState();
+      });
   }
 
   function plant(plotId) {
@@ -706,7 +714,7 @@ const FarmGame = (() => {
     grid.appendChild(card);
   }
 
-  async function buyPlot() {
+  function buyPlot() {
     if (!state || state.plots.length >= MAX_PLOTS) return;
     const cost = getBuyPlotCost();
     const gold = typeof HUD !== "undefined" ? HUD.getGold() : 0;
@@ -715,19 +723,34 @@ const FarmGame = (() => {
       return;
     }
 
-    const data = await api("/api/farm/buy-plot", { userId: HUB.userId });
-    if (data?.success) {
-      state.plots = data.plots;
-      if (data.resources && typeof HUD !== "undefined") {
-        HUD.syncFromServer(data.resources);
-      }
-      syncToStore();
-      firstRenderDone = false; // Force full rebuild to add new plot
-      render();
-      showToast(`🌱 New plot unlocked! (${data.plotCount}/${MAX_PLOTS})`);
-    } else {
-      showToast(`❌ ${data?.error || "Failed to buy plot"}`);
-    }
+    // Optimistic: add empty plot instantly
+    const prevPlots = [...state.plots];
+    state.plots.push({ crop: null, plantedAt: null, watered: false });
+    syncToStore();
+    firstRenderDone = false; // Force full rebuild to add new plot
+    render();
+    showToast(`🌱 New plot unlocked! (${state.plots.length}/${MAX_PLOTS})`);
+    if (typeof HUD !== "undefined") HUD.animateGoldChange(-cost);
+
+    // Fire-and-forget
+    api("/api/farm/buy-plot", { userId: HUB.userId })
+      .then((data) => {
+        if (data?.success) {
+          state.plots = data.plots;
+          if (data.resources && typeof HUD !== "undefined") {
+            HUD.syncFromServer(data.resources);
+          }
+          syncToStore();
+        } else {
+          // Rollback
+          state.plots = prevPlots;
+          syncToStore();
+          firstRenderDone = false;
+          render();
+          showToast(`❌ ${data?.error || "Failed to buy plot"}`);
+        }
+      })
+      .catch(() => loadState());
   }
 
   /* ─── Screen Enter/Exit ─── */

@@ -108,7 +108,15 @@ const PetCompanion = (function () {
     });
   }
 
-  /* ─── State Machine ─── */
+  /* ─── State Machine (class-based — synchronous, zero-flicker) ─── */
+  const STATE_CLASSES = [
+    "state-idle",
+    "state-roam",
+    "state-sleep",
+    "state-happy",
+    "state-dizzy",
+  ];
+
   function setState(newState) {
     currentState = newState;
     const container = document.getElementById("pet-container");
@@ -121,18 +129,13 @@ const PetCompanion = (function () {
     }
     container.classList.remove("pet-roaming");
 
-    // Debounce animation restart: reset to none, then set new state on next frame
-    const sprite = document.getElementById("pet-sprite");
-    if (sprite) sprite.style.animation = "none";
-    requestAnimationFrame(() => {
-      if (sprite) sprite.style.animation = "";
-      container.setAttribute("data-state", newState);
-    });
+    // Synchronous class swap — no rAF, no animation reset, zero flicker
+    STATE_CLASSES.forEach((cls) => container.classList.remove(cls));
+    container.classList.add(`state-${newState}`);
 
     // Sleep overlay
     const heartsEl = document.getElementById("pet-hearts");
     if (heartsEl) {
-      // Remove old zzz
       heartsEl.querySelectorAll(".pet-zzz").forEach((el) => el.remove());
       if (newState === STATES.SLEEP) {
         const zzz = document.createElement("span");
@@ -238,13 +241,17 @@ const PetCompanion = (function () {
     const goingRight = newX > currentX;
     container.style.setProperty("--pet-dir", goingRight ? "-1" : "1");
 
-    // Add roaming class for smooth CSS transition, then set transform
+    // Unified flow: set state class synchronously, then position via single rAF
+    STATE_CLASSES.forEach((cls) => container.classList.remove(cls));
+    container.classList.add("state-roam");
+    currentState = STATES.ROAM;
     container.classList.add("pet-roaming");
+
     requestAnimationFrame(() => {
       container.style.transform = `translate3d(${newX}px, 0, 0) translateX(-50%)`;
     });
 
-    // Return to idle after reaching destination, remove roaming class
+    // Return to idle after reaching destination
     roamTimeoutId = setTimeout(() => {
       roamTimeoutId = null;
       container.classList.remove("pet-roaming");
