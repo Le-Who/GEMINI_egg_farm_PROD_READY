@@ -516,13 +516,13 @@ npm run create-game -- my-game --genre trivia
 
 ### Demo Showcase
 
-| Demo                     | Genre       | Port | Key Features                                                                                                                                                                   |
-| ------------------------ | ----------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 💎 **Gem Crush**         | Match-3     | 8080 | 8×8 grid, 6 gem types, swap mechanics, combo chains, gravity cascade, floating score animations                                                                                |
-| ⚔️ **Card Battle Arena** | Card Battle | 8081 | 8-card database, element abilities (Burn, Lifesteal, Freeze), AI opponent, animated HP bars, battle log                                                                        |
-| 🧠 **Brain Blitz**       | Trivia      | 8082 | 12 questions (3 difficulties), countdown timer with speed bonus, streak tracking, category tags                                                                                |
-| 🌱 **Cozy Farm**         | Farm Sim    | 8083 | 5 crop types, 6 plots, planting/watering/harvest cycle, seed shop, growth stages, XP/level system                                                                              |
-| 🎮 **Game Hub**          | 3-in-1 Hub  | 8090 | **v1.6**: Energy Core, Living Pet, GameStore (Zustand-like state management), Farm + Trivia + Match-3, responsive slide-in leaderboard, trivia duels, unified resource economy |
+| Demo                     | Genre       | Port | Key Features                                                                                                                                                        |
+| ------------------------ | ----------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 💎 **Gem Crush**         | Match-3     | 8080 | 8×8 grid, 6 gem types, swap mechanics, combo chains, gravity cascade, floating score animations                                                                     |
+| ⚔️ **Card Battle Arena** | Card Battle | 8081 | 8-card database, element abilities (Burn, Lifesteal, Freeze), AI opponent, animated HP bars, battle log                                                             |
+| 🧠 **Brain Blitz**       | Trivia      | 8082 | 12 questions (3 difficulties), countdown timer with speed bonus, streak tracking, category tags                                                                     |
+| 🌱 **Cozy Farm**         | Farm Sim    | 8083 | 5 crop types, 6 plots, planting/watering/harvest cycle, seed shop, growth stages, XP/level system                                                                   |
+| 🎮 **Game Hub**          | 3-in-1 Hub  | 8090 | **v1.7**: Smart Pet Docking, Offline Simulation, Quick-Feed Energy Modal, GameStore (Zustand-like), Farm + Trivia + Match-3, trivia duels, unified resource economy |
 
 ```bash
 # Run any demo:
@@ -531,7 +531,7 @@ npm install && npm run dev
 # Open http://localhost:8080
 ```
 
-Each demo is a **standalone project** with a single `index.html` (zero build step) and an Express server handling all game logic via REST API — demonstrating the framework's server-side architecture pattern. The **Game Hub** combines all three genres into a unified 3-screen Activity with animated transitions, async Trivia Duels (invite codes), and a Match-3 Leaderboard.
+Each demo is a **standalone project** with a single `index.html` (zero build step) and an Express server handling all game logic via REST API — demonstrating the framework's server-side architecture pattern. The **Game Hub** combines all three genres into a unified 3-screen Activity with animated transitions, async Trivia Duels (invite codes), a Match-3 Leaderboard, smart pet docking, offline simulation, and a quick-feed energy modal.
 
 ### Core Modules
 
