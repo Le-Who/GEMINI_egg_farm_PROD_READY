@@ -197,14 +197,11 @@ const PetCompanion = (function () {
       // Farm: full-screen roaming with padding
       minX = 40;
       maxX = w - 40;
-    } else if (dockMode === "match3") {
-      // Match-3: 10%–90% of viewport
-      minX = w * 0.1;
-      maxX = w * 0.9;
-    } else if (dockMode === "trivia") {
-      // Trivia: 15%–85% of viewport
-      minX = w * 0.15;
-      maxX = w * 0.85;
+    } else if (dockMode === "match3" || dockMode === "trivia") {
+      // Mirror CSS stats-bar width: min(520px, calc(100vw - 80px)), centered
+      const panelW = Math.min(520, w - 80);
+      minX = (w - panelW) / 2 + 20; // 20px inner padding
+      maxX = (w + panelW) / 2 - 20;
     } else {
       setState(STATES.IDLE);
       return;
@@ -227,13 +224,15 @@ const PetCompanion = (function () {
     const goingRight = newX > currentX;
     container.style.setProperty("--pet-dir", goingRight ? "-1" : "1");
 
-    // Use rAF to batch state + transform update (prevents flicker)
+    // Add roaming class for smooth CSS transition, then set transform
+    container.classList.add("pet-roaming");
     requestAnimationFrame(() => {
       container.style.transform = `translate3d(${newX}px, 0, 0) translateX(-50%)`;
     });
 
-    // Return to idle after reaching destination
+    // Return to idle after reaching destination, remove roaming class
     setTimeout(() => {
+      container.classList.remove("pet-roaming");
       if (currentState === STATES.ROAM) {
         setState(STATES.IDLE);
       }
@@ -540,6 +539,11 @@ const PetCompanion = (function () {
   /* ─── Smart Docking ─── */
   function setDockMode(mode) {
     dockMode = mode;
+    const container = document.getElementById("pet-container");
+    if (container) {
+      // Clear roaming transition to prevent flicker during dock switch
+      container.classList.remove("pet-roaming");
+    }
     if (mode === "match3" || mode === "trivia") {
       // Cancel active roam, let state machine pick zone-aware roam
       if (currentState === STATES.ROAM) {

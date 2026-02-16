@@ -2,7 +2,7 @@
 
 > A combined Farm + Trivia + Match-3 game running as a single Discord Embedded App Activity with horizontal screen-swipe navigation.
 
-**v1.7** — Smart Pet Docking, Offline Simulation, Quick-Feed Energy Modal, Welcome Back Screen.
+**v1.8** — Zone-Clamped Pet, Swap Animation, Buy Plots, 8 Crops, Fire-and-Forget Planting.
 
 ## Quick Start
 
@@ -26,14 +26,16 @@ npm run dev
 - **Pet Companion**: A virtual pet that lives on visiting players' screens.
 - **Interactions**: Click to pet (❤️), feed crops to restore Energy (+2⚡) and gain XP.
 - **States**: IDLE, ROAM, SLEEP, HAPPY (state machine-driven).
-- **Smart Docking** (v1.7): Pet dynamically repositions based on active screen:
+- **Smart Docking** (v1.7 → v1.8): Pet dynamically repositions based on active screen:
   - **Ground Mode** (Farm): Full-width at bottom, free roaming enabled.
-  - **Perch Mode** (Match-3/Trivia): Compact top-right corner, 70% scale, gentle bob animation, roaming disabled.
-  - CSS transitions + jump animation during dock changes.
+  - **Game Mode** (Match-3/Trivia): Roams within stats-bar panel bounds (`min(520px, 100vw-80px)`).
+  - `.pet-roaming` class applied only during walks (prevents CSS transition flicker).
+  - `.pet-transitioning` 0.5s class-based animation for screen switches.
 - **Offline Simulation** (v1.7): While you're away, your pet autonomously:
   - 🌾 Harvests ripe crops (1⚡ per crop)
   - 🌱 Plants random seeds (2⚡ per plant, partial growth applied)
   - 💧 Waters unwatered crops (free, ability-gated)
+  - 🌱 Auto-plants random seeds (Level 7+ ability)
   - Returns a **Welcome Back** modal summarizing all offline activity.
 - **Persistence**: Pet stats (Level, XP, Happiness) saved to server.
 
@@ -46,9 +48,11 @@ npm run dev
 
 ### 🌱 Farm
 
-- 6 plots, seed shop, planting/watering/harvest cycle
+- **8 crops**: Tomato, Corn, Sunflower, Golden Rose, Blueberry, Watermelon, Pumpkin, Wheat.
+- **6–12 plots**: Start with 6, buy up to 12 (doubling cost: 200→6400🪙).
+- **Fire-and-Forget Planting** (v1.8): No `await` — instant UI, version-guarded server sync.
 - **Unified Economy**: Uses global Gold (syncs with TopHUD).
-- **Offline Progress**: `processOfflineActions()` server-side simulation replaces simple auto-harvest.
+- **Offline Progress**: `processOfflineActions()` server-side simulation.
 - **Skeleton loading** & **Parallel fetch** for fast UX.
 
 ### 🧠 Trivia
@@ -61,6 +65,7 @@ npm run dev
 ### 💎 Match-3
 
 - **Client-side engine** with server validation.
+- **Swap Slide Animation** (v1.8): Gems visually glide into each other's positions (180ms CSS translate) before cascade begins.
 - **Energy Gate**: Requires 5 energy to start → quick-feed modal if insufficient.
 - **Slide-in Leaderboard**: Responsive side-panel (fixed on narrow screens, glassmorphic backdrop).
 - **Gold Rewards**: Earn gold based on score thresholds.

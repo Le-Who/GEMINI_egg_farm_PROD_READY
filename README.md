@@ -1,320 +1,69 @@
-# 🥚 Egg Farm — Discord Embedded Activity
+# 🎮 Game Hub — Discord Embedded Activity
 
-> An isometric social farming & home decoration game built as a **Discord Embedded App Activity**. Players grow crops, hatch pets from eggs, decorate rooms, visit friends, and complete quests — all inside Discord.
+> A 3-in-1 social game hub built as a **Discord Embedded App Activity**. Cozy Farm, Brain Blitz trivia, and Gem Crush match-3 — all in one app with a unified pet companion, resource economy, and offline simulation.
 
 ---
 
 ## 📸 Overview
 
-| Feature             | Description                                                                     |
-| ------------------- | ------------------------------------------------------------------------------- |
-| 🏠 **Room System**  | Interior house + outdoor garden, switchable in real-time                        |
-| 🌱 **Farming**      | Plant seeds, grow crops, harvest for coins & XP                                 |
-| 🥚 **Pet Hatching** | Incubate eggs → weighted random pet drops with rarity tiers                     |
-| 🐾 **Pet AI**       | Free-roaming petted behavior with IDLE/WANDER/APPROACH states + click-to-pet 💖 |
-| 🏆 **Quest System** | Progressive quests with conditions, level gates, and rich rewards               |
-| 🛒 **Shop**         | Coins & gems economy with furniture, planters, consumables, dyes                |
-| 🎨 **Dye System**   | Tint furniture & decorations with 6 colors via Edit Mode                        |
-| 📋 **Billboard**    | Place a visitor guestbook — friends leave sticker reactions when visiting       |
-| 👻 **Echo Ghosts**  | Visitor actions (watering, notes) leave pulsing marks + owner summary banner    |
-| 👥 **Social**       | Visit neighbor farms, water their plants                                        |
-| 🌍 **Localization** | **English & Russian** support, extensible custom i18n system                    |
-| 🎨 **CMS**          | Admin dashboard for live content editing (items, crops, pets, quests, sprites)  |
+| Feature                   | Description                                                              |
+| ------------------------- | ------------------------------------------------------------------------ |
+| 🌱 **Cozy Farm**          | Plant, water, harvest crops · Buy plots · Seed shop with 8 crop types    |
+| 🧠 **Brain Blitz**        | Solo trivia + async duels via invite codes · 3 difficulty tiers          |
+| 💎 **Gem Crush**          | 8×8 match-3 with cascades, combos, and leaderboard                       |
+| 🐾 **Pet Companion**      | Free-roaming pet with smart docking · Auto-water/harvest/plant abilities |
+| ⚡ **Energy System**      | Quick-feed modal · 3-min regen · Gates match-3 and trivia plays          |
+| 💾 **Offline Simulation** | Auto-harvest, auto-plant, auto-water while away · Welcome-back report    |
+| 🏠 **GameStore**          | Zustand-inspired slice pattern for state isolation between games         |
+| 🔐 **Discord OAuth2**     | Dual-mode auth (token + userId fallback)                                 |
 
 ---
 
 ## 🏗 Architecture
 
-```mermaid
-graph TB
-    subgraph Client ["Frontend (Browser / Discord)"]
-        A[React 19 + Tailwind CSS] --> B[Phaser 3.90 — Isometric Engine]
-        A --> C[UI Layer — HUD, Modals, Panels]
-        A --> D[Services Layer]
-        D --> D1[gameEngine.ts — Game Logic]
-        D --> D2[contentLoader.ts — CMS Client]
-        D --> D3[discord.ts — SDK Integration]
-        D --> D4[eventBus.ts — Phaser ↔ React Bridge]
-    end
-
-    subgraph Server ["Backend (Express.js)"]
-        E[REST API] --> F[Player DB — Map + JSON]
-        E --> G[Content CMS — Versioned JSON + ETag]
-        E --> H[Sprite Storage]
-        E --> I[Discord OAuth2]
-        E --> E1[Billboard API]
-        E --> E2[Neighbor Cache — 60s TTL]
-        G -.-> G1[server/contentManager.js]
-        H -.-> H1[server/storage.js]
-    end
-
-    subgraph Storage ["Persistence"]
-        F --> J[Google Cloud Storage]
-        G --> J
-        H --> J
-        F --> K[Local Filesystem Fallback]
-        G --> K
-    end
-
-    D1 -->|state sync| E
-    D2 -->|content polling| G
-    D3 -->|OAuth code exchange| I
 ```
-
----
-
-## 📁 Project Structure
-
-```
-egg-farm/
-├── server.js                 # Express backend — API routes, auth, orchestration
-├── server/
-│   ├── storage.js            # GCS + local filesystem helpers (read/write/list)
-│   └── contentManager.js     # CMS content CRUD, caching, versioning
-├── App.tsx                   # React root — state orchestrator (558 lines)
-├── index.tsx                 # React DOM entry point
-├── index.html                # SPA shell with ESM importmap
-├── types.ts                  # 15 TypeScript interfaces (UserState, configs, etc.)
-├── constants.ts              # Proxy-based hot-reloading content accessors
-├── style.css                 # Tailwind directives + custom animations
-│
-├── game/
-│   ├── scenes/
-│   │   └── MainScene.ts      # Phaser isometric renderer (object pooling, Z-sorting)
-│   └── systems/
-│       ├── PetAI.ts          # Pet AI FSM (IDLE/WANDER/APPROACH), pathfinding, reactions
-│       └── ProceduralRenderer.ts # Isometric box drawing, texture gen, crop sprites
-│
-├── components/
-│   ├── GameCanvas.tsx         # Phaser ↔ React bridge
-│   └── ui/
-│       ├── HUD.tsx            # Heads-up display (level, XP bar, currency, sidebar)
-│       ├── ShopModal.tsx      # Shop with tabs (items, seeds, eggs, gems)
-│       ├── PetsModal.tsx      # Pet list, equip/unequip
-│       ├── QuestsPanel.tsx    # Quest tracker with progress bars
-│       ├── EditorBar.tsx      # Edit-mode toolbar (place, rotate, pick up, dye)
-│       ├── SeedBagModal.tsx   # Seed selection for planters
-│       ├── NeighborsPanel.tsx # Social panel (visit friends)
-│       ├── StickerPicker.tsx  # Billboard sticker picker (6 reactions)
-│       ├── TutorialOverlay.tsx# Step-by-step onboarding
-│       └── ConfirmationModal.tsx # IAP confirmation dialog
-│
-├── services/
-│   ├── gameEngine.ts          # Client-side game logic (600+ lines, 17 actions)
-│   ├── contentLoader.ts       # API content fetcher + localStorage cache + polling
-│   ├── discord.ts             # Discord SDK wrapper (auth, activity, avatar, mock mode)
-│   └── eventBus.ts            # Phaser ↔ React event bridge
-│
-├── data/
-│   └── content/               # Seed data (CMS-managed)
-│       ├── items.json         # 16 items (furniture, planters, consumables, eggs, dyes, billboard)
-│       ├── crops.json         # 4 crops (strawberry → golden flower)
-│       ├── pets.json          # 3 pets with ability bonuses
-│       ├── eggs.json          # Egg pools with weighted drop rates
-│       ├── quests.json        # 5 quests (plant, harvest, buy)
-│       ├── levels.json        # 5 level tiers with XP thresholds
-│       ├── tutorial.json      # 5-step onboarding sequence
-│       └── skus.json          # 3 gem packs (IAP)
-│
-├── admin/
-│   └── index.html             # CMS dashboard (750+ lines vanilla JS)
-│
-├── tests/
-│   ├── unit/                  # Vitest unit tests (gameEngine, eventBus, sanitizeUser)
-│   └── integration/           # API + GCS integration tests
-│
-├── Dockerfile                 # Multi-stage build (Alpine Node 20)
-├── vite.config.ts             # Vite 7 + React plugin
-├── tailwind.config.js         # Tailwind 3 configuration
-├── package.json               # Dependencies & scripts
-└── .env.example               # Environment variable reference
+framework/examples/game-hub/
+├── server.js              # Express backend — REST API, auth, game logic (1400+ lines)
+├── game-logic.js          # Pure functions (crops, energy, offline simulation)
+├── public/
+│   ├── index.html         # Single-page shell (3-screen sliding track)
+│   ├── js/
+│   │   ├── shared.js      # Discord SDK, auth, navigation, HUD, pet docking
+│   │   ├── farm.js        # Farm module (plots, shop, buy-plot, optimistic updates)
+│   │   ├── trivia.js      # Trivia (solo + duels, lobby, history)
+│   │   ├── match3.js      # Match-3 engine (swap animation, cascades, leaderboard)
+│   │   ├── pet.js         # Pet companion (roam, sleep, auto-water, abilities)
+│   │   └── game-store.js  # GameStore (Zustand-like slice manager)
+│   └── css/               # Modular CSS (base, farm, trivia, match3, hud, pet)
+└── tests/
+    ├── unit.test.js       # 49 unit tests (pure functions)
+    ├── api.test.js        # 24 API integration tests
+    └── perf.test.js       # 7 performance benchmarks
 ```
 
 ---
 
 ## ⚙️ Tech Stack
 
-| Layer            | Technology               | Version     |
-| ---------------- | ------------------------ | ----------- |
-| **Runtime**      | Node.js                  | 20 (Alpine) |
-| **Frontend**     | React                    | 19.0        |
-| **Game Engine**  | Phaser                   | 3.90        |
-| **Bundler**      | Vite                     | 7.3         |
-| **Styling**      | Tailwind CSS             | 3.4         |
-| **Icons**        | Lucide React             | 0.563       |
-| **Backend**      | Express.js               | 4.18        |
-| **Storage**      | Google Cloud Storage     | 7.x         |
-| **Auth**         | Discord Embedded App SDK | 1.0         |
-| **Localization** | Custom (React Context)   | —           |
-| **Language**     | TypeScript               | 5.5         |
-| **Container**    | Docker                   | Multi-stage |
-| **Deployment**   | Google Cloud Run         | —           |
-
----
-
-## 🔌 API Reference
-
-### Public Endpoints
-
-| Method | Path                     | Description                                     |
-| ------ | ------------------------ | ----------------------------------------------- |
-| `GET`  | `/api/health`            | Health check (status, user count, GCS flag)     |
-| `GET`  | `/api/content`           | All game content (items, crops, pets, etc.)     |
-| `GET`  | `/api/content/version`   | Content version number (for cache invalidation) |
-| `GET`  | `/api/content/:type`     | Specific content type                           |
-| `GET`  | `/api/state/:userId`     | Public read-only player state (for visiting)    |
-| `POST` | `/api/billboard/:userId` | Leave a sticker on player's billboard           |
-
-### Authenticated Endpoints (Discord OAuth2)
-
-| Method | Path             | Description                                  |
-| ------ | ---------------- | -------------------------------------------- |
-| `POST` | `/api/token`     | Exchange Discord OAuth code for access token |
-| `GET`  | `/api/state`     | Get authenticated user's state               |
-| `POST` | `/api/state`     | Save authenticated user's state              |
-| `GET`  | `/api/neighbors` | Random 5 neighbors for social panel          |
-
-### Admin Endpoints (Password-protected)
-
-| Method   | Path                           | Description                          |
-| -------- | ------------------------------ | ------------------------------------ |
-| `GET`    | `/admin`                       | CMS dashboard                        |
-| `GET`    | `/admin/api/content`           | Read all content                     |
-| `PUT`    | `/admin/api/content/:type`     | Replace entire content type (arrays) |
-| `PUT`    | `/admin/api/content/:type/:id` | Upsert single record                 |
-| `DELETE` | `/admin/api/content/:type/:id` | Delete single record                 |
-| `POST`   | `/admin/api/reload`            | Reload content from disk/GCS         |
-| `GET`    | `/admin/api/sprites`           | List uploaded sprites                |
-| `POST`   | `/admin/api/sprites`           | Upload sprite (base64)               |
-| `DELETE` | `/admin/api/sprites/:name`     | Delete sprite + cascade cleanup      |
-| `GET`    | `/sprites/:filename`           | Serve sprite (GCS → local fallback)  |
-
----
-
-## 🧠 Core Systems
-
-### Game Logic (`mockBackend.ts`)
-
-Client-side game engine running 15 game actions with optimistic state updates:
-
-```
-buyItem → placeItem → plantSeed → harvestOrPickup → useConsumable → applyDye
-placeEgg → equipPet → switchRoom → visitNeighbor → waterNeighborPlant
-buyPremiumCurrency → triggerTutorial → checkQuests → checkLevelUp → recordAction
-```
-
-- **Optimistic updates**: State mutated locally, then debounced-saved to server (3s delay)
-- **Pet bonuses**: `getEquippedPetBonus()` sums `bonuses[]` array (multi-ability), falls back to legacy single `bonus`
-- **SKU rewards**: `buyPremiumCurrency()` grants coins, gems, and items from `rewards` object
-- **Quest tracking**: `checkQuests()` fires on `PLANT_SEED`, `HARVEST`, `BUY_ITEM`
-- **Fertilizer guard**: Prevents waste on fully-grown crops
-- **Weighted hatching**: `weightedRandom()` for egg → pet pool selection
-
-### Isometric Renderer (`MainScene.ts`)
-
-634-line Phaser scene with procedural graphics:
-
-- **Coordinate system**: `getScreenFromIso()` / `getIsoFromScreen()` — standard 2:1 isometric projection
-- **Z-sorting**: Painter's algorithm + dedicated `childOverlayGraphics` layer (depth 50) for crops/eggs
-- **Object pooling**: Sprite and text pools via Phaser Groups (max 100/20) — zero GC per frame
-- **Pet AI**: Client-side state machine (IDLE/WANDER/APPROACH) with smooth lerp movement & emoji reactions
-- **Dye rendering**: `setTint()`/`clearTint()` on sprite images driven by `PlacedItem.tint`
-- **Echo ghosts**: Per-object pulsing icons (💧/✒️) for visitor actions, with tooltips & summary banner
-- **Entity types**: Items (8 subtypes), Player avatar, Pet follower
-- **Visual effects**: Crop growth animation, egg incubation progress bar, harvest sparkle, tutorial hints, pet emoji burst
-- **Ghost placement**: Translucent preview item follows cursor during edit mode
-
-### Content Hot-Reloading
-
-```mermaid
-sequenceDiagram
-    participant Admin as CMS Admin
-    participant Server as Express Server
-    participant Client as Game Client
-
-    Admin->>Server: PUT /admin/api/content/crops/tomato
-    Server->>Server: contentVersion++
-    Server->>Server: Save to GCS + local
-
-    loop Every 30s
-        Client->>Server: GET /api/content/version
-        Server-->>Client: { version: 5 }
-        Client->>Client: Version changed? Reload!
-        Client->>Server: GET /api/content
-        Server-->>Client: Full content payload
-        Client->>Client: Update Proxy accessors
-    end
-```
-
-### Data Persistence
-
-```
-Write Path: State → MockBackend → debounce(3s) → POST /api/state → Server → GCS + local
-Read Path:  Server start → GCS db.json → fallback local db.json → Map<userId, state>
-Shutdown:   SIGTERM/SIGINT → immediate saveDb() → GCS + local
-```
-
----
-
-## 🎮 Gameplay Features
-
-### 🌱 Farming System
-
-- Buy seeds from shop → plant in planters → wait for growth → harvest for coins + XP
-- **4 crops** with increasing difficulty: Strawberry (10s, Lv1) → Golden Flower (120s, Lv5)
-- **Pet growth bonus** reduces effective growth time
-- **Fertilizer** (consumable) instantly completes growth
-
-### 🥚 Pet Hatching
-
-- Buy eggs → place in incubators → wait for hatch timer → random pet from pool
-- **Progress bar** with time remaining and sparkle effect when ready
-- **Weighted rarity**: Common 80% / Rare 15% / Legendary 5%
-- Pets provide passive bonuses when equipped
-
-### 🏆 Quest System
-
-- **Conditions**: `PLANT_SEED`, `HARVEST`, `BUY_ITEM` with target counts and optional `targetId` for specific entities
-- **Level gates**: `minLevel` / `maxLevel` requirements
-- **Rewards**: Coins, gems, XP, items
-- **Non-repeatable** quests prevent re-completion
-
-### 🏠 Room System
-
-- **Interior**: House decoration, furniture placement, incubators
-- **Garden**: Outdoor farming, crop planters, fences
-- Unlocked at Lv2 with seamless switching
-- Room buttons respect visiting state — switches neighbor's room locally when visiting
+| Layer        | Technology                               |
+| ------------ | ---------------------------------------- |
+| **Runtime**  | Node.js 20                               |
+| **Frontend** | Vanilla JS + CSS (zero build step)       |
+| **Backend**  | Express.js 4.18                          |
+| **Storage**  | Google Cloud Storage (local fallback)    |
+| **Auth**     | Discord Embedded App SDK 1.0             |
+| **State**    | GameStore (Zustand-inspired vanilla JS)  |
+| **Testing**  | Node.js built-in `node:test` (zero deps) |
 
 ---
 
 ## 🚀 Quick Start
 
-### Prerequisites
-
-- Node.js ≥ 20
-- Discord application with Embedded App Activity enabled
-- (Optional) Google Cloud project with Storage bucket
-
-### Local Development
-
 ```bash
-# 1. Clone & install
-git clone <repo-url>
-cd egg-farm
+cd framework/examples/game-hub
 npm install
-
-# 2. Configure environment
-cp .env.example .env
-# Edit .env with your Discord credentials
-
-# 3. Build frontend
-npm run build
-
-# 4. Start server
-npm start
-# → http://localhost:8080 (game)
-# → http://localhost:8080/admin (CMS)
+npm run dev
+# → http://localhost:8090
 ```
 
 ### Environment Variables
@@ -324,223 +73,79 @@ npm start
 | `DISCORD_CLIENT_ID`     | ✅       | Discord app client ID             |
 | `DISCORD_CLIENT_SECRET` | ✅       | Discord app client secret         |
 | `DISCORD_REDIRECT_URI`  | ✅       | OAuth2 redirect URI               |
-| `PORT`                  | ❌       | Server port (default: `8080`)     |
-| `ADMIN_PASSWORD`        | ✅       | CMS admin panel password          |
+| `PORT`                  | ❌       | Server port (default: `8090`)     |
 | `GCS_BUCKET`            | ❌       | GCS bucket for persistent storage |
-| `GEMINI_API_KEY`        | ❌       | Optional AI features key          |
-
----
-
-### 🎨 **UX/UI Overhaul**
-
-- **Fantasy Garden Theme**: A polished Emerald/Fuchsia aesthetic with glassmorphism effects.
-- **Smart Layout**:
-  - **Room Switcher**: Moved to Top-Left to avoid overlap with inventory.
-  - **Floating Inventory**: A compact, expandable dock at the bottom center.
-- **Visiting Protocol**: Restricted actions (no building/inventory) when visiting neighbors.
-- **Accessibility**: Global **ESC** key support to close all modals.
-- **Pet Scaling**: Optimized pet sprite sizes for better map visibility.
 
 ---
 
 ## 🧪 Testing
 
-The Game Hub uses Node.js built-in `node:test` runner — zero test dependencies.
-
 ```bash
-cd framework/examples/game-hub
 npm test          # All 80 tests (unit + API + perf)
 npm run test:perf # Performance benchmarks only
 ```
 
-| Type            | File                 | Tests | Coverage                                                                                                  |
-| :-------------- | :------------------- | ----: | :-------------------------------------------------------------------------------------------------------- |
-| **Unit**        | `tests/unit.test.js` |    49 | Player factory, energy regen, offline simulation, farm growth, match-3 board, trivia questions, constants |
-| **API**         | `tests/api.test.js`  |    24 | Farm CRUD, pet feeding, trivia start/answer, harvest, buy-seeds, match-3 state, health                    |
-| **Performance** | `tests/perf.test.js` |     7 | Board generation, match detection, offline processing, question picking                                   |
-
-### Key Features
-
-- **Extracted Game Logic**: Pure functions in `game-logic.js` — deterministic `now` parameter for time-dependent tests.
-- **Bug Fix Regression Guards**: `_lastSeen` initialization and 2-minute offline threshold are specifically tested.
-- **p95 Budget Assertions**: Performance tests auto-fail if latency degrades beyond thresholds.
-- **Zero Dependencies**: Uses `node:test`, `node:assert`, `node:perf_hooks` — nothing to install.
+| Type     | File                 | Tests |
+| -------- | -------------------- | ----: |
+| **Unit** | `tests/unit.test.js` |    49 |
+| **API**  | `tests/api.test.js`  |    24 |
+| **Perf** | `tests/perf.test.js` |     7 |
 
 ---
 
-## 🐳 Docker Deployment
+## 🐾 Pet System
 
-```dockerfile
-# Multi-stage build
-FROM node:20-alpine AS builder    # Build frontend with Vite
-FROM node:20-alpine               # Production server with Express
-```
+| Level | Ability                                              |
+| ----: | ---------------------------------------------------- |
+|    3+ | 🌾 **Auto-Harvest** — harvests ready crops offline   |
+|    5+ | 💧 **Auto-Water** — waters 2 plots every 10s         |
+|    7+ | 🌱 **Auto-Plant** — replants harvested plots offline |
 
-```bash
-# Build & run
-docker build -t egg-farm .
-docker run -p 8080:8080 \
-  -e DISCORD_CLIENT_ID=... \
-  -e DISCORD_CLIENT_SECRET=... \
-  -e ADMIN_PASSWORD=... \
-  egg-farm
-```
-
-### Google Cloud Run
-
-```bash
-# Deploy with gcloud
-gcloud run deploy egg-farm \
-  --source . \
-  --region us-central1 \
-  --allow-unauthenticated \
-  --set-env-vars "DISCORD_CLIENT_ID=...,ADMIN_PASSWORD=..."
-```
-
-> **Note:** Set `GCS_BUCKET` for data persistence across Cloud Run deployments.  
-> Without it, player data is ephemeral (lost on container restart).
+Smart docking: pet roams within stats-bar bounds on game screens, full ground on farm. Smooth 0.5s transition between screens.
 
 ---
 
-## 🔒 Security
+## 🌱 Farm System
 
-| Layer          | Mechanism                                                 |
-| -------------- | --------------------------------------------------------- |
-| Player API     | Discord OAuth2 bearer token verification                  |
-| Admin CMS      | Password-based `Authorization: Bearer <password>`         |
-| Sprite uploads | Filename sanitization (`[^a-zA-Z0-9._-]` → `_`)           |
-| State writes   | User ID mismatch check prevents cross-user writes         |
-| Public read    | `/api/state/:userId` is intentionally public for visiting |
+**8 crops** with progressive pricing:
 
----
+| Crop           | Growth |  Sell | Seed Cost |
+| -------------- | ------ | ----: | --------: |
+| 🍅 Tomato      | 15s    |  15🪙 |       5🪙 |
+| 🌽 Corn        | 30s    |  30🪙 |      12🪙 |
+| 🌻 Sunflower   | 60s    |  80🪙 |      30🪙 |
+| 🌹 Golden Rose | 90s    | 150🪙 |      60🪙 |
+| 🫐 Blueberry   | 20s    |  20🪙 |       8🪙 |
+| 🍉 Watermelon  | 75s    | 120🪙 |      45🪙 |
+| 🎃 Pumpkin     | 120s   | 250🪙 |     100🪙 |
+| 🌾 Wheat       | 45s    |  50🪙 |      18🪙 |
 
-## 📊 CMS Admin Panel
+**Purchasable plots** (6 free → max 12):
 
-Access at `/admin` — a single-page vanilla JS dashboard with:
-
-- **📊 Overview** → Stats dashboard (items, crops, pets, eggs, levels, quests)
-- **🎒 Items** → CRUD for furniture, planters, incubators, consumables
-- **🌱 Crops** → Seed price, sell price, growth time, XP, level requirement
-- **🐾 Pets** → Rarity, multi-ability bonuses editor, bonus description, color
-- **🥚 Eggs** → Hatch time, interactive weighted pet pool editor
-- **⬆️ Levels** → XP thresholds, unlock items
-- **📖 Tutorial** → Add/delete steps, text, trigger events, target elements
-- **💎 SKUs** → Add/delete purchases with multi-item rewards (coins, gems, items)
-- **🏆 Quests** → Conditions, target entities, counts, rewards, level gates, repeatability
-- **🎨 Sprites** → Upload, apply to entities, delete with cascade cleanup
-
-All changes take effect in **~30 seconds** via client-side content version polling.
-
----
-
-## 🧩 Type System
-
-```typescript
-// Core game state — 30 fields
-interface UserState {
-  id, username, discordId
-  coins, gems, xp, level
-  inventory: Record<string, number>
-  currentRoom: RoomType
-  rooms: Record<RoomType, Room>
-  pets: PetData[]
-  equippedPetId?: string
-  tutorialStep, completedTutorial
-  quests?: QuestProgress[]
-  billboard?: BillboardEntry[]  // Visitor sticker guestbook
-  echoMarks?: EchoMark[]        // Visitor interaction history (watering, notes)
-}
-
-// Content configs
-ItemConfig   → 13 fields (type enum: FURNITURE|PLANTER|INCUBATOR|EGG|CONSUMABLE|DECORATION|DYE)
-CropConfig   → 8 fields (seedPrice, sellPrice, growthTime, xpReward, levelReq)
-PetConfig    → 10 fields (rarity tier, bonuses: [{type: growth_speed|coin_reward|xp_reward, value}])
-EggConfig    → 3 fields (hatchTime, pool with weights — editable in CMS)
-QuestConfig  → 7 fields (condition with targetId, requirements, rewards, repeatable)
-SkuConfig    → 7 fields (price, amount, icon, rewards: {coins, gems, items})
-```
+- Doubling cost: 200 → 400 → 800 → 1600 → 3200 → 6400🪙
+- Optimistic fire-and-forget planting with version-guarded server sync
 
 ---
 
 ## 🧩 Game Framework
 
-The project includes a **reusable game framework** for rapidly scaffolding new Discord Activities games across multiple genres. The framework lives in `framework/` and does not modify the existing Egg Farm code.
-
-### Architecture
-
-```
-framework/
-├── core/                 # Reusable library (13 modules)
-│   └── src/              # EventBus, StateManager, BaseServer, BaseScene,
-│                         # DiscordBridge, ContentManager, AssetManager,
-│                         # i18n, Config, Plugin, Persistence adapters
-├── cli/                  # CLI project generator
-│   └── src/              # Template engine with {{variable}} substitution
-├── templates/            # 4 genre starter templates
-│   ├── farm/             # Isometric farm (Phaser 3)
-│   ├── card-battle/      # Card battle (DOM/React)
-│   ├── trivia/           # Quiz show (DOM/React)
-│   └── match-3/          # Puzzle (Phaser 3)
-├── examples/             # 5 playable demos (zero build step)
-│   ├── match-3-demo/     # 💎 Gem Crush — :8080
-│   ├── card-battle-demo/ # ⚔️ Card Battle Arena — :8081
-│   ├── trivia-demo/      # 🧠 Brain Blitz — :8082
-│   ├── farm-demo/        # 🌱 Cozy Farm — :8083
-│   └── game-hub/         # 🎮 Game Hub (3-in-1) — :8090
-├── docs/                 # Architecture, quick-start, security
-├── tests/                # Vitest unit tests for core modules
-└── README.md             # Detailed framework documentation (RU)
-```
-
-### CLI Generator
-
-```bash
-# From framework/ directory:
-npm run create-game -- my-game --genre trivia
-
-# Parameters:
-#   --genre        farm | card-battle | trivia | match-3
-#   --persistence  memory | local-file
-#   --locales      en,ru
-#   --theme        discord | custom
-```
+The project includes a **reusable game framework** for scaffolding new Discord Activities across genres. See [`framework/README.md`](framework/README.md) for full documentation.
 
 ### Demo Showcase
 
-| Demo                     | Genre       | Port | Key Features                                                                                                                                                        |
-| ------------------------ | ----------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 💎 **Gem Crush**         | Match-3     | 8080 | 8×8 grid, 6 gem types, swap mechanics, combo chains, gravity cascade, floating score animations                                                                     |
-| ⚔️ **Card Battle Arena** | Card Battle | 8081 | 8-card database, element abilities (Burn, Lifesteal, Freeze), AI opponent, animated HP bars, battle log                                                             |
-| 🧠 **Brain Blitz**       | Trivia      | 8082 | 12 questions (3 difficulties), countdown timer with speed bonus, streak tracking, category tags                                                                     |
-| 🌱 **Cozy Farm**         | Farm Sim    | 8083 | 5 crop types, 6 plots, planting/watering/harvest cycle, seed shop, growth stages, XP/level system                                                                   |
-| 🎮 **Game Hub**          | 3-in-1 Hub  | 8090 | **v1.7**: Smart Pet Docking, Offline Simulation, Quick-Feed Energy Modal, GameStore (Zustand-like), Farm + Trivia + Match-3, trivia duels, unified resource economy |
+| Demo                     | Genre       | Port |
+| ------------------------ | ----------- | ---- |
+| 💎 **Gem Crush**         | Match-3     | 8080 |
+| ⚔️ **Card Battle Arena** | Card Battle | 8081 |
+| 🧠 **Brain Blitz**       | Trivia      | 8082 |
+| 🌱 **Cozy Farm**         | Farm Sim    | 8083 |
+| 🎮 **Game Hub**          | 3-in-1 Hub  | 8090 |
 
-```bash
-# Run any demo:
-cd framework/examples/match-3-demo
-npm install && npm run dev
-# Open http://localhost:8080
-```
+---
 
-Each demo is a **standalone project** with a single `index.html` (zero build step) and an Express server handling all game logic via REST API — demonstrating the framework's server-side architecture pattern. The **Game Hub** combines all three genres into a unified 3-screen Activity with animated transitions, async Trivia Duels (invite codes), a Match-3 Leaderboard, smart pet docking, offline simulation, and a quick-feed energy modal.
+## 📝 Legacy
 
-### Core Modules
-
-| Module           | Description                                                       |
-| ---------------- | ----------------------------------------------------------------- |
-| `EventBus`       | Typed pub/sub event system                                        |
-| `StateManager`   | Generic player state with persistence & subscriptions             |
-| `BaseServer`     | Express factory with health, content, state, Discord OAuth routes |
-| `BaseScene`      | Phaser 3 base scene with grid math, camera, object pooling        |
-| `DiscordBridge`  | Discord SDK wrapper (auth, activity lifecycle)                    |
-| `ContentManager` | Content loading, caching, version polling                         |
-| `AssetManager`   | Sprite & audio loading with Phaser integration                    |
-| `I18n`           | Dot-notation i18n with interpolation & fallback                   |
-| `Config`         | Deep merge config loader with env overrides                       |
-| `PluginManager`  | Lifecycle-based plugin system                                     |
-| `Persistence`    | `MemoryAdapter`, `LocalFileAdapter` (GCS/Redis planned)           |
-
-> **Documentation**: See [`framework/README.md`](framework/README.md) for full API reference, migration guide, and deployment instructions.
+The original Egg Farm project (React 19 + Phaser 3 + Tailwind + CMS) is documented in [`LEGACY_EGG_FARM.md`](LEGACY_EGG_FARM.md).
 
 ---
 

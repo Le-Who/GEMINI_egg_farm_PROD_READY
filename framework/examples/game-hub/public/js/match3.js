@@ -340,6 +340,22 @@ const Match3Game = (() => {
       return;
     }
 
+    // 1.5 Visual swap slide animation — cells glide into each other's positions
+    const cellA = getCell(fromX, fromY);
+    const cellB = getCell(toX, toY);
+    const cellSize = cellA?.offsetWidth || 48;
+    const dx = (toX - fromX) * cellSize;
+    const dy = (toY - fromY) * cellSize;
+
+    if (cellA && cellB) {
+      cellA.style.transition = "transform 0.18s ease";
+      cellB.style.transition = "transform 0.18s ease";
+      cellA.style.transform = `translate(${dx}px, ${dy}px)`;
+      cellB.style.transform = `translate(${-dx}px, ${-dy}px)`;
+      cellA.style.zIndex = "2";
+      await sleep(200);
+    }
+
     // 2. Apply swap to real board
     [board[fromY][fromX], board[toY][toX]] = [
       board[toY][toX],

@@ -14,6 +14,7 @@ const FarmGame = (() => {
   let firstRenderDone = false;
   let buyQty = 1;
   let justPlantedPlot = -1; // Track freshly-planted plot for animation
+  let plantVersion = 0; // Track rapid planting for stale response rejection
 
   /** Push local state to GameStore (farm slice) */
   function syncToStore() {
@@ -454,7 +455,7 @@ const FarmGame = (() => {
     }
   }
 
-  async function plant(plotId) {
+  function plant(plotId) {
     if (!selectedSeed) {
       showToast("Select a seed first!");
       return;
@@ -466,53 +467,54 @@ const FarmGame = (() => {
       if (shopEl) shopEl.scrollIntoView({ behavior: "smooth" });
       return;
     }
-    // Optimistic update
-    const snapshot = {
-      plots: [...state.plots.map((p) => ({ ...p }))],
-      inventory: { ...state.inventory },
-    };
+    // Optimistic update (instant UI feedback)
+    const cropId = selectedSeed;
     state.plots[plotId] = {
       ...state.plots[plotId],
-      crop: selectedSeed,
+      crop: cropId,
       plantedAt: Date.now(),
       watered: false,
-      growthTime: crops[selectedSeed]?.growthTime || 15000,
+      growthTime: crops[cropId]?.growthTime || 15000,
     };
-    state.inventory[selectedSeed] = Math.max(0, seedCount - 1);
+    state.inventory[cropId] = Math.max(0, seedCount - 1);
     justPlantedPlot = plotId;
     syncToStore();
     render();
     renderShop();
     updateBuyBar();
 
-    const data = await api("/api/farm/plant", {
+    // Fire-and-forget with version guard (prevents stale server responses)
+    const myVersion = ++plantVersion;
+    api("/api/farm/plant", {
       userId: HUB.userId,
       plotId,
-      cropId: selectedSeed,
-    });
-    if (data.success) {
-      state.plots = data.plots;
-      state.inventory = data.inventory;
-      syncToStore();
-      render();
-      renderShop();
-      updateBuyBar();
-    } else {
-      // Rollback
-      state.plots = snapshot.plots;
-      state.inventory = snapshot.inventory;
-      syncToStore();
-      render();
-      renderShop();
-      updateBuyBar();
-      const msg =
-        data.error === "no seeds"
-          ? "🌾 No seeds left! Buy more in the shop ↓"
-          : data.error === "plot occupied"
-            ? "🚫 This plot is already in use"
-            : `❌ ${data.error}`;
-      showToast(msg);
-    }
+      cropId,
+    })
+      .then((data) => {
+        // Ignore stale response if more plants happened while this was in-flight
+        if (plantVersion !== myVersion) return;
+        if (data.success) {
+          state.plots = data.plots;
+          state.inventory = data.inventory;
+          syncToStore();
+          render();
+          renderShop();
+          updateBuyBar();
+        } else {
+          // Error: full resync from server
+          const msg =
+            data.error === "no seeds"
+              ? "🌾 No seeds left! Buy more in the shop ↓"
+              : data.error === "plot occupied"
+                ? "🚫 This plot is already in use"
+                : `❌ ${data.error}`;
+          showToast(msg);
+          loadState();
+        }
+      })
+      .catch(() => {
+        if (plantVersion === myVersion) loadState();
+      });
   }
 
   async function water(plotId) {

@@ -166,7 +166,7 @@ function goToScreen(index) {
   }
 }
 
-/** Smart Docking: FLIP-based smooth transition between dock positions */
+/** Smart Docking: smooth transition between dock positions */
 function updatePetDock() {
   const overlay = document.getElementById("pet-overlay");
   const container = document.getElementById("pet-container");
@@ -184,36 +184,22 @@ function updatePetDock() {
       : "dock-trivia";
   const newPetMode = isFarm ? "ground" : isMatch3 ? "match3" : "trivia";
 
-  // FLIP Step 1: Record current position (First)
-  const firstRect = container.getBoundingClientRect();
+  // Clear any roaming class to prevent transition conflicts
+  container.classList.remove("pet-roaming");
 
-  // FLIP Step 2: Apply new dock class (Last)
+  // Apply new dock class
   overlay.classList.remove("dock-ground", "dock-match3", "dock-trivia");
   overlay.classList.add(newDockClass);
 
-  // FLIP Step 3: Get new position (Last)
-  const lastRect = container.getBoundingClientRect();
+  // Add transitioning class for smooth animation to dock center
+  container.classList.add("pet-transitioning");
+  // Clear inline transform so CSS default transform takes over (smoothly via transition)
+  container.style.transform = "";
 
-  // FLIP Step 4: Invert — calculate delta and apply as transform offset
-  const deltaX = firstRect.left - lastRect.left;
-  const deltaY = firstRect.top - lastRect.top;
-
-  if (Math.abs(deltaX) > 1 || Math.abs(deltaY) > 1) {
-    // Apply inverted position instantly (looks like pet is still in old spot)
-    container.style.transform = `translate3d(${lastRect.left + deltaX}px, ${deltaY}px, 0) translateX(-50%)`;
-
-    // FLIP Step 5: Play — animate to final position
-    requestAnimationFrame(() => {
-      container.classList.add("pet-transitioning");
-      // Remove the invert offset so it animates to the natural dock position
-      container.style.transform = "";
-
-      // Clean up transition class after animation completes
-      setTimeout(() => {
-        container.classList.remove("pet-transitioning");
-      }, 550);
-    });
-  }
+  // Clean up transition class after animation completes
+  setTimeout(() => {
+    container.classList.remove("pet-transitioning");
+  }, 550);
 
   // Notify pet module of new dock mode
   if (typeof PetCompanion !== "undefined" && PetCompanion.setDockMode) {

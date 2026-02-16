@@ -45,7 +45,6 @@
 }
 .dock-match3 .pet-container {
   transform: translate3d(50vw, 0, 0) translateX(-50%) scale(0.8);
-  transition: transform 3s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 /* ─── Dock: Trivia (top area, zone-restricted roaming) ─── */
@@ -61,7 +60,11 @@
 }
 .dock-trivia .pet-container {
   transform: translate3d(50vw, 0, 0) translateX(-50%) scale(0.8);
-  transition: transform 3s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+/* ─── Walk transition (applied only during active roam via JS) ─── */
+.pet-container.pet-roaming {
+  transition: transform 2.5s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 /* ─── FLIP Transition (smooth dock-to-dock movement) ─── */
