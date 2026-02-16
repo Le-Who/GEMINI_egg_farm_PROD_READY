@@ -29,7 +29,6 @@ const PetCompanion = (function () {
   let previousState = STATES.IDLE; // For anti-repeat logic
   let panelOpen = false;
   let dockMode = "ground"; // "ground" | "match3" | "trivia"
-  let zoneBounds = null; // Cached {left, right, top} for zone-restricted roaming
 
   /* ─── GameStore Slice ─── */
   function registerSlice() {
@@ -192,25 +191,21 @@ const PetCompanion = (function () {
     if (!container || !overlay) return;
 
     let minX, maxX;
-    const padding = 40;
+    const w = window.innerWidth;
 
     if (dockMode === "ground") {
-      // Farm: full-screen roaming
-      minX = padding;
-      maxX = window.innerWidth - padding;
-    } else if (dockMode === "match3" || dockMode === "trivia") {
-      // Game screens: zone-restricted roaming along cached bounds
-      if (zoneBounds) {
-        minX = zoneBounds.left + 10;
-        maxX = zoneBounds.right - 10;
-      } else {
-        // Fallback: compact central area
-        const w = window.innerWidth;
-        minX = w * 0.15;
-        maxX = w * 0.85;
-      }
+      // Farm: full-screen roaming with padding
+      minX = 40;
+      maxX = w - 40;
+    } else if (dockMode === "match3") {
+      // Match-3: 10%–90% of viewport
+      minX = w * 0.1;
+      maxX = w * 0.9;
+    } else if (dockMode === "trivia") {
+      // Trivia: 15%–85% of viewport
+      minX = w * 0.15;
+      maxX = w * 0.85;
     } else {
-      // Unknown mode — idle
       setState(STATES.IDLE);
       return;
     }
@@ -228,9 +223,14 @@ const PetCompanion = (function () {
     const matrix = new DOMMatrix(computedStyle.transform);
     const currentX = matrix.m41;
 
-    // Set direction for walk animation
-    container.style.setProperty("--pet-dir", newX > currentX ? "1" : "-1");
-    container.style.transform = `translate3d(${newX}px, 0, 0) translateX(-50%)`;
+    // Set direction for walk animation (invert: emoji 🐕 faces LEFT, so scaleX(-1) = going right)
+    const goingRight = newX > currentX;
+    container.style.setProperty("--pet-dir", goingRight ? "-1" : "1");
+
+    // Use rAF to batch state + transform update (prevents flicker)
+    requestAnimationFrame(() => {
+      container.style.transform = `translate3d(${newX}px, 0, 0) translateX(-50%)`;
+    });
 
     // Return to idle after reaching destination
     setTimeout(() => {
@@ -265,17 +265,25 @@ const PetCompanion = (function () {
       if (typeof GameStore === "undefined") return;
       const farmState = GameStore.getState("farm");
       if (!farmState || !farmState.plots) return;
-      const plotIndex = farmState.plots.findIndex((p) => p.crop && !p.watered);
-      if (plotIndex === -1) return;
-      // Auto-water via FarmGame
-      if (typeof FarmGame !== "undefined" && FarmGame.water) {
-        FarmGame.water(plotIndex);
-        showBubble("💧 Watered!");
+
+      // Water up to 2 plots per tick
+      let watered = 0;
+      for (let i = 0; i < farmState.plots.length && watered < 2; i++) {
+        const p = farmState.plots[i];
+        if (p.crop && !p.watered) {
+          if (typeof FarmGame !== "undefined" && FarmGame.water) {
+            FarmGame.water(i);
+            watered++;
+          }
+        }
+      }
+      if (watered > 0) {
+        showBubble(`💧 Watered ${watered}!`);
         setState(STATES.HAPPY);
         spawnHeart();
         setTimeout(() => setState(STATES.IDLE), 1200);
       }
-    }, 30000); // Every 30s
+    }, 10000); // Every 10s, up to 2 plants
   }
 
   /* ─── Inactivity → Sleep ─── */
@@ -530,46 +538,19 @@ const PetCompanion = (function () {
   }
 
   /* ─── Smart Docking ─── */
-  function cacheZoneBounds() {
-    zoneBounds = null;
-    let zoneEl = null;
-    if (dockMode === "match3") {
-      // Zone: stats-bar at top of match-3 screen
-      zoneEl = document.querySelector("#screen-match3 .stats-bar");
-    } else if (dockMode === "trivia") {
-      // Zone: screen header area of trivia screen
-      zoneEl = document.querySelector("#screen-trivia .screen-header");
-    }
-    if (zoneEl) {
-      const rect = zoneEl.getBoundingClientRect();
-      zoneBounds = { left: rect.left, right: rect.right, top: rect.top };
-    }
-  }
-
   function setDockMode(mode) {
     dockMode = mode;
     if (mode === "match3" || mode === "trivia") {
-      // Cache zone bounds for restricted roaming
-      cacheZoneBounds();
       // Cancel active roam, let state machine pick zone-aware roam
       if (currentState === STATES.ROAM) {
         setState(STATES.IDLE);
       }
-    } else if (mode === "ground") {
-      zoneBounds = null; // No zone restriction on farm
     }
   }
 
   function getDockMode() {
     return dockMode;
   }
-
-  // Recalculate zone bounds on resize
-  window.addEventListener("resize", () => {
-    if (dockMode === "match3" || dockMode === "trivia") {
-      cacheZoneBounds();
-    }
-  });
 
   return {
     init,

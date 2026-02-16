@@ -222,9 +222,9 @@
 /* ─── Sleep ZZZ ─── */
 .pet-zzz {
   position: absolute;
-  top: -1.5rem;
-  right: -0.8rem;
-  font-size: 0.7rem;
+  top: -0.8em;
+  right: -0.4em;
+  font-size: 0.4em;
   color: rgba(150, 180, 255, 0.8);
   animation: zzzFloat 2s ease-in-out infinite;
 }
@@ -237,7 +237,7 @@
   }
   50% {
     opacity: 1;
-    transform: translateY(-8px);
+    transform: translateY(-10px);
   }
 }
 

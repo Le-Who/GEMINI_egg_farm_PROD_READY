@@ -72,6 +72,33 @@ export const CROPS = {
     seedPrice: 60,
     xp: 50,
   },
+  blueberry: {
+    id: "blueberry",
+    name: "Blueberry",
+    emoji: "🫐",
+    growthTime: 20000,
+    sellPrice: 20,
+    seedPrice: 8,
+    xp: 8,
+  },
+  watermelon: {
+    id: "watermelon",
+    name: "Watermelon",
+    emoji: "🍉",
+    growthTime: 75000,
+    sellPrice: 120,
+    seedPrice: 45,
+    xp: 35,
+  },
+  pumpkin: {
+    id: "pumpkin",
+    name: "Pumpkin",
+    emoji: "🎃",
+    growthTime: 120000,
+    sellPrice: 250,
+    seedPrice: 100,
+    xp: 80,
+  },
 };
 
 /* ═══════════════════════════════════════════════════
@@ -104,7 +131,7 @@ export function createDefaultPlayer(userId, username, now = Date.now()) {
       xpToNextLevel: 100,
       skinId: "basic_dog",
       stats: { happiness: 100 },
-      abilities: { autoHarvest: false, autoWater: false },
+      abilities: { autoHarvest: false, autoWater: false, autoPlant: false },
     },
     farm: {
       coins: 0,

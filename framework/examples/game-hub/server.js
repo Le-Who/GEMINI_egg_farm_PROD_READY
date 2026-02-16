@@ -214,7 +214,7 @@ function getPlayer(userId, username) {
         xpToNextLevel: 100,
         skinId: "basic_dog",
         stats: { happiness: 100 },
-        abilities: { autoHarvest: false, autoWater: false },
+        abilities: { autoHarvest: false, autoWater: false, autoPlant: false },
       };
     }
     if (!p.farm.harvested) p.farm.harvested = {};
@@ -361,6 +361,49 @@ app.post("/api/farm/buy-seeds", requireAuth, (req, res) => {
   });
 });
 
+const BUY_PLOT_BASE_COST = 200;
+const MAX_PLOTS = 12;
+
+app.post("/api/farm/buy-plot", requireAuth, (req, res) => {
+  const { userId } = resolveUser(req);
+  const p = getPlayer(userId);
+  const currentPlots = p.farm.plots.length;
+
+  if (currentPlots >= MAX_PLOTS) {
+    return res.status(400).json({ error: "max plots reached" });
+  }
+
+  // Doubling cost: 200, 400, 800, 1600, 3200, 6400
+  const cost = BUY_PLOT_BASE_COST * Math.pow(2, currentPlots - 6);
+
+  if (p.resources.gold < cost) {
+    return res.status(400).json({ error: "not enough gold", cost });
+  }
+
+  p.resources.gold -= cost;
+  p.farm.plots.push({
+    id: currentPlots,
+    crop: null,
+    plantedAt: null,
+    watered: false,
+  });
+
+  const nextCost =
+    currentPlots + 1 < MAX_PLOTS
+      ? BUY_PLOT_BASE_COST * Math.pow(2, currentPlots + 1 - 6)
+      : null;
+
+  debouncedSaveDb();
+  res.json({
+    success: true,
+    plots: farmPlotsWithGrowth(p.farm),
+    resources: p.resources,
+    plotCount: p.farm.plots.length,
+    nextCost,
+    maxPlots: MAX_PLOTS,
+  });
+});
+
 /* ═══════════════════════════════════════════════════
  *  RESOURCES & PET ENDPOINTS
  * ═══════════════════════════════════════════════════ */
@@ -408,6 +451,7 @@ app.post("/api/pet/feed", requireAuth, (req, res) => {
   // Unlock abilities
   if (p.pet.level >= 3) p.pet.abilities.autoHarvest = true;
   if (p.pet.level >= 5) p.pet.abilities.autoWater = true;
+  if (p.pet.level >= 7) p.pet.abilities.autoPlant = true;
 
   // Happiness boost
   p.pet.stats.happiness = Math.min(100, p.pet.stats.happiness + 5);

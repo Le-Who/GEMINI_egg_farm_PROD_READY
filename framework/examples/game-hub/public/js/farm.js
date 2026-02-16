@@ -274,6 +274,8 @@ const FarmGame = (() => {
         rebuildPlot(div, plot, i, pct, isReady, isFirstRender);
         grid.appendChild(div);
       });
+      // Append Buy Plot card if under max
+      appendBuyPlotCard(grid);
       firstRenderDone = true;
     }
   }
@@ -631,12 +633,69 @@ const FarmGame = (() => {
       if (readyCount > 0 && HUB.currentScreen !== 1) {
         badge.textContent = `🌾 ×${readyCount}`;
         badge.classList.add("show");
+        // Direction: Trivia is screen 0 (farm is right), Match-3 is screen 2 (farm is left)
+        badge.classList.toggle("point-right", HUB.currentScreen === 0);
+        badge.classList.toggle("point-left", HUB.currentScreen === 2);
         badge.onclick = () => {
           if (typeof goToScreen === "function") goToScreen(1);
         };
       } else {
-        badge.classList.remove("show");
+        badge.classList.remove("show", "point-left", "point-right");
       }
+    }
+  }
+
+  /* ─── Buy Plot Card ─── */
+  const BUY_PLOT_BASE = 200;
+  const MAX_PLOTS = 12;
+
+  function getBuyPlotCost() {
+    const n = state?.plots?.length ?? 6;
+    return BUY_PLOT_BASE * Math.pow(2, n - 6);
+  }
+
+  function appendBuyPlotCard(grid) {
+    if (!state || state.plots.length >= MAX_PLOTS) return;
+    const cost = getBuyPlotCost();
+    const gold = typeof HUD !== "undefined" ? HUD.getGold() : 0;
+    const canAfford = gold >= cost;
+    const card = document.createElement("div");
+    card.className = `farm-plot buy-plot-card${canAfford ? "" : " disabled"}`;
+    card.innerHTML = `
+      <div style="font-size:1.6rem;opacity:0.5">➕</div>
+      <div class="plot-empty-label">Buy Plot</div>
+      <div class="seed-price">🪙 ${cost}</div>
+    `;
+    card.title = canAfford
+      ? `Buy new plot for ${cost} gold`
+      : `Need ${cost} gold`;
+    if (canAfford) {
+      card.onclick = () => buyPlot();
+    }
+    grid.appendChild(card);
+  }
+
+  async function buyPlot() {
+    if (!state || state.plots.length >= MAX_PLOTS) return;
+    const cost = getBuyPlotCost();
+    const gold = typeof HUD !== "undefined" ? HUD.getGold() : 0;
+    if (gold < cost) {
+      showToast("❌ Not enough gold!");
+      return;
+    }
+
+    const data = await api("/api/farm/buy-plot", { userId: HUB.userId });
+    if (data?.success) {
+      state.plots = data.plots;
+      if (data.resources && typeof HUD !== "undefined") {
+        HUD.syncFromServer(data.resources);
+      }
+      syncToStore();
+      firstRenderDone = false; // Force full rebuild to add new plot
+      render();
+      showToast(`🌱 New plot unlocked! (${data.plotCount}/${MAX_PLOTS})`);
+    } else {
+      showToast(`❌ ${data?.error || "Failed to buy plot"}`);
     }
   }
 
@@ -654,6 +713,7 @@ const FarmGame = (() => {
     water,
     harvest,
     buySeeds,
+    buyPlot,
     selectSeed,
     updateFarmBadge,
     getLocalGrowth,
