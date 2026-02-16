@@ -8,10 +8,12 @@
       name="description"
       content="Unified Game Hub: Farm, Trivia (Solo & Duel), Match-3 with Leaderboard — Discord Activities Framework Demo"
     />
-    <link rel="stylesheet" href="css/base.css?v=1.5" />
-    <link rel="stylesheet" href="css/farm.css?v=1.5" />
-    <link rel="stylesheet" href="css/trivia.css?v=1.5" />
-    <link rel="stylesheet" href="css/match3.css?v=1.5" />
+    <link rel="stylesheet" href="css/base.css?v=1.6" />
+    <link rel="stylesheet" href="css/farm.css?v=1.6" />
+    <link rel="stylesheet" href="css/trivia.css?v=1.6" />
+    <link rel="stylesheet" href="css/match3.css?v=1.6" />
+    <link rel="stylesheet" href="css/hud.css?v=1.6" />
+    <link rel="stylesheet" href="css/pet.css?v=1.6" />
   </head>
   <body>
     <!-- ═══ Nav Dots (mobile: top center) ═══ -->
@@ -22,6 +24,26 @@
     </div>
     <!-- Farm ready badge (Issue 7) -->
     <span class="farm-ready-badge" id="farm-ready-badge"></span>
+
+    <!-- ═══ TopHUD — Energy & Gold ═══ -->
+    <div class="top-hud" id="top-hud">
+      <div class="hud-energy" id="hud-energy">
+        <span class="hud-icon">⚡</span>
+        <span id="hud-energy-text">--/--</span>
+        <div class="hud-energy-bar">
+          <div
+            class="hud-energy-bar-fill"
+            id="hud-energy-bar-fill"
+            style="width: 100%"
+          ></div>
+        </div>
+        <div class="hud-energy-tooltip" id="hud-energy-tooltip">Loading...</div>
+      </div>
+      <div class="hud-gold" id="hud-gold">
+        <span class="hud-icon">💰</span>
+        <span id="hud-gold-text">--</span>
+      </div>
+    </div>
 
     <!-- ═══ Viewport ═══ -->
     <div class="viewport">
@@ -376,6 +398,15 @@
     <!-- /viewport -->
 
     <!-- ═══ Nav Arrows (desktop: glassmorphic edge strips, after viewport for CSS ~) ═══ -->
+    <!-- ═══ Pet Companion Overlay ═══ -->
+    <div class="pet-overlay" id="pet-overlay">
+      <div class="pet-container" id="pet-container" data-state="idle">
+        <div class="pet-sprite" id="pet-sprite">🐕</div>
+        <div class="pet-hearts" id="pet-hearts"></div>
+      </div>
+    </div>
+    <div class="pet-info-panel" id="pet-info-panel" style="display: none"></div>
+
     <button class="nav-arrow nav-left" id="nav-left">‹</button>
     <button class="nav-arrow nav-right" id="nav-right">›</button>
 
@@ -393,12 +424,14 @@
         font-family: monospace;
       "
     >
-      v1.5
+      v1.6
     </div>
 
     <!-- ═══ Scripts (shared.js loads game scripts dynamically via SmartLoader) ═══ -->
     <script src="js/discord-sdk.js"></script>
-    <script src="js/store.js?v=1.5"></script>
-    <script src="js/shared.js?v=1.5"></script>
+    <script src="js/store.js?v=1.6"></script>
+    <script src="js/hud.js?v=1.6"></script>
+    <script src="js/pet.js?v=1.6"></script>
+    <script src="js/shared.js?v=1.6"></script>
   </body>
 </html>

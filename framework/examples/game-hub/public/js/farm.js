@@ -96,6 +96,16 @@ const FarmGame = (() => {
 
     if (stateData && !stateData.error) {
       state = stateData;
+      // Sync resources and pet to HUD/Pet modules
+      if (stateData.resources && typeof HUD !== "undefined") {
+        HUD.syncFromServer(stateData.resources);
+      }
+      if (stateData.pet && typeof PetCompanion !== "undefined") {
+        PetCompanion.syncFromServer(stateData.pet);
+      }
+      if (stateData.autoHarvestNotice) {
+        showToast(stateData.autoHarvestNotice);
+      }
       syncToStore();
       render();
       renderShop();
@@ -110,6 +120,16 @@ const FarmGame = (() => {
     });
     if (data && !data.error) {
       state = data;
+      // Sync resources and pet
+      if (data.resources && typeof HUD !== "undefined") {
+        HUD.syncFromServer(data.resources);
+      }
+      if (data.pet && typeof PetCompanion !== "undefined") {
+        PetCompanion.syncFromServer(data.pet);
+      }
+      if (data.autoHarvestNotice) {
+        showToast(data.autoHarvestNotice);
+      }
       syncToStore();
       render();
     }
@@ -137,7 +157,9 @@ const FarmGame = (() => {
   /* ─── Render Plots (diff-update to avoid blinking) ─── */
   function render() {
     if (!state) return;
-    $("farm-coins").textContent = state.coins;
+    // Gold comes from HUD (unified resources), fallback to state.coins for compat
+    const gold = typeof HUD !== "undefined" ? HUD.getGold() : state.coins || 0;
+    $("farm-coins").textContent = gold;
     $("farm-xp").textContent = state.xp;
     $("farm-level").textContent = `Lv${state.level}`;
 
@@ -282,7 +304,9 @@ const FarmGame = (() => {
     bar.style.display = "";
     const cfg = crops[selectedSeed];
     const totalCost = cfg.seedPrice * buyQty;
-    const canAfford = state && state.coins >= totalCost;
+    const goldAvail =
+      typeof HUD !== "undefined" ? HUD.getGold() : state.coins || 0;
+    const canAfford = goldAvail >= totalCost;
 
     bar.innerHTML = `
       <span class="buy-bar-seed">${cfg.emoji} ${cfg.name}</span>
@@ -316,13 +340,14 @@ const FarmGame = (() => {
     const cfg = crops[cropId];
     if (!cfg) return;
     const totalCost = cfg.seedPrice * buyQty;
-    if (state.coins < totalCost) {
-      showToast("❌ Not enough coins!");
+    const goldAvail =
+      typeof HUD !== "undefined" ? HUD.getGold() : state.coins || 0;
+    if (goldAvail < totalCost) {
+      showToast("❌ Not enough gold!");
       return;
     }
     // Optimistic update
-    const snapshot = { coins: state.coins, inventory: { ...state.inventory } };
-    state.coins -= totalCost;
+    const snapshot = { inventory: { ...state.inventory } };
     state.inventory[cropId] = (state.inventory[cropId] || 0) + buyQty;
     syncToStore();
     render();
@@ -334,7 +359,11 @@ const FarmGame = (() => {
       amount: buyQty,
     });
     if (data.success) {
-      state.coins = data.coins;
+      // Sync resources (gold deducted)
+      if (data.resources && typeof HUD !== "undefined") {
+        HUD.syncFromServer(data.resources);
+        HUD.animateGoldChange(-totalCost);
+      }
       state.inventory = data.inventory;
       syncToStore();
       render();
@@ -345,7 +374,6 @@ const FarmGame = (() => {
       updateBuyBar();
     } else {
       // Rollback
-      state.coins = snapshot.coins;
       state.inventory = snapshot.inventory;
       syncToStore();
       render();
@@ -393,7 +421,6 @@ const FarmGame = (() => {
     if (data.success) {
       state.plots = data.plots;
       state.inventory = data.inventory;
-      state.coins = data.coins;
       syncToStore();
       render();
       renderShop();
@@ -444,7 +471,6 @@ const FarmGame = (() => {
     // Optimistic: clear the plot immediately
     const plotSnapshot = { ...state.plots[plotId] };
     const stateSnapshot = {
-      coins: state.coins,
       xp: state.xp,
       level: state.level,
     };
@@ -455,21 +481,24 @@ const FarmGame = (() => {
     const data = await api("/api/farm/harvest", { userId: HUB.userId, plotId });
     if (data.success) {
       state.plots = data.plots;
-      state.coins = data.coins;
       state.xp = data.xp;
       state.level = data.level;
+      // Sync resources (gold awarded) to HUD
+      if (data.resources && typeof HUD !== "undefined") {
+        HUD.syncFromServer(data.resources);
+        if (data.reward) HUD.animateGoldChange(data.reward.coins);
+      }
       syncToStore();
       render();
       renderShop();
       updateBuyBar();
       showToast(
-        `${data.reward.crop} +${data.reward.coins}🪙 +${data.reward.xp}XP`,
+        `${data.reward.crop} +${data.reward.coins}💰 +${data.reward.xp}XP`,
       );
       if (data.leveledUp) showToast(`🎉 Level Up! Lv${data.level}`);
     } else {
       // Rollback
       state.plots[plotId] = plotSnapshot;
-      state.coins = stateSnapshot.coins;
       state.xp = stateSnapshot.xp;
       state.level = stateSnapshot.level;
       syncToStore();

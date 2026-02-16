@@ -154,10 +154,24 @@ const Match3Game = (() => {
     $("m3-btn-start").onclick = startGame;
     $("m3-btn-lb").onclick = toggleLeaderboard;
     fetchLeaderboard();
+    updateStartButton();
 
     // Try to restore an existing game from the server
     await restoreGame();
     syncToStore();
+  }
+
+  /* ═══ Energy Gate ═══ */
+  function updateStartButton() {
+    const btn = $("m3-btn-start");
+    if (!btn) return;
+    const hasEnergy = typeof HUD !== "undefined" ? HUD.hasEnergy(5) : true;
+    btn.disabled = !hasEnergy && !gameActive;
+    if (!hasEnergy && !gameActive) {
+      btn.title = "Need 5⚡ to play";
+    } else {
+      btn.title = "";
+    }
   }
 
   function onEnter() {
@@ -197,6 +211,12 @@ const Match3Game = (() => {
 
   /* ═══ Start Game ═══ */
   async function startGame() {
+    // Energy gatekeep
+    if (typeof HUD !== "undefined" && !HUD.hasEnergy(5)) {
+      showToast("⚡ Need 5 energy to play Match-3!");
+      return;
+    }
+
     $("m3-overlay").classList.remove("show");
     selected = null;
     isAnimating = false;
@@ -208,12 +228,25 @@ const Match3Game = (() => {
     combo = 0;
     gameActive = true;
 
-    // Notify server of new game
+    // Notify server of new game (deducts energy)
     const data = await api("/api/game/start", {
       userId: HUB.userId,
       username: HUB.username,
     });
+
+    // Handle energy error
+    if (data && data.error === "NOT_ENOUGH_ENERGY") {
+      showToast("⚡ Not enough energy!");
+      gameActive = false;
+      return;
+    }
+
     if (data && data.highScore !== undefined) highScore = data.highScore;
+
+    // Sync resources from server response
+    if (data && data.resources && typeof HUD !== "undefined") {
+      HUD.syncFromServer(data.resources);
+    }
 
     // Use server board if available (ensures consistency)
     if (data && data.game && data.game.board) {
@@ -225,6 +258,7 @@ const Match3Game = (() => {
     updateStatsUI();
     renderBoard(true);
     syncToStore();
+    updateStartButton();
   }
 
   /* ═══ Render Board (persistent DOM elements) ═══ */
@@ -334,7 +368,7 @@ const Match3Game = (() => {
         toX,
         toY,
       }).catch(() => {});
-      // Save score and get server-side highScore
+      // Save score and get server-side highScore + gold reward
       const endData = await api("/api/game/end", {
         userId: HUB.userId,
         score,
@@ -342,9 +376,15 @@ const Match3Game = (() => {
       if (endData?.highScore) {
         highScore = endData.highScore;
       }
+      // Sync gold reward to HUD
+      if (endData?.resources && typeof HUD !== "undefined") {
+        HUD.syncFromServer(endData.resources);
+        if (endData.goldReward) HUD.animateGoldChange(endData.goldReward);
+      }
       setTimeout(() => showGameOver(score), 500);
       fetchLeaderboard();
       syncToStore();
+      updateStartButton();
     } else {
       // Send move to server in background (fire-and-forget for validation)
       api("/api/game/move", {

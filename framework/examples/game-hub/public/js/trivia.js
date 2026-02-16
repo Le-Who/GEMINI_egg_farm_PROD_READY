@@ -170,12 +170,28 @@ const TriviaGame = (() => {
 
   /* ═══ SOLO MODE ═══ */
   async function startSolo() {
+    // Energy gatekeep
+    if (typeof HUD !== "undefined" && !HUD.hasEnergy(3)) {
+      showToast("⚡ Need 3 energy to play Trivia!");
+      return;
+    }
+
     const data = await api("/api/trivia/start", {
       userId: HUB.userId,
       username: HUB.username,
       count: 5,
     });
+    if (data && data.error === "NOT_ENOUGH_ENERGY") {
+      showToast("⚡ Not enough energy!");
+      return;
+    }
     if (!data.success) return;
+
+    // Sync resources (energy deducted)
+    if (data.resources && typeof HUD !== "undefined") {
+      HUD.syncFromServer(data.resources);
+    }
+
     session = { mode: "solo", score: 0, streak: 0 };
     syncToStore();
     showView("solo");
@@ -208,12 +224,28 @@ const TriviaGame = (() => {
   }
 
   async function createDuel() {
+    // Energy gatekeep
+    if (typeof HUD !== "undefined" && !HUD.hasEnergy(3)) {
+      showToast("⚡ Need 3 energy to create a duel!");
+      return;
+    }
+
     const data = await api("/api/trivia/duel/create", {
       userId: HUB.userId,
       username: HUB.username,
       count: 5,
     });
+    if (data && data.error === "NOT_ENOUGH_ENERGY") {
+      showToast("⚡ Not enough energy!");
+      return;
+    }
     if (!data.success) return;
+
+    // Sync resources (energy deducted)
+    if (data.resources && typeof HUD !== "undefined") {
+      HUD.syncFromServer(data.resources);
+    }
+
     duel = { roomId: data.roomId, inviteCode: data.inviteCode };
     showView("duel-create");
     $("duel-invite-code").textContent = data.inviteCode;
@@ -541,6 +573,11 @@ const TriviaGame = (() => {
     await sleep(1200);
 
     if (data.isComplete) {
+      // Sync gold reward from server
+      if (data.resources && typeof HUD !== "undefined") {
+        HUD.syncFromServer(data.resources);
+        if (data.goldReward) HUD.animateGoldChange(data.goldReward);
+      }
       showResults(data);
     } else if (data.nextQuestion) {
       renderQuestion(data.nextQuestion);

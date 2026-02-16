@@ -29,9 +29,27 @@ const DISCORD_ENABLED = !!(CLIENT_ID && CLIENT_SECRET);
 initStorage(GCS_BUCKET);
 
 /* ═══════════════════════════════════════════════════
+ *  ECONOMY CONFIG
+ * ═══════════════════════════════════════════════════ */
+const ECONOMY = {
+  ENERGY_MAX: 20,
+  ENERGY_START: 20,
+  ENERGY_REGEN_INTERVAL_MS: 5 * 60 * 1000, // 5 minutes
+  GOLD_START: 100,
+  COST_MATCH3: 5, // energy to start match-3
+  COST_TRIVIA: 3, // energy to start trivia
+  REWARD_MATCH3_WIN: 40,
+  REWARD_MATCH3_LOSE: 5,
+  REWARD_TRIVIA_WIN: 25,
+  REWARD_TRIVIA_LOSE: 5,
+  FEED_ENERGY: 2, // energy from feeding pet
+  FEED_PET_XP: 10, // pet XP from feeding
+};
+
+/* ═══════════════════════════════════════════════════
  *  SHARED STATE
  * ═══════════════════════════════════════════════════ */
-const players = new Map(); // userId -> { farm, trivia, match3 }
+const players = new Map(); // userId -> { resources, pet, farm, trivia, match3 }
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
 const LOCAL_DB_PATH = path.join(DATA_DIR, "hub-db.json");
 
@@ -173,9 +191,28 @@ function getPlayer(userId, username) {
     p = {
       id: userId,
       username: username || "Player",
+      // Global resources (shared across all games)
+      resources: {
+        gold: ECONOMY.GOLD_START,
+        energy: {
+          current: ECONOMY.ENERGY_START,
+          max: ECONOMY.ENERGY_MAX,
+          lastRegenTimestamp: Date.now(),
+        },
+      },
+      // Pet companion
+      pet: {
+        name: "Buddy",
+        level: 1,
+        xp: 0,
+        xpToNextLevel: 100,
+        skinId: "basic_dog",
+        stats: { happiness: 100 },
+        abilities: { autoHarvest: false, autoWater: false },
+      },
       // Farm state
       farm: {
-        coins: 200,
+        coins: 0, // Legacy — migrated to resources.gold
         xp: 0,
         level: 1,
         plots: Array.from({ length: 6 }, (_, i) => ({
@@ -185,6 +222,7 @@ function getPlayer(userId, username) {
           watered: false,
         })),
         inventory: { strawberry: 5, planter: 2 },
+        harvested: {}, // Crop items for pet feeding
       },
       // Trivia stats (persistent across sessions)
       trivia: {
@@ -203,8 +241,55 @@ function getPlayer(userId, username) {
     };
     players.set(userId, p);
   }
+  // Migration: move legacy farm.coins to resources.gold
+  if (!p.resources) {
+    p.resources = {
+      gold: (p.farm?.coins || 0) + ECONOMY.GOLD_START,
+      energy: {
+        current: ECONOMY.ENERGY_START,
+        max: ECONOMY.ENERGY_MAX,
+        lastRegenTimestamp: Date.now(),
+      },
+    };
+  }
+  if (!p.pet) {
+    p.pet = {
+      name: "Buddy",
+      level: 1,
+      xp: 0,
+      xpToNextLevel: 100,
+      skinId: "basic_dog",
+      stats: { happiness: 100 },
+      abilities: { autoHarvest: false, autoWater: false },
+    };
+  }
+  if (!p.farm.harvested) p.farm.harvested = {};
   if (username) p.username = username;
   return p;
+}
+
+/* ═══════════════════════════════════════════════════
+ *  ENERGY SYSTEM — Lazy Passive Regeneration
+ * ═══════════════════════════════════════════════════ */
+function calcRegen(player) {
+  const e = player.resources.energy;
+  const now = Date.now();
+  if (e.current >= e.max) {
+    e.lastRegenTimestamp = now;
+    return;
+  }
+  const delta = now - e.lastRegenTimestamp;
+  const regenAmount = Math.floor(delta / ECONOMY.ENERGY_REGEN_INTERVAL_MS);
+  if (regenAmount > 0) {
+    const newEnergy = Math.min(e.max, e.current + regenAmount);
+    e.current = newEnergy;
+    if (newEnergy < e.max) {
+      // Preserve partial progress toward next regen tick
+      e.lastRegenTimestamp = now - (delta % ECONOMY.ENERGY_REGEN_INTERVAL_MS);
+    } else {
+      e.lastRegenTimestamp = now;
+    }
+  }
 }
 
 /* ═══════════════════════════════════════════════════
@@ -309,7 +394,43 @@ app.post("/api/farm/state", requireAuth, (req, res) => {
   const { userId, username } = resolveUser(req);
   if (!userId) return res.status(400).json({ error: "userId required" });
   const p = getPlayer(userId, username);
-  res.json({ ...p.farm, plots: farmPlotsWithGrowth(p.farm) });
+  calcRegen(p);
+
+  // Offline auto-harvest (Pet Butler mechanic)
+  let autoHarvestNotice = null;
+  if (p.pet.abilities.autoHarvest) {
+    const maxActions = p.pet.level * 2;
+    let harvested = 0;
+    for (const plot of p.farm.plots) {
+      if (harvested >= maxActions) break;
+      if (plot.crop && plot.plantedAt && getGrowthPct(plot) >= 1) {
+        const cfg = CROPS[plot.crop];
+        if (cfg) {
+          p.resources.gold += cfg.sellPrice;
+          p.farm.harvested[plot.crop] = (p.farm.harvested[plot.crop] || 0) + 1;
+          p.farm.xp += cfg.xp;
+          plot.crop = null;
+          plot.plantedAt = null;
+          plot.watered = false;
+          harvested++;
+        }
+      }
+    }
+    if (harvested > 0) {
+      const newLevel = Math.floor(p.farm.xp / 100) + 1;
+      p.farm.level = newLevel;
+      autoHarvestNotice = `🐾 ${p.pet.name} harvested ${harvested} crop${harvested > 1 ? "s" : ""} while you were away!`;
+      debouncedSaveDb();
+    }
+  }
+
+  res.json({
+    ...p.farm,
+    plots: farmPlotsWithGrowth(p.farm),
+    resources: p.resources,
+    pet: p.pet,
+    autoHarvestNotice,
+  });
 });
 
 app.post("/api/farm/plant", requireAuth, (req, res) => {
@@ -359,7 +480,10 @@ app.post("/api/farm/harvest", requireAuth, (req, res) => {
   if (getGrowthPct(plot) < 1)
     return res.status(400).json({ error: "not ready" });
   const cfg = CROPS[plot.crop];
-  p.farm.coins += cfg.sellPrice;
+  const cropId = plot.crop;
+  // Award gold and produce crop item for pet feeding
+  p.resources.gold += cfg.sellPrice;
+  p.farm.harvested[cropId] = (p.farm.harvested[cropId] || 0) + 1;
   p.farm.xp += cfg.xp;
   const newLevel = Math.floor(p.farm.xp / 100) + 1;
   const leveledUp = newLevel > p.farm.level;
@@ -372,7 +496,8 @@ app.post("/api/farm/harvest", requireAuth, (req, res) => {
     success: true,
     reward: { coins: cfg.sellPrice, xp: cfg.xp, crop: cfg.emoji },
     plots: farmPlotsWithGrowth(p.farm),
-    coins: p.farm.coins,
+    resources: p.resources,
+    harvested: p.farm.harvested,
     xp: p.farm.xp,
     level: p.farm.level,
     leveledUp,
@@ -386,12 +511,77 @@ app.post("/api/farm/buy-seeds", requireAuth, (req, res) => {
   const cfg = CROPS[cropId];
   if (!cfg) return res.status(400).json({ error: "unknown crop" });
   const cost = cfg.seedPrice * amount;
-  if (p.farm.coins < cost)
-    return res.status(400).json({ error: "not enough coins" });
-  p.farm.coins -= cost;
+  if (p.resources.gold < cost)
+    return res.status(400).json({ error: "not enough gold" });
+  p.resources.gold -= cost;
   p.farm.inventory[cropId] = (p.farm.inventory[cropId] || 0) + amount;
   debouncedSaveDb();
-  res.json({ success: true, coins: p.farm.coins, inventory: p.farm.inventory });
+  res.json({
+    success: true,
+    resources: p.resources,
+    inventory: p.farm.inventory,
+  });
+});
+
+/* ═══════════════════════════════════════════════════
+ *  RESOURCES & PET ENDPOINTS
+ * ═══════════════════════════════════════════════════ */
+app.get("/api/resources/state", requireAuth, (req, res) => {
+  const { userId, username } = resolveUser(req);
+  if (!userId) return res.status(400).json({ error: "userId required" });
+  const p = getPlayer(userId, username);
+  calcRegen(p);
+  res.json({
+    resources: p.resources,
+    pet: p.pet,
+    harvested: p.farm.harvested,
+  });
+});
+
+app.post("/api/pet/feed", requireAuth, (req, res) => {
+  const { userId } = resolveUser(req);
+  const { cropId } = req.body;
+  const p = getPlayer(userId);
+  calcRegen(p);
+
+  // Validate crop
+  if (!cropId || !p.farm.harvested[cropId] || p.farm.harvested[cropId] <= 0) {
+    return res.status(400).json({ error: "no harvested crop to feed" });
+  }
+
+  // Deduct crop
+  p.farm.harvested[cropId]--;
+  if (p.farm.harvested[cropId] <= 0) delete p.farm.harvested[cropId];
+
+  // Restore energy
+  const e = p.resources.energy;
+  e.current = Math.min(e.max, e.current + ECONOMY.FEED_ENERGY);
+
+  // Pet XP & leveling
+  p.pet.xp += ECONOMY.FEED_PET_XP;
+  let leveledUp = false;
+  while (p.pet.xp >= p.pet.xpToNextLevel) {
+    p.pet.xp -= p.pet.xpToNextLevel;
+    p.pet.level++;
+    p.pet.xpToNextLevel = Math.floor(p.pet.xpToNextLevel * 1.5);
+    leveledUp = true;
+  }
+
+  // Unlock abilities
+  if (p.pet.level >= 3) p.pet.abilities.autoHarvest = true;
+  if (p.pet.level >= 5) p.pet.abilities.autoWater = true;
+
+  // Happiness boost
+  p.pet.stats.happiness = Math.min(100, p.pet.stats.happiness + 5);
+
+  debouncedSaveDb();
+  res.json({
+    success: true,
+    resources: p.resources,
+    pet: p.pet,
+    harvested: p.farm.harvested,
+    leveledUp,
+  });
 });
 
 /* ═══════════════════════════════════════════════════
@@ -563,6 +753,17 @@ app.post("/api/trivia/start", requireAuth, (req, res) => {
   const { count = 5, difficulty } = req.body;
   if (!userId) return res.status(400).json({ error: "userId required" });
   const p = getPlayer(userId, username);
+  calcRegen(p);
+
+  // Energy check
+  if (p.resources.energy.current < ECONOMY.COST_TRIVIA) {
+    return res.status(400).json({
+      error: "NOT_ENOUGH_ENERGY",
+      required: ECONOMY.COST_TRIVIA,
+      current: p.resources.energy.current,
+    });
+  }
+  p.resources.energy.current -= ECONOMY.COST_TRIVIA;
 
   const questions = pickQuestions(count, difficulty);
   p.trivia.session = {
@@ -573,9 +774,11 @@ app.post("/api/trivia/start", requireAuth, (req, res) => {
     streak: 0,
     startedAt: Date.now(),
   };
+  debouncedSaveDb();
 
   res.json({
     success: true,
+    resources: p.resources,
     stats: {
       totalScore: p.trivia.totalScore,
       bestStreak: p.trivia.bestStreak,
@@ -633,11 +836,19 @@ app.post("/api/trivia/answer", requireAuth, (req, res) => {
   s.index++;
 
   const isComplete = s.index >= s.questions.length;
+  let goldReward = 0;
   if (isComplete) {
     p.trivia.totalScore += s.score;
-    p.trivia.totalCorrect += s.answers.filter((a) => a.correct).length;
+    const correctCount = s.answers.filter((a) => a.correct).length;
+    p.trivia.totalCorrect += correctCount;
     p.trivia.totalPlayed++;
     p.trivia.bestStreak = Math.max(p.trivia.bestStreak, s.streak);
+    // Gold reward: win (>50% correct) or lose
+    const triviaWin = correctCount > s.questions.length / 2;
+    goldReward = triviaWin
+      ? ECONOMY.REWARD_TRIVIA_WIN
+      : ECONOMY.REWARD_TRIVIA_LOSE;
+    p.resources.gold += goldReward;
     p.trivia.session = null;
     debouncedSaveDb();
   }
@@ -659,6 +870,8 @@ app.post("/api/trivia/answer", requireAuth, (req, res) => {
     streak: s.streak,
     isComplete,
     nextQuestion,
+    resources: isComplete ? p.resources : undefined,
+    goldReward: isComplete ? goldReward : undefined,
     stats: isComplete
       ? {
           totalScore: p.trivia.totalScore,
@@ -701,6 +914,17 @@ app.post("/api/trivia/duel/create", requireAuth, (req, res) => {
   const { count = 5, difficulty } = req.body;
   if (!userId) return res.status(400).json({ error: "userId required" });
   const p = getPlayer(userId, username);
+  calcRegen(p);
+
+  // Energy check
+  if (p.resources.energy.current < ECONOMY.COST_TRIVIA) {
+    return res.status(400).json({
+      error: "NOT_ENOUGH_ENERGY",
+      required: ECONOMY.COST_TRIVIA,
+      current: p.resources.energy.current,
+    });
+  }
+  p.resources.energy.current -= ECONOMY.COST_TRIVIA;
 
   const roomId = generateCode();
   const inviteCode = roomId; // Same for simplicity in demo
@@ -724,9 +948,11 @@ app.post("/api/trivia/duel/create", requireAuth, (req, res) => {
     createdAt: Date.now(),
     status: "waiting", // waiting -> active -> finished
   });
+  debouncedSaveDb();
 
   res.json({
     success: true,
+    resources: p.resources,
     roomId,
     inviteCode,
     questionCount: questions.length,
@@ -1074,12 +1300,28 @@ app.post("/api/game/start", requireAuth, (req, res) => {
   const { userId, username } = resolveUser(req);
   if (!userId) return res.status(400).json({ error: "userId required" });
   const p = getPlayer(userId, username);
+  calcRegen(p);
+
+  // Energy check
+  if (p.resources.energy.current < ECONOMY.COST_MATCH3) {
+    return res.status(400).json({
+      error: "NOT_ENOUGH_ENERGY",
+      required: ECONOMY.COST_MATCH3,
+      current: p.resources.energy.current,
+    });
+  }
+  p.resources.energy.current -= ECONOMY.COST_MATCH3;
 
   const game = { board: generateBoard(), score: 0, movesLeft: 30, combo: 0 };
   p.match3.currentGame = game;
   p.match3.totalGames++;
   debouncedSaveDb();
-  res.json({ success: true, game, highScore: p.match3.highScore });
+  res.json({
+    success: true,
+    resources: p.resources,
+    game,
+    highScore: p.match3.highScore,
+  });
 });
 
 app.post("/api/game/move", requireAuth, (req, res) => {
@@ -1144,11 +1386,17 @@ app.post("/api/game/move", requireAuth, (req, res) => {
   res.json({ valid: true, game, points: totalPoints, combo });
 });
 
-/* ─── Game End (dedicated endpoint for highScore save) ─── */
+/* ─── Game End (dedicated endpoint for highScore save + gold reward) ─── */
 app.post("/api/game/end", requireAuth, (req, res) => {
   const { userId } = resolveUser(req);
   const { score } = req.body;
   const p = getPlayer(userId);
+  // Gold reward based on score
+  const goldReward =
+    typeof score === "number" && score > 0
+      ? ECONOMY.REWARD_MATCH3_WIN
+      : ECONOMY.REWARD_MATCH3_LOSE;
+  p.resources.gold += goldReward;
   if (typeof score === "number" && score > 0) {
     p.match3.highScore = Math.max(p.match3.highScore, score);
   }
@@ -1163,6 +1411,8 @@ app.post("/api/game/end", requireAuth, (req, res) => {
 
   res.json({
     success: true,
+    resources: p.resources,
+    goldReward,
     highScore: p.match3.highScore,
     rank: rank || allScores.length + 1,
   });

@@ -1,0 +1,202 @@
+/* ═══════════════════════════════════════════════════
+ *  TopHUD — Energy & Gold Display
+ *  Always visible, fixed top bar
+ * ═══════════════════════════════════════════════════ */
+
+.top-hud {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: 0.5rem 1rem;
+  background: rgba(15, 15, 25, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-family: "Inter", "Segoe UI", sans-serif;
+  user-select: none;
+  transition: transform 0.3s ease;
+}
+
+.top-hud.hud-hidden {
+  transform: translateY(-100%);
+}
+
+/* ─── Energy ─── */
+.hud-energy {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.8rem;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 200, 50, 0.15),
+    rgba(255, 150, 0, 0.08)
+  );
+  border: 1px solid rgba(255, 200, 50, 0.25);
+  border-radius: 20px;
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+
+.hud-energy:hover {
+  border-color: rgba(255, 200, 50, 0.5);
+  box-shadow: 0 0 12px rgba(255, 200, 50, 0.15);
+}
+
+.hud-energy .hud-icon {
+  font-size: 1.1rem;
+  filter: drop-shadow(0 0 4px rgba(255, 200, 50, 0.5));
+}
+
+#hud-energy-text {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #ffd75e;
+  letter-spacing: 0.3px;
+  min-width: 3rem;
+  text-align: center;
+}
+
+.hud-energy-bar {
+  position: absolute;
+  bottom: -3px;
+  left: 10%;
+  width: 80%;
+  height: 3px;
+  background: rgba(255, 200, 50, 0.15);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.hud-energy-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff9500, #ffd75e);
+  border-radius: 2px;
+  transition: width 0.5s ease;
+}
+
+/* ─── Tooltip ─── */
+.hud-energy-tooltip {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.5rem 0.8rem;
+  background: rgba(15, 15, 25, 0.95);
+  border: 1px solid rgba(255, 200, 50, 0.3);
+  border-radius: 8px;
+  font-size: 0.75rem;
+  color: #ccc;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 55;
+}
+
+.hud-energy-tooltip::before {
+  content: "";
+  position: absolute;
+  top: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 5px solid rgba(255, 200, 50, 0.3);
+}
+
+.hud-energy:hover .hud-energy-tooltip {
+  display: block;
+}
+
+/* ─── Gold ─── */
+.hud-gold {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.8rem;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 215, 0, 0.12),
+    rgba(218, 165, 32, 0.06)
+  );
+  border: 1px solid rgba(255, 215, 0, 0.2);
+  border-radius: 20px;
+  transition: border-color 0.2s;
+}
+
+.hud-gold .hud-icon {
+  font-size: 1.1rem;
+  filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.4));
+}
+
+#hud-gold-text {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #f0d060;
+  letter-spacing: 0.3px;
+  min-width: 2rem;
+}
+
+/* ─── Low Energy Warning ─── */
+.hud-energy.hud-energy-low {
+  animation: energyPulse 2s ease-in-out infinite;
+  border-color: rgba(255, 80, 80, 0.4);
+}
+
+@keyframes energyPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 4px rgba(255, 80, 80, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 12px rgba(255, 80, 80, 0.3);
+  }
+}
+
+/* ─── Gold Change Animation ─── */
+.hud-gold-change {
+  position: absolute;
+  top: -1.5rem;
+  right: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #4cff4c;
+  animation: goldFloat 1.5s ease forwards;
+  pointer-events: none;
+}
+
+.hud-gold-change.negative {
+  color: #ff6060;
+}
+
+@keyframes goldFloat {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+}
+
+/* ─── Responsive ─── */
+@media (max-height: 500px) {
+  .top-hud {
+    padding: 0.25rem 0.8rem;
+  }
+  .hud-energy,
+  .hud-gold {
+    padding: 0.2rem 0.6rem;
+    font-size: 0.8rem;
+  }
+}

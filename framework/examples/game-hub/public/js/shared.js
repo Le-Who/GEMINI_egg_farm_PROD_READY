@@ -421,6 +421,10 @@ window.addEventListener("DOMContentLoaded", async () => {
   // Initialize Discord auth (or fallback to demo)
   await initDiscord();
 
+  // Initialize TopHUD (Energy & Gold) + Pet Companion
+  if (typeof HUD !== "undefined") await HUD.init();
+  if (typeof PetCompanion !== "undefined") PetCompanion.init();
+
   applyScreenPosition();
   updateNavUI();
 

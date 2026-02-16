@@ -1,0 +1,273 @@
+/* ═══════════════════════════════════════════════════
+ *  Pet Companion Overlay
+ *  CSS-powered animations for the Living Pet Entity
+ * ═══════════════════════════════════════════════════ */
+
+.pet-overlay {
+  position: fixed;
+  bottom: 60px; /* above nav */
+  left: 0;
+  right: 0;
+  height: 80px;
+  z-index: 45;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.pet-container {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: auto;
+  cursor: pointer;
+  transition: left 3s cubic-bezier(0.25, 0.1, 0.25, 1);
+  will-change: left;
+}
+
+.pet-sprite {
+  font-size: 2rem;
+  line-height: 1;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
+  transition: transform 0.3s ease;
+}
+
+/* ─── State Animations ─── */
+.pet-container[data-state="idle"] .pet-sprite {
+  animation: petBob 2s ease-in-out infinite;
+}
+
+.pet-container[data-state="roam"] .pet-sprite {
+  animation: petWalk 0.5s steps(2) infinite;
+}
+
+.pet-container[data-state="sleep"] .pet-sprite {
+  animation: petSleep 3s ease-in-out infinite;
+  opacity: 0.7;
+}
+
+.pet-container[data-state="happy"] .pet-sprite {
+  animation: petHappy 0.4s ease 3;
+}
+
+.pet-container[data-state="dizzy"] .pet-sprite {
+  animation: petDizzy 0.3s ease-in-out infinite;
+}
+
+@keyframes petBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes petWalk {
+  0% { transform: translateY(0) scaleX(var(--pet-dir, 1)); }
+  50% { transform: translateY(-3px) scaleX(var(--pet-dir, 1)); }
+}
+
+@keyframes petSleep {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-2px) rotate(-5deg); }
+  75% { transform: translateY(-2px) rotate(5deg); }
+}
+
+@keyframes petHappy {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-12px) scale(1.2); }
+}
+
+@keyframes petDizzy {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-15deg); }
+  75% { transform: rotate(15deg); }
+}
+
+/* ─── Floating Hearts ─── */
+.pet-hearts {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.pet-heart {
+  position: absolute;
+  font-size: 1rem;
+  animation: heartFloat 1.2s ease forwards;
+  pointer-events: none;
+}
+
+@keyframes heartFloat {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(0.5);
+  }
+  40% {
+    opacity: 1;
+    transform: translate(calc(-50% + var(--hx, 0px)), -30px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--hx, 0px)), -50px) scale(0.8);
+  }
+}
+
+/* ─── Sleep ZZZ ─── */
+.pet-zzz {
+  position: absolute;
+  top: -1.5rem;
+  right: -0.8rem;
+  font-size: 0.7rem;
+  color: rgba(150, 180, 255, 0.8);
+  animation: zzzFloat 2s ease-in-out infinite;
+}
+
+@keyframes zzzFloat {
+  0%, 100% { opacity: 0.4; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(-8px); }
+}
+
+/* ─── Pet Info Panel ─── */
+.pet-info-panel {
+  position: fixed;
+  bottom: 150px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 260px;
+  z-index: 46;
+  background: rgba(15, 15, 25, 0.92);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  padding: 1rem;
+  color: #e0e0e0;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  font-size: 0.85rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  animation: panelSlideIn 0.3s ease;
+}
+
+@keyframes panelSlideIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.pet-info-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.8rem;
+}
+
+.pet-info-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.pet-info-level {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #8b7dff;
+  background: rgba(139, 125, 255, 0.15);
+  padding: 0.2rem 0.5rem;
+  border-radius: 10px;
+}
+
+.pet-info-xp-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 0.8rem;
+}
+
+.pet-info-xp-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #8b7dff, #b8a9ff);
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+
+.pet-info-xp-text {
+  font-size: 0.7rem;
+  color: #999;
+  text-align: center;
+  margin-top: -0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.pet-info-abilities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.pet-ability {
+  font-size: 0.7rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #aaa;
+}
+
+.pet-ability.unlocked {
+  color: #4cff4c;
+  border-color: rgba(76, 255, 76, 0.3);
+  background: rgba(76, 255, 76, 0.08);
+}
+
+.pet-feed-section {
+  margin-top: 0.8rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.pet-feed-btn {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid rgba(255, 200, 50, 0.3);
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(255, 200, 50, 0.15), rgba(255, 150, 0, 0.08));
+  color: #ffd75e;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pet-feed-btn:hover:not(:disabled) {
+  border-color: rgba(255, 200, 50, 0.5);
+  box-shadow: 0 0 12px rgba(255, 200, 50, 0.15);
+}
+
+.pet-feed-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pet-info-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: #999;
+  border-radius: 50%;
+  font-size: 0.8rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.pet-info-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
