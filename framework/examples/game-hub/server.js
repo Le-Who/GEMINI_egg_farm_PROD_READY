@@ -191,6 +191,7 @@ function getPlayer(userId, username) {
     p = {
       id: userId,
       username: username || "Player",
+      schemaVersion: 2,
       // Global resources (shared across all games)
       resources: {
         gold: ECONOMY.GOLD_START,
@@ -212,7 +213,7 @@ function getPlayer(userId, username) {
       },
       // Farm state
       farm: {
-        coins: 0, // Legacy — migrated to resources.gold
+        coins: 0,
         xp: 0,
         level: 1,
         plots: Array.from({ length: 6 }, (_, i) => ({
@@ -222,7 +223,7 @@ function getPlayer(userId, username) {
           watered: false,
         })),
         inventory: { strawberry: 5, planter: 2 },
-        harvested: {}, // Crop items for pet feeding
+        harvested: {},
       },
       // Trivia stats (persistent across sessions)
       trivia: {
@@ -241,29 +242,37 @@ function getPlayer(userId, username) {
     };
     players.set(userId, p);
   }
-  // Migration: move legacy farm.coins to resources.gold
-  if (!p.resources) {
+  // ─── Schema Migration ───
+  if (!p.schemaVersion || p.schemaVersion < 2) {
+    // Reset economy to fair defaults
     p.resources = {
-      gold: (p.farm?.coins || 0) + ECONOMY.GOLD_START,
+      gold: ECONOMY.GOLD_START,
       energy: {
         current: ECONOMY.ENERGY_START,
         max: ECONOMY.ENERGY_MAX,
         lastRegenTimestamp: Date.now(),
       },
     };
+    p.farm.coins = 0;
+    // Add missing fields
+    if (!p.pet) {
+      p.pet = {
+        name: "Buddy",
+        level: 1,
+        xp: 0,
+        xpToNextLevel: 100,
+        skinId: "basic_dog",
+        stats: { happiness: 100 },
+        abilities: { autoHarvest: false, autoWater: false },
+      };
+    }
+    if (!p.farm.harvested) p.farm.harvested = {};
+    // Clear stale game sessions
+    if (p.trivia) p.trivia.session = null;
+    if (p.match3) p.match3.currentGame = null;
+    p.schemaVersion = 2;
+    debouncedSaveDb();
   }
-  if (!p.pet) {
-    p.pet = {
-      name: "Buddy",
-      level: 1,
-      xp: 0,
-      xpToNextLevel: 100,
-      skinId: "basic_dog",
-      stats: { happiness: 100 },
-      abilities: { autoHarvest: false, autoWater: false },
-    };
-  }
-  if (!p.farm.harvested) p.farm.harvested = {};
   if (username) p.username = username;
   return p;
 }

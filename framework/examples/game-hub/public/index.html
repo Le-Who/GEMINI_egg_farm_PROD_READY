@@ -331,12 +331,14 @@
               </div>
             </div>
 
-            <!-- Leaderboard Panel (right side on wide screens) -->
-            <div
-              class="card m3-lb-panel"
-              id="m3-lb-panel"
-              style="display: none"
-            >
+            <!-- Leaderboard Backdrop (narrow screens) -->
+            <div class="m3-lb-backdrop" id="m3-lb-backdrop"></div>
+
+            <!-- Leaderboard Panel (slide-in on narrow, side-by-side on wide) -->
+            <div class="m3-lb-panel" id="m3-lb-panel">
+              <button class="m3-lb-close" id="m3-lb-close" title="Close">
+                ✕
+              </button>
               <div class="m3-lb-tabs">
                 <button class="m3-lb-tab active" id="btn-lb-tab-all">
                   🌍 All Players

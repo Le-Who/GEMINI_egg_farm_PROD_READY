@@ -153,6 +153,9 @@ const Match3Game = (() => {
     }
     $("m3-btn-start").onclick = startGame;
     $("m3-btn-lb").onclick = toggleLeaderboard;
+    // Leaderboard close handlers
+    $("m3-lb-close").onclick = closeLeaderboard;
+    $("m3-lb-backdrop").onclick = closeLeaderboard;
     fetchLeaderboard();
     updateStartButton();
 
@@ -518,9 +521,18 @@ const Match3Game = (() => {
   /* ═══ Leaderboard ═══ */
   let lbVisible = false;
   function toggleLeaderboard() {
-    lbVisible = !lbVisible;
-    $("m3-lb-panel").style.display = lbVisible ? "" : "none";
-    if (lbVisible) fetchLeaderboard();
+    lbVisible ? closeLeaderboard() : openLeaderboard();
+  }
+  function openLeaderboard() {
+    lbVisible = true;
+    $("m3-lb-panel").classList.add("open");
+    $("m3-lb-backdrop").classList.add("show");
+    fetchLeaderboard();
+  }
+  function closeLeaderboard() {
+    lbVisible = false;
+    $("m3-lb-panel").classList.remove("open");
+    $("m3-lb-backdrop").classList.remove("show");
   }
 
   async function fetchLeaderboard(scope) {

@@ -330,26 +330,31 @@
 }
 
 /* ─── Responsive — Small Viewports ─── */
-@media (max-height: 600px) {
+@media (max-height: 650px) {
   .farm-plot {
-    min-height: 80px;
-    padding: 10px;
+    min-height: 72px;
+    padding: 8px;
+    gap: 4px;
   }
   .farm-plot .crop-emoji {
-    font-size: 1.5rem;
+    font-size: 1.4rem;
   }
   .farm-shop {
-    margin-top: 10px;
+    margin-top: 8px;
   }
   .farm-shop-title {
     font-size: 0.8rem;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
   }
   .farm-seed-card {
     padding: 6px;
   }
   .farm-seed-card .seed-emoji {
     font-size: 1.1rem;
+  }
+  .farm-buy-bar {
+    padding: 6px 10px;
+    margin-bottom: 6px;
   }
 }
 @media (max-width: 420px) {
