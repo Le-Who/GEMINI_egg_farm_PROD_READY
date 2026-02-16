@@ -1,6 +1,7 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Match-3 Module (Refactored)
+ *  Game Hub — Match-3 Module (v1.5)
  *  Client-side engine, CSS transitions, state restore
+ *  ─ GameStore integration (match3 slice)
  * ═══════════════════════════════════════════════════ */
 
 const Match3Game = (() => {
@@ -25,6 +26,20 @@ const Match3Game = (() => {
   let gameActive = false;
 
   const $ = (id) => document.getElementById(id);
+
+  /** Sync match3 state to GameStore */
+  function syncToStore() {
+    if (typeof GameStore !== "undefined") {
+      GameStore.setState("match3", {
+        board,
+        score,
+        movesLeft,
+        combo,
+        highScore,
+        gameActive,
+      });
+    }
+  }
 
   /* ═══ Client-Side Match-3 Engine ═══ */
   function randomGem() {
@@ -125,12 +140,24 @@ const Match3Game = (() => {
 
   /* ═══ Init & Restore ═══ */
   async function init() {
+    // Register match3 slice
+    if (typeof GameStore !== "undefined") {
+      GameStore.registerSlice("match3", {
+        board,
+        score,
+        movesLeft,
+        combo,
+        highScore,
+        gameActive,
+      });
+    }
     $("m3-btn-start").onclick = startGame;
     $("m3-btn-lb").onclick = toggleLeaderboard;
     fetchLeaderboard();
 
     // Try to restore an existing game from the server
     await restoreGame();
+    syncToStore();
   }
 
   function onEnter() {
@@ -197,6 +224,7 @@ const Match3Game = (() => {
 
     updateStatsUI();
     renderBoard(true);
+    syncToStore();
   }
 
   /* ═══ Render Board (persistent DOM elements) ═══ */
@@ -288,6 +316,7 @@ const Match3Game = (() => {
 
     // 5. Update UI
     updateStatsUI();
+    syncToStore();
 
     if (combo > 1) showComboBanner(combo);
     if (result.totalPoints > 0)
@@ -315,6 +344,7 @@ const Match3Game = (() => {
       }
       setTimeout(() => showGameOver(score), 500);
       fetchLeaderboard();
+      syncToStore();
     } else {
       // Send move to server in background (fire-and-forget for validation)
       api("/api/game/move", {

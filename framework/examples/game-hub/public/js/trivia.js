@@ -1,7 +1,8 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Trivia Module  (v1.4)
+ *  Game Hub — Trivia Module  (v1.5)
  *  Solo mode, Duel mode, timer, results
  *  ─ Forfeit, cancel, lobby ready-up, voice invite
+ *  ─ GameStore integration (trivia slice)
  * ═══════════════════════════════════════════════════ */
 
 const TriviaGame = (() => {
@@ -13,7 +14,23 @@ const TriviaGame = (() => {
   const $ = (id) => document.getElementById(id);
   const DUEL_TIMEOUT_SEC = 60; // auto-cancel after 60s
 
+  /** Sync trivia state to GameStore */
+  function syncToStore() {
+    if (typeof GameStore !== "undefined") {
+      GameStore.setState("trivia", { session, duel, view, duelHistoryPage });
+    }
+  }
+
   function init() {
+    // Register trivia slice
+    if (typeof GameStore !== "undefined") {
+      GameStore.registerSlice("trivia", {
+        session,
+        duel,
+        view,
+        duelHistoryPage,
+      });
+    }
     showMenu();
     // Collapsed bar click -> return to menu
     const bar = $("trivia-duel-history-bar");
@@ -160,6 +177,7 @@ const TriviaGame = (() => {
     });
     if (!data.success) return;
     session = { mode: "solo", score: 0, streak: 0 };
+    syncToStore();
     showView("solo");
     renderQuestion(data.question);
   }
@@ -296,6 +314,7 @@ const TriviaGame = (() => {
     clearDuelPolling();
     if (duel?.lobbyTimeoutId) clearInterval(duel.lobbyTimeoutId);
     duel = null;
+    syncToStore();
     showMenu();
   }
 
@@ -517,6 +536,7 @@ const TriviaGame = (() => {
 
     session.score = data.sessionScore;
     session.streak = data.streak;
+    syncToStore();
 
     await sleep(1200);
 

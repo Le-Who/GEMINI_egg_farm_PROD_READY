@@ -1,17 +1,33 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Farm Module  (v1.4)
+ *  Game Hub — Farm Module  (v1.5)
  *  Plots, planting, watering, harvesting, seed shop
  *  ─ Local growth timer, diff-update fix, farm badge
  *  ─ Diff-update plots (no blink), horizontal buy bar, plot dispatcher
+ *  ─ GameStore integration (slice isolation, optimistic updates)
  * ═══════════════════════════════════════════════════ */
 
 const FarmGame = (() => {
+  // state is synced with GameStore 'farm' slice
   let state = null;
   let crops = {};
   let selectedSeed = null;
   let firstRenderDone = false;
   let buyQty = 1;
   let justPlantedPlot = -1; // Track freshly-planted plot for animation
+
+  /** Push local state to GameStore (farm slice) */
+  function syncToStore() {
+    if (state && typeof GameStore !== "undefined") {
+      GameStore.setState("farm", { ...state });
+    }
+  }
+  /** Pull state from GameStore → local */
+  function syncFromStore() {
+    if (typeof GameStore !== "undefined") {
+      const storeState = GameStore.getState("farm");
+      if (storeState) state = storeState;
+    }
+  }
 
   const $ = (id) => document.getElementById(id);
 
@@ -55,6 +71,11 @@ const FarmGame = (() => {
   async function init() {
     showSkeleton();
 
+    // Register farm slice in the store
+    if (typeof GameStore !== "undefined") {
+      GameStore.registerSlice("farm", null);
+    }
+
     const cropsPromise = window.__cropsPromise || api("/api/content/crops");
     const statePromise = api("/api/farm/state", {
       userId: HUB.userId,
@@ -75,6 +96,7 @@ const FarmGame = (() => {
 
     if (stateData && !stateData.error) {
       state = stateData;
+      syncToStore();
       render();
       renderShop();
       updateBuyBar();
@@ -88,6 +110,7 @@ const FarmGame = (() => {
     });
     if (data && !data.error) {
       state = data;
+      syncToStore();
       render();
     }
   }
@@ -297,6 +320,14 @@ const FarmGame = (() => {
       showToast("❌ Not enough coins!");
       return;
     }
+    // Optimistic update
+    const snapshot = { coins: state.coins, inventory: { ...state.inventory } };
+    state.coins -= totalCost;
+    state.inventory[cropId] = (state.inventory[cropId] || 0) + buyQty;
+    syncToStore();
+    render();
+    renderShop();
+
     const data = await api("/api/farm/buy-seeds", {
       userId: HUB.userId,
       cropId,
@@ -305,13 +336,20 @@ const FarmGame = (() => {
     if (data.success) {
       state.coins = data.coins;
       state.inventory = data.inventory;
+      syncToStore();
       render();
       renderShop();
       showToast(`Bought ${buyQty}× ${cfg.emoji} ${cfg.name} seeds`);
       buyQty = 1;
-      if (selectedSeed) saveBuyQty(selectedSeed, 1); // Reset stored qty after purchase
+      if (selectedSeed) saveBuyQty(selectedSeed, 1);
       updateBuyBar();
     } else {
+      // Rollback
+      state.coins = snapshot.coins;
+      state.inventory = snapshot.inventory;
+      syncToStore();
+      render();
+      renderShop();
       showToast(`❌ ${data.error}`);
     }
   }
@@ -328,6 +366,25 @@ const FarmGame = (() => {
       if (shopEl) shopEl.scrollIntoView({ behavior: "smooth" });
       return;
     }
+    // Optimistic update
+    const snapshot = {
+      plots: [...state.plots.map((p) => ({ ...p }))],
+      inventory: { ...state.inventory },
+    };
+    state.plots[plotId] = {
+      ...state.plots[plotId],
+      crop: selectedSeed,
+      plantedAt: Date.now(),
+      watered: false,
+      growthTime: crops[selectedSeed]?.growthTime || 15000,
+    };
+    state.inventory[selectedSeed] = Math.max(0, seedCount - 1);
+    justPlantedPlot = plotId;
+    syncToStore();
+    render();
+    renderShop();
+    updateBuyBar();
+
     const data = await api("/api/farm/plant", {
       userId: HUB.userId,
       plotId,
@@ -337,11 +394,18 @@ const FarmGame = (() => {
       state.plots = data.plots;
       state.inventory = data.inventory;
       state.coins = data.coins;
-      justPlantedPlot = plotId; // Trigger fill→rollback animation
+      syncToStore();
       render();
       renderShop();
       updateBuyBar();
     } else {
+      // Rollback
+      state.plots = snapshot.plots;
+      state.inventory = snapshot.inventory;
+      syncToStore();
+      render();
+      renderShop();
+      updateBuyBar();
       const msg =
         data.error === "no seeds"
           ? "🌾 No seeds left! Buy more in the shop ↓"
@@ -353,28 +417,48 @@ const FarmGame = (() => {
   }
 
   async function water(plotId) {
+    // Optimistic update
+    const plotSnapshot = { ...state.plots[plotId] };
+    state.plots[plotId] = { ...plotSnapshot, watered: true };
+    syncToStore();
+    render();
+
     const data = await api("/api/farm/water", { userId: HUB.userId, plotId });
     if (data.success) {
       state.plots = data.plots;
+      syncToStore();
       render();
-      // Splash animation on the water button
-      const btn = document.querySelectorAll(".farm-water-btn")[plotId];
-      if (btn) btn.classList.add("water-splash");
-      // Calculate watering bonus percentage for toast
       const plot = state.plots[plotId];
       const mult = plot?.wateringMultiplier;
       const bonusPct = mult ? Math.round((1 - mult) * 100) : 30;
       showToast(`💧 Watered! Growth +${bonusPct}% faster`);
+    } else {
+      // Rollback
+      state.plots[plotId] = plotSnapshot;
+      syncToStore();
+      render();
     }
   }
 
   async function harvest(plotId) {
+    // Optimistic: clear the plot immediately
+    const plotSnapshot = { ...state.plots[plotId] };
+    const stateSnapshot = {
+      coins: state.coins,
+      xp: state.xp,
+      level: state.level,
+    };
+    state.plots[plotId] = { crop: null, plantedAt: null, watered: false };
+    syncToStore();
+    render();
+
     const data = await api("/api/farm/harvest", { userId: HUB.userId, plotId });
     if (data.success) {
       state.plots = data.plots;
       state.coins = data.coins;
       state.xp = data.xp;
       state.level = data.level;
+      syncToStore();
       render();
       renderShop();
       updateBuyBar();
@@ -382,6 +466,14 @@ const FarmGame = (() => {
         `${data.reward.crop} +${data.reward.coins}🪙 +${data.reward.xp}XP`,
       );
       if (data.leveledUp) showToast(`🎉 Level Up! Lv${data.level}`);
+    } else {
+      // Rollback
+      state.plots[plotId] = plotSnapshot;
+      state.coins = stateSnapshot.coins;
+      state.xp = stateSnapshot.xp;
+      state.level = stateSnapshot.level;
+      syncToStore();
+      render();
     }
   }
 

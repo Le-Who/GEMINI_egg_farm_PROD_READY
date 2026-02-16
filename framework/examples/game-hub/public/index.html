@@ -8,21 +8,17 @@
       name="description"
       content="Unified Game Hub: Farm, Trivia (Solo & Duel), Match-3 with Leaderboard — Discord Activities Framework Demo"
     />
-    <link rel="stylesheet" href="css/base.css?v=1.3" />
-    <link rel="stylesheet" href="css/farm.css?v=1.3" />
-    <link rel="stylesheet" href="css/trivia.css?v=1.3" />
-    <link rel="stylesheet" href="css/match3.css?v=1.3" />
+    <link rel="stylesheet" href="css/base.css?v=1.5" />
+    <link rel="stylesheet" href="css/farm.css?v=1.5" />
+    <link rel="stylesheet" href="css/trivia.css?v=1.5" />
+    <link rel="stylesheet" href="css/match3.css?v=1.5" />
   </head>
   <body>
-    <!-- ═══ Nav Arrows ═══ -->
-    <button class="nav-arrow nav-left" id="nav-left">‹</button>
-    <button class="nav-arrow nav-right" id="nav-right">›</button>
-
-    <!-- ═══ Nav Dots ═══ -->
+    <!-- ═══ Nav Dots (mobile: top center) ═══ -->
     <div class="nav-dots">
-      <button class="nav-dot" id="nav-dot-trivia" title="Trivia">🧠</button>
-      <button class="nav-dot active" id="nav-dot-farm" title="Farm">🌱</button>
-      <button class="nav-dot" id="nav-dot-match3" title="Match-3">💎</button>
+      <button class="nav-dot" id="nav-dot-trivia" title="Trivia"></button>
+      <button class="nav-dot active" id="nav-dot-farm" title="Farm"></button>
+      <button class="nav-dot" id="nav-dot-match3" title="Match-3"></button>
     </div>
     <!-- Farm ready badge (Issue 7) -->
     <span class="farm-ready-badge" id="farm-ready-badge"></span>
@@ -379,6 +375,10 @@
     </div>
     <!-- /viewport -->
 
+    <!-- ═══ Nav Arrows (desktop: glassmorphic edge strips, after viewport for CSS ~) ═══ -->
+    <button class="nav-arrow nav-left" id="nav-left">‹</button>
+    <button class="nav-arrow nav-right" id="nav-right">›</button>
+
     <!-- ═══ Version Badge ═══ -->
     <div
       id="version-badge"
@@ -393,14 +393,12 @@
         font-family: monospace;
       "
     >
-      v1.4
+      v1.5
     </div>
 
-    <!-- ═══ Scripts (order matters: discord-sdk.js is served dynamically with config) ═══ -->
+    <!-- ═══ Scripts (shared.js loads game scripts dynamically via SmartLoader) ═══ -->
     <script src="js/discord-sdk.js"></script>
-    <script src="js/shared.js?v=1.3"></script>
-    <script src="js/farm.js?v=1.3"></script>
-    <script src="js/trivia.js?v=1.3"></script>
-    <script src="js/match3.js?v=1.3"></script>
+    <script src="js/store.js?v=1.5"></script>
+    <script src="js/shared.js?v=1.5"></script>
   </body>
 </html>

@@ -12,6 +12,7 @@ const HUB = {
   currentScreen: 1, // 0=Trivia, 1=Farm, 2=Match3
   screenNames: ["trivia", "farm", "match3"],
   initialized: { trivia: false, farm: false, match3: false },
+  isTouchDevice: false,
 };
 
 /* ─── Discord SDK Init ─── */
@@ -165,8 +166,12 @@ function updateNavUI() {
   });
 }
 
-function triggerScreenCallbacks() {
+async function triggerScreenCallbacks() {
   const name = HUB.screenNames[HUB.currentScreen];
+  // Ensure the game script is loaded
+  await SmartLoader.loadScreen(HUB.currentScreen);
+  // Prefetch neighbors in background
+  SmartLoader.prefetchNeighbors(HUB.currentScreen);
   // Lazy init
   if (!HUB.initialized[name]) {
     HUB.initialized[name] = true;
@@ -197,6 +202,40 @@ function showToast(msg) {
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
+
+/* ─── SmartLoader (Predictive Proximity Loading) ─── */
+const SmartLoader = {
+  loaded: { farm: false, trivia: false, match3: false },
+  loading: { farm: null, trivia: null, match3: null },
+
+  loadScript(name) {
+    if (this.loaded[name]) return Promise.resolve();
+    if (this.loading[name]) return this.loading[name];
+    this.loading[name] = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = `js/${name}.js?v=1.5`;
+      script.onload = () => {
+        this.loaded[name] = true;
+        resolve();
+      };
+      script.onerror = () => reject(new Error(`Failed to load ${name}.js`));
+      document.body.appendChild(script);
+    });
+    return this.loading[name];
+  },
+
+  async loadScreen(index) {
+    const name = HUB.screenNames[index];
+    if (name) await this.loadScript(name);
+  },
+
+  prefetchNeighbors(index) {
+    setTimeout(() => {
+      if (index > 0) this.loadScript(HUB.screenNames[index - 1]);
+      if (index < 2) this.loadScript(HUB.screenNames[index + 1]);
+    }, 2000);
+  },
+};
 
 /* ─── Bind Navigation Buttons (CSP-safe, no inline handlers) ─── */
 function bindNavigation() {
@@ -273,20 +312,129 @@ function bindNavigation() {
     ?.addEventListener("click", () => Match3Game.setLbTab("room"));
 }
 
+/* ─── Device Detection ─── */
+function detectDevice() {
+  HUB.isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+  document.body.classList.add(
+    HUB.isTouchDevice ? "touch-device" : "pointer-device",
+  );
+}
+
+/* ─── Keyboard Navigation ─── */
+function bindKeyboardNav() {
+  document.addEventListener("keydown", (e) => {
+    // Don't hijack keyboard when user is typing in an input/textarea
+    if (
+      e.target.tagName === "INPUT" ||
+      e.target.tagName === "TEXTAREA" ||
+      e.target.isContentEditable
+    )
+      return;
+    if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      navigate(-1);
+    } else if (e.key === "ArrowRight") {
+      e.preventDefault();
+      navigate(1);
+    }
+  });
+}
+
+/* ─── Touch Swipe Gestures ─── */
+function bindTouchSwipe() {
+  const viewport = document.querySelector(".viewport");
+  if (!viewport) return;
+
+  let startX = 0;
+  let startY = 0;
+  let swiping = false;
+
+  viewport.addEventListener(
+    "touchstart",
+    (e) => {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      swiping = true;
+    },
+    { passive: true },
+  );
+
+  viewport.addEventListener(
+    "touchend",
+    (e) => {
+      if (!swiping) return;
+      swiping = false;
+      const endX = e.changedTouches[0].clientX;
+      const endY = e.changedTouches[0].clientY;
+      const dx = endX - startX;
+      const dy = endY - startY;
+      const THRESHOLD = 50;
+
+      // Only trigger if horizontal swipe is dominant
+      if (Math.abs(dx) > THRESHOLD && Math.abs(dx) > Math.abs(dy) * 1.2) {
+        if (dx < 0)
+          navigate(1); // swipe left → next
+        else navigate(-1); // swipe right → prev
+      }
+    },
+    { passive: true },
+  );
+}
+
+/* ─── Bounce Hint (first visit) ─── */
+function triggerSwipeHint() {
+  const HINT_KEY = "hub_swipe_hint_shown";
+  if (localStorage.getItem(HINT_KEY)) return;
+  localStorage.setItem(HINT_KEY, "1");
+
+  const track = document.getElementById("track");
+  if (!track) return;
+
+  // Small delay so user sees the initial state first
+  setTimeout(() => {
+    track.classList.add("hint-bounce");
+    track.addEventListener(
+      "animationend",
+      () => {
+        track.classList.remove("hint-bounce");
+        applyScreenPosition(); // Restore correct position
+      },
+      { once: true },
+    );
+  }, 800);
+}
+
 /* ─── Init on load ─── */
 window.addEventListener("DOMContentLoaded", async () => {
+  // Device detection (must be first for CSS classes)
+  detectDevice();
+
   // Bind all navigation buttons (CSP-safe)
   bindNavigation();
+
+  // Keyboard arrow keys
+  bindKeyboardNav();
+
+  // Touch swipe on mobile
+  bindTouchSwipe();
 
   // Initialize Discord auth (or fallback to demo)
   await initDiscord();
 
   applyScreenPosition();
   updateNavUI();
-  // Auto-init the default screen (Farm)
+
+  // Load ONLY the active screen (Farm), then init
+  await SmartLoader.loadScreen(HUB.currentScreen);
   HUB.initialized.farm = true;
   if (typeof FarmGame !== "undefined") FarmGame.init();
   if (typeof FarmGame !== "undefined") FarmGame.onEnter();
+
+  // Prefetch neighbor screens after 2s idle
+  SmartLoader.prefetchNeighbors(HUB.currentScreen);
+
+  // Bounce hint for first-time visitors
+  triggerSwipeHint();
 
   // Cell size for match-3 based on viewport (responsive)
   function updateM3CellSize() {
