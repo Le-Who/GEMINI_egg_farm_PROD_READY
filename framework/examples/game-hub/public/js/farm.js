@@ -25,11 +25,19 @@ const FarmGame = (() => {
       GameStore.setState("farm", { ...state });
     }
   }
-  /** Pull state from GameStore → local */
+  /** Pull state from GameStore → local (deep clone to prevent shared refs) */
   function syncFromStore() {
     if (typeof GameStore !== "undefined") {
       const storeState = GameStore.getState("farm");
-      if (storeState) state = storeState;
+      if (storeState) {
+        state = {
+          ...storeState,
+          plots: storeState.plots
+            ? storeState.plots.map((p) => ({ ...p }))
+            : [],
+          harvested: storeState.harvested ? { ...storeState.harvested } : {},
+        };
+      }
     }
   }
 
@@ -95,7 +103,13 @@ const FarmGame = (() => {
       crops = cropsData;
       window.__cropsCache = cropsData; // Expose for energy modal
       try {
-        localStorage.setItem("hub_crops_cache", JSON.stringify(cropsData));
+        localStorage.setItem(
+          "hub_crops_cache",
+          JSON.stringify({
+            data: cropsData,
+            cachedAt: Date.now(),
+          }),
+        );
       } catch (_) {}
     }
 

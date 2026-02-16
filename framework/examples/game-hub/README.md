@@ -2,7 +2,7 @@
 
 > A combined Farm + Trivia + Match-3 game running as a single Discord Embedded App Activity with horizontal screen-swipe navigation.
 
-**v2.1** — Direction-Persistent Pet, Progressive Match-3 Gold (🪙 live display), Silent Auto-Water, Full Fire-and-Forget.
+**v2.2** — Stale-Cache Hardening: Smart Merge, Unified Harvested, Deep-Clone Farm State, CropsCache TTL.
 
 ## Quick Start
 
@@ -48,12 +48,16 @@ npm run dev
   - Returns a **Welcome Back** modal summarizing all offline activity.
 - **Persistence**: Pet stats (Level, XP, Happiness) saved to server.
 
-### 🏛 State Management (Refactored)
+### 🏛 State Management (v2.2)
 
 - **GameStore**: A robust, **Zustand-inspired** state manager pattern (`public/js/store.js`).
 - **Slices**: State divided into modular slices (`resources`, `farm`, `pet`, `match3`).
 - **Optimistic Updates**: UI updates instantly; server sync happens in background.
 - **Decoupled**: HUD and components subscribe to specific slices, reducing coupling.
+- **Smart Merge** (v2.2): `syncFromServer()` preserves local regen energy — no energy rollback.
+- **Deep-Clone Farm State** (v2.2): `syncFromStore()` deep-clones plots/harvested — no shared refs.
+- **Unified `__harvested`** (v2.2): All harvested crop reads from `resources.__harvested` slice.
+- **CropsCache TTL** (v2.2): `localStorage('hub_crops_cache')` wrapped with 24h TTL.
 
 ### 🌱 Farm (v1.8 → v2.0)
 

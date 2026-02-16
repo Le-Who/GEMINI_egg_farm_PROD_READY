@@ -22,10 +22,19 @@ async function initDiscord() {
   window.__cropsPromise = fetch("/api/content/crops")
     .then((r) => (r.ok ? r.json() : null))
     .catch(() => {
-      // Try localStorage cache as fallback
+      // Try localStorage cache as fallback (with TTL check)
       try {
-        const cached = localStorage.getItem("hub_crops_cache");
-        return cached ? JSON.parse(cached) : null;
+        const raw = localStorage.getItem("hub_crops_cache");
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        // Support TTL-wrapped format { data, cachedAt }
+        if (parsed && parsed.cachedAt) {
+          const TTL = 24 * 60 * 60 * 1000; // 24h
+          if (Date.now() - parsed.cachedAt > TTL) return null; // Expired
+          return parsed.data;
+        }
+        // Legacy format (plain object) — use but it won't have TTL protection
+        return parsed;
       } catch (_) {
         return null;
       }

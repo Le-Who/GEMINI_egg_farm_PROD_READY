@@ -152,10 +152,23 @@ const HUD = (function () {
     return 0;
   }
 
-  /* ─── Update from server response ─── */
+  /* ─── Update from server response (smart merge) ─── */
   function syncFromServer(resources) {
     if (!resources) return;
     if (typeof GameStore !== "undefined") {
+      const prev = GameStore.getState("resources");
+      // Smart merge: preserve local energy if regen tick advanced it
+      // beyond what the server snapshot shows (prevents energy rollback)
+      if (prev && prev.energy && resources.energy) {
+        const localE = prev.energy.current;
+        const serverE = resources.energy.current;
+        if (localE > serverE) {
+          resources = {
+            ...resources,
+            energy: { ...resources.energy, current: localE },
+          };
+        }
+      }
       GameStore.setState("resources", resources);
     }
     updateDisplay(resources);
@@ -192,11 +205,10 @@ const HUD = (function () {
     const descEl = document.getElementById("energy-modal-desc");
     if (!modal || !itemsEl) return;
 
-    // Get harvested crops
+    // Get harvested crops from resources slice (unified source)
     let harvested = {};
     if (typeof GameStore !== "undefined") {
-      const farm = GameStore.getState("farm");
-      if (farm && farm.harvested) harvested = farm.harvested;
+      harvested = GameStore.getState("resources")?.__harvested || {};
     }
 
     const res =
@@ -211,8 +223,16 @@ const HUD = (function () {
       window.__cropsCache ||
       (() => {
         try {
-          const cached = localStorage.getItem("hub_crops_cache");
-          return cached ? JSON.parse(cached) : null;
+          const raw = localStorage.getItem("hub_crops_cache");
+          if (!raw) return null;
+          const parsed = JSON.parse(raw);
+          // TTL-wrapped format { data, cachedAt }
+          if (parsed && parsed.cachedAt) {
+            const TTL = 24 * 60 * 60 * 1000;
+            if (Date.now() - parsed.cachedAt > TTL) return null;
+            return parsed.data;
+          }
+          return parsed; // Legacy format
         } catch (_) {
           return null;
         }
@@ -288,14 +308,15 @@ const HUD = (function () {
       syncFromServer(updated);
     }
 
-    // Optimistic: decrement harvested count
+    // Optimistic: decrement harvested count (unified resources slice)
     if (typeof GameStore !== "undefined") {
-      const farm = GameStore.getState("farm");
-      if (farm && farm.harvested && farm.harvested[cropId]) {
-        const updated = { ...farm, harvested: { ...farm.harvested } };
-        updated.harvested[cropId]--;
-        if (updated.harvested[cropId] <= 0) delete updated.harvested[cropId];
-        GameStore.setState("farm", updated);
+      const res = GameStore.getState("resources");
+      if (res && res.__harvested && res.__harvested[cropId]) {
+        const updated = { ...res, __harvested: { ...res.__harvested } };
+        updated.__harvested[cropId]--;
+        if (updated.__harvested[cropId] <= 0)
+          delete updated.__harvested[cropId];
+        GameStore.setState("resources", updated);
       }
     }
 
@@ -307,11 +328,6 @@ const HUD = (function () {
 
     if (data && data.success) {
       if (data.resources) syncFromServer(data.resources);
-      if (data.harvested && typeof GameStore !== "undefined") {
-        const farm = GameStore.getState("farm");
-        if (farm)
-          GameStore.setState("farm", { ...farm, harvested: data.harvested });
-      }
     }
 
     // Refresh modal items
@@ -325,8 +341,7 @@ const HUD = (function () {
 
     let harvested = {};
     if (typeof GameStore !== "undefined") {
-      const farm = GameStore.getState("farm");
-      if (farm && farm.harvested) harvested = farm.harvested;
+      harvested = GameStore.getState("resources")?.__harvested || {};
     }
 
     // Update quantities and disable empty ones
