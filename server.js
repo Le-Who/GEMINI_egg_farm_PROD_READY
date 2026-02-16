@@ -534,11 +534,31 @@ async function startServer(port = PORT) {
         .filter(Boolean);
       neighborCache = { data: profiles, timestamp: now };
     }
-    // Filter out self, shuffle, return 5
-    const neighbors = neighborCache.data
-      .filter((n) => n.id !== req.discordUser.id)
-      .sort(() => 0.5 - Math.random())
-      .slice(0, 5);
+    // Optimization: Pick random neighbors O(1) instead of shuffling O(N)
+    const allUsers = neighborCache.data;
+    let neighbors;
+
+    if (allUsers.length > 20) {
+      neighbors = [];
+      const seenIndices = new Set();
+      let attempts = 0;
+      while (neighbors.length < 5 && attempts < 50) {
+        attempts++;
+        const idx = Math.floor(Math.random() * allUsers.length);
+        if (seenIndices.has(idx)) continue;
+        seenIndices.add(idx);
+
+        const candidate = allUsers[idx];
+        if (candidate.id !== req.discordUser.id) {
+          neighbors.push(candidate);
+        }
+      }
+    } else {
+      neighbors = allUsers
+        .filter((n) => n.id !== req.discordUser.id)
+        .sort(() => 0.5 - Math.random())
+        .slice(0, 5);
+    }
     res.json(neighbors);
   });
 
