@@ -178,6 +178,189 @@ const HUD = (function () {
     }
   }
 
+  /* ─── Quick-Feed Energy Modal ─── */
+  let _energyModalPlayCb = null;
+  let _energyModalRequired = 0;
+
+  function showEnergyModal(requiredEnergy, onPlayCallback) {
+    _energyModalRequired = requiredEnergy;
+    _energyModalPlayCb = onPlayCallback;
+
+    const modal = document.getElementById("energy-modal");
+    const itemsEl = document.getElementById("energy-modal-items");
+    const playEl = document.getElementById("energy-modal-play");
+    const descEl = document.getElementById("energy-modal-desc");
+    if (!modal || !itemsEl) return;
+
+    // Get harvested crops
+    let harvested = {};
+    if (typeof GameStore !== "undefined") {
+      const farm = GameStore.getState("farm");
+      if (farm && farm.harvested) harvested = farm.harvested;
+    }
+
+    const res =
+      typeof GameStore !== "undefined" ? GameStore.getState("resources") : null;
+    const currentEnergy = res ? res.energy.current : 0;
+    const needed = requiredEnergy - currentEnergy;
+
+    descEl.textContent = `Need ${needed} more ⚡ — Feed your pet to restore energy!`;
+
+    // Render food items
+    const entries = Object.entries(harvested).filter(([, qty]) => qty > 0);
+    if (entries.length === 0) {
+      itemsEl.innerHTML =
+        '<p class="text-dim" style="font-size:0.82rem;margin:12px 0">No food available. Harvest some crops first!</p>';
+    } else {
+      itemsEl.innerHTML = entries
+        .map(([cropId, qty]) => {
+          const crop = window.__cropsCache ? window.__cropsCache[cropId] : null;
+          const emoji = crop ? crop.emoji : "🌿";
+          const name = crop ? crop.name : cropId;
+          return `
+          <div class="energy-feed-item" data-crop="${cropId}">
+            <span class="feed-icon">${emoji}</span>
+            <div class="feed-info">
+              <div class="feed-name">${name}</div>
+              <div class="feed-qty">×${qty} • +2⚡</div>
+            </div>
+            <button class="feed-btn" data-crop="${cropId}">Eat</button>
+          </div>`;
+        })
+        .join("");
+    }
+
+    // Play button (hidden initially)
+    playEl.style.display = "none";
+    playEl.innerHTML = "";
+
+    // Check if we already have enough
+    _checkEnergyPlayReady();
+
+    // Bind events
+    itemsEl.onclick = (e) => {
+      const btn = e.target.closest(".feed-btn");
+      if (!btn || btn.disabled) return;
+      const cropId = btn.dataset.crop;
+      _feedFromModal(cropId, btn);
+    };
+
+    document.getElementById("energy-modal-farm").onclick = () => {
+      hideEnergyModal();
+      if (typeof goToScreen === "function") goToScreen(1);
+    };
+    document.getElementById("energy-modal-close").onclick = hideEnergyModal;
+
+    modal.classList.add("show");
+  }
+
+  function hideEnergyModal() {
+    const modal = document.getElementById("energy-modal");
+    if (modal) modal.classList.remove("show");
+    _energyModalPlayCb = null;
+  }
+
+  async function _feedFromModal(cropId, btn) {
+    btn.disabled = true;
+    btn.textContent = "…";
+
+    // Optimistic: add 2 energy locally
+    const res =
+      typeof GameStore !== "undefined" ? GameStore.getState("resources") : null;
+    if (res) {
+      const updated = {
+        ...res,
+        energy: {
+          ...res.energy,
+          current: Math.min(res.energy.max, res.energy.current + 2),
+        },
+      };
+      syncFromServer(updated);
+    }
+
+    // Optimistic: decrement harvested count
+    if (typeof GameStore !== "undefined") {
+      const farm = GameStore.getState("farm");
+      if (farm && farm.harvested && farm.harvested[cropId]) {
+        const updated = { ...farm, harvested: { ...farm.harvested } };
+        updated.harvested[cropId]--;
+        if (updated.harvested[cropId] <= 0) delete updated.harvested[cropId];
+        GameStore.setState("farm", updated);
+      }
+    }
+
+    // Server call
+    const data = await api("/api/pet/feed", {
+      cropId,
+      userId: HUB.userId,
+    });
+
+    if (data && data.success) {
+      if (data.resources) syncFromServer(data.resources);
+      if (data.harvested && typeof GameStore !== "undefined") {
+        const farm = GameStore.getState("farm");
+        if (farm)
+          GameStore.setState("farm", { ...farm, harvested: data.harvested });
+      }
+    }
+
+    // Refresh modal items
+    _refreshModalItems();
+    _checkEnergyPlayReady();
+  }
+
+  function _refreshModalItems() {
+    const itemsEl = document.getElementById("energy-modal-items");
+    if (!itemsEl) return;
+
+    let harvested = {};
+    if (typeof GameStore !== "undefined") {
+      const farm = GameStore.getState("farm");
+      if (farm && farm.harvested) harvested = farm.harvested;
+    }
+
+    // Update quantities and disable empty ones
+    itemsEl.querySelectorAll(".energy-feed-item").forEach((item) => {
+      const cropId = item.dataset.crop;
+      const qty = harvested[cropId] || 0;
+      const qtyEl = item.querySelector(".feed-qty");
+      const btn = item.querySelector(".feed-btn");
+      if (qty <= 0) {
+        item.style.opacity = "0.4";
+        if (btn) {
+          btn.disabled = true;
+          btn.textContent = "Empty";
+        }
+      } else {
+        item.style.opacity = "1";
+        if (qtyEl) qtyEl.textContent = `×${qty} • +2⚡`;
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = "Eat";
+        }
+      }
+    });
+  }
+
+  function _checkEnergyPlayReady() {
+    const playEl = document.getElementById("energy-modal-play");
+    if (!playEl) return;
+
+    const res =
+      typeof GameStore !== "undefined" ? GameStore.getState("resources") : null;
+    const current = res ? res.energy.current : 0;
+
+    if (current >= _energyModalRequired && _energyModalPlayCb) {
+      playEl.style.display = "block";
+      playEl.innerHTML = '<button class="energy-play-btn">▶️ PLAY NOW</button>';
+      playEl.querySelector(".energy-play-btn").onclick = () => {
+        const cb = _energyModalPlayCb;
+        hideEnergyModal();
+        if (cb) cb();
+      };
+    }
+  }
+
   return {
     init,
     fetchResources,
@@ -188,5 +371,7 @@ const HUD = (function () {
     animateGoldChange,
     startRegenTimer,
     stopRegenTimer,
+    showEnergyModal,
+    hideEnergyModal,
   };
 })();

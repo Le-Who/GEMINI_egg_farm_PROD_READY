@@ -214,9 +214,13 @@ const Match3Game = (() => {
 
   /* ═══ Start Game ═══ */
   async function startGame() {
-    // Energy gatekeep
+    // Energy gatekeep — show quick-feed modal instead of toast
     if (typeof HUD !== "undefined" && !HUD.hasEnergy(5)) {
-      showToast("⚡ Need 5 energy to play Match-3!");
+      if (HUD.showEnergyModal) {
+        HUD.showEnergyModal(5, () => startGame());
+      } else {
+        showToast("⚡ Need 5 energy to play Match-3!");
+      }
       return;
     }
 

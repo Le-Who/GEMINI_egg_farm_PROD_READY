@@ -109,23 +109,37 @@ async function initDiscord() {
   console.log(`Fallback Demo mode: ${HUB.userId}`);
 }
 
-/* ─── API Helper (auto-attaches auth) ─── */
+/* ─── API Helper (auto-attaches auth, with retry) ─── */
 async function api(path, body) {
-  const headers = { "Content-Type": "application/json" };
-  if (HUB.accessToken) {
-    headers["Authorization"] = `Bearer ${HUB.accessToken}`;
+  const MAX_RETRIES = 1;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const headers = { "Content-Type": "application/json" };
+    if (HUB.accessToken) {
+      headers["Authorization"] = `Bearer ${HUB.accessToken}`;
+    }
+    try {
+      const res = await fetch(path, {
+        method: body ? "POST" : "GET",
+        headers,
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        console.error(`API ${path} → ${res.status}: ${text}`);
+        return { error: `Server error ${res.status}`, _httpStatus: res.status };
+      }
+      return res.json();
+    } catch (err) {
+      if (attempt < MAX_RETRIES) {
+        showToast("⚠️ Connection lost — retrying…");
+        await sleep(2000);
+        continue;
+      }
+      console.error(`API ${path} network error:`, err);
+      showToast("❌ Network error — please check your connection");
+      return { error: "NETWORK_ERROR" };
+    }
   }
-  const res = await fetch(path, {
-    method: body ? "POST" : "GET",
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    console.error(`API ${path} → ${res.status}: ${text}`);
-    return { error: `Server error ${res.status}`, _httpStatus: res.status };
-  }
-  return res.json();
 }
 
 /* ─── Navigation ─── */
@@ -135,6 +149,7 @@ function navigate(dir) {
   HUB.currentScreen = next;
   applyScreenPosition();
   updateNavUI();
+  updatePetDock();
   triggerScreenCallbacks();
 }
 
@@ -143,10 +158,30 @@ function goToScreen(index) {
   HUB.currentScreen = index;
   applyScreenPosition();
   updateNavUI();
+  updatePetDock();
   triggerScreenCallbacks();
   // Update farm notification badge when switching screens
   if (typeof FarmGame !== "undefined" && FarmGame.updateFarmBadge) {
     FarmGame.updateFarmBadge();
+  }
+}
+
+/** Smart Docking: move pet between ground (Farm) and perch (games) */
+function updatePetDock() {
+  const overlay = document.getElementById("pet-overlay");
+  if (!overlay) return;
+  const isFarm = HUB.currentScreen === 1;
+  overlay.classList.toggle("dock-ground", isFarm);
+  overlay.classList.toggle("dock-perch", !isFarm);
+  // Jump animation
+  const container = document.getElementById("pet-container");
+  if (container) {
+    container.classList.add("docking");
+    setTimeout(() => container.classList.remove("docking"), 500);
+  }
+  // Notify pet module
+  if (typeof PetCompanion !== "undefined" && PetCompanion.setDockMode) {
+    PetCompanion.setDockMode(isFarm ? "ground" : "perch");
   }
 }
 

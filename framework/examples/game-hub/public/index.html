@@ -401,13 +401,51 @@
 
     <!-- ═══ Nav Arrows (desktop: glassmorphic edge strips, after viewport for CSS ~) ═══ -->
     <!-- ═══ Pet Companion Overlay ═══ -->
-    <div class="pet-overlay" id="pet-overlay">
+    <div class="pet-overlay dock-ground" id="pet-overlay">
       <div class="pet-container" id="pet-container" data-state="idle">
         <div class="pet-sprite" id="pet-sprite">🐕</div>
         <div class="pet-hearts" id="pet-hearts"></div>
       </div>
     </div>
     <div class="pet-info-panel" id="pet-info-panel" style="display: none"></div>
+
+    <!-- ═══ Quick-Feed Energy Modal ═══ -->
+    <div class="overlay" id="energy-modal">
+      <div class="overlay-card" style="text-align: center; max-width: 340px">
+        <h2 style="margin: 0 0 6px">⚡ Not Enough Energy</h2>
+        <p
+          class="text-dim"
+          id="energy-modal-desc"
+          style="margin: 0 0 12px; font-size: 0.85rem"
+        >
+          Feed your pet to restore energy!
+        </p>
+        <div
+          id="energy-modal-items"
+          style="max-height: 200px; overflow-y: auto"
+        ></div>
+        <div
+          id="energy-modal-play"
+          style="display: none; margin-top: 10px"
+        ></div>
+        <div style="margin-top: 12px; display: flex; gap: 8px">
+          <button
+            class="btn btn-secondary btn-sm"
+            id="energy-modal-farm"
+            style="flex: 1"
+          >
+            🌾 Go to Farm
+          </button>
+          <button
+            class="btn btn-secondary btn-sm"
+            id="energy-modal-close"
+            style="flex: 1"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
 
     <button class="nav-arrow nav-left" id="nav-left">‹</button>
     <button class="nav-arrow nav-right" id="nav-right">›</button>

@@ -89,6 +89,7 @@ const FarmGame = (() => {
 
     if (cropsData && !cropsData.error) {
       crops = cropsData;
+      window.__cropsCache = cropsData; // Expose for energy modal
       try {
         localStorage.setItem("hub_crops_cache", JSON.stringify(cropsData));
       } catch (_) {}
@@ -103,8 +104,8 @@ const FarmGame = (() => {
       if (stateData.pet && typeof PetCompanion !== "undefined") {
         PetCompanion.syncFromServer(stateData.pet);
       }
-      if (stateData.autoHarvestNotice) {
-        showToast(stateData.autoHarvestNotice);
+      if (stateData.offlineReport) {
+        showWelcomeBack(stateData.offlineReport);
       }
       syncToStore();
       render();
@@ -127,12 +128,81 @@ const FarmGame = (() => {
       if (data.pet && typeof PetCompanion !== "undefined") {
         PetCompanion.syncFromServer(data.pet);
       }
-      if (data.autoHarvestNotice) {
-        showToast(data.autoHarvestNotice);
+      if (data.offlineReport) {
+        showWelcomeBack(data.offlineReport);
       }
       syncToStore();
       render();
     }
+  }
+
+  /* ─── Welcome Back Modal ─── */
+  function showWelcomeBack(report) {
+    // Build body lines
+    const lines = [];
+    lines.push(
+      `<p class="text-dim" style="margin:0 0 8px">⏰ You were away for ${report.offlineMinutes || 0} min</p>`,
+    );
+
+    // Harvested crops
+    const harvestedEntries = Object.entries(report.harvested || {});
+    if (harvestedEntries.length > 0) {
+      const items = harvestedEntries
+        .map(([id, qty]) => {
+          const c = crops[id];
+          return c ? `${c.emoji}×${qty}` : `${id}×${qty}`;
+        })
+        .join(", ");
+      lines.push(
+        `<div style="margin:4px 0">🌾 <strong>Harvested:</strong> ${items}</div>`,
+      );
+    }
+
+    // Planted crops
+    const plantedEntries = Object.entries(report.planted || {});
+    if (plantedEntries.length > 0) {
+      const items = plantedEntries
+        .map(([id, qty]) => {
+          const c = crops[id];
+          return c ? `${c.emoji}×${qty}` : `${id}×${qty}`;
+        })
+        .join(", ");
+      lines.push(
+        `<div style="margin:4px 0">🌱 <strong>Planted:</strong> ${items}</div>`,
+      );
+    }
+
+    // Auto-watered
+    if (report.autoWatered > 0) {
+      lines.push(
+        `<div style="margin:4px 0">💧 <strong>Watered:</strong> ${report.autoWatered} crop${report.autoWatered > 1 ? "s" : ""}</div>`,
+      );
+    }
+
+    // Energy + XP
+    if (report.energyConsumed > 0 || report.xpGained > 0) {
+      const parts = [];
+      if (report.energyConsumed > 0)
+        parts.push(`⚡${report.energyConsumed} energy used`);
+      if (report.xpGained > 0) parts.push(`✨${report.xpGained} XP gained`);
+      lines.push(
+        `<div style="margin:6px 0;opacity:0.7;font-size:0.8rem">${parts.join(" • ")}</div>`,
+      );
+    }
+
+    // Create overlay
+    const overlay = document.createElement("div");
+    overlay.className = "overlay show";
+    overlay.id = "welcome-back-overlay";
+    overlay.innerHTML = `
+      <div class="overlay-card" style="text-align:center;max-width:320px">
+        <h2 style="margin:0 0 10px">🐾 Welcome Back!</h2>
+        ${lines.join("")}
+        <button class="btn btn-primary" style="margin-top:14px;width:100%" id="wb-dismiss">Let's Go!</button>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    document.getElementById("wb-dismiss").onclick = () => overlay.remove();
   }
 
   /* ─── Plot Click Dispatcher ─── */

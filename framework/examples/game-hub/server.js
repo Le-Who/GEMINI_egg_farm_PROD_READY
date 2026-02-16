@@ -302,6 +302,100 @@ function calcRegen(player) {
 }
 
 /* ═══════════════════════════════════════════════════
+ *  OFFLINE PROGRESS — Energy-based simulation loop
+ *  Priority: Harvest → Plant → Water
+ * ═══════════════════════════════════════════════════ */
+function processOfflineActions(player) {
+  const now = Date.now();
+  const lastSeen = player._lastSeen || now;
+  const elapsed = now - lastSeen;
+  player._lastSeen = now;
+
+  // Only simulate if away for more than 30s
+  if (elapsed < 30000) return null;
+
+  const e = player.resources.energy;
+  const report = {
+    offlineMinutes: Math.round(elapsed / 60000),
+    harvested: {},
+    planted: {},
+    autoWatered: 0,
+    energyConsumed: 0,
+    xpGained: 0,
+  };
+
+  // ─── Step 1: Auto-Harvest (1 energy per crop) ───
+  if (player.pet.abilities.autoHarvest && e.current > 0) {
+    for (const plot of player.farm.plots) {
+      if (e.current < 1) break;
+      if (plot.crop && plot.plantedAt && getGrowthPct(plot) >= 1) {
+        const cfg = CROPS[plot.crop];
+        if (!cfg) continue;
+        // Deduct energy
+        e.current -= 1;
+        report.energyConsumed += 1;
+        // Award harvest
+        report.harvested[plot.crop] = (report.harvested[plot.crop] || 0) + 1;
+        player.farm.harvested[plot.crop] =
+          (player.farm.harvested[plot.crop] || 0) + 1;
+        player.farm.xp += cfg.xp;
+        report.xpGained += cfg.xp;
+        // Clear plot
+        plot.crop = null;
+        plot.plantedAt = null;
+        plot.watered = false;
+      }
+    }
+  }
+
+  // ─── Step 2: Auto-Plant (2 energy per plant, random seed) ───
+  if (player.pet.abilities.autoPlant && e.current >= 2) {
+    const seedIds = Object.keys(player.farm.inventory).filter(
+      (id) => CROPS[id] && player.farm.inventory[id] > 0,
+    );
+    for (const plot of player.farm.plots) {
+      if (e.current < 2 || seedIds.length === 0) break;
+      if (!plot.crop) {
+        // Pick random available seed
+        const idx = Math.floor(Math.random() * seedIds.length);
+        const seedId = seedIds[idx];
+        // Deduct seed
+        player.farm.inventory[seedId]--;
+        if (player.farm.inventory[seedId] <= 0) {
+          seedIds.splice(idx, 1);
+        }
+        // Deduct energy
+        e.current -= 2;
+        report.energyConsumed += 2;
+        report.planted[seedId] = (report.planted[seedId] || 0) + 1;
+        // Plant with random time for partial growth
+        plot.crop = seedId;
+        plot.plantedAt = lastSeen + Math.floor(Math.random() * elapsed);
+        plot.watered = false;
+      }
+    }
+  }
+
+  // ─── Step 3: Auto-Water (free, ability-gated) ───
+  if (player.pet.abilities.autoWater) {
+    for (const plot of player.farm.plots) {
+      if (plot.crop && !plot.watered) {
+        plot.watered = true;
+        report.autoWatered++;
+      }
+    }
+  }
+
+  // Update farm level
+  const newLevel = Math.floor(player.farm.xp / 100) + 1;
+  player.farm.level = newLevel;
+
+  // Only return if something happened
+  const hadActivity = report.energyConsumed > 0 || report.autoWatered > 0;
+  return hadActivity ? report : null;
+}
+
+/* ═══════════════════════════════════════════════════
  *  HEALTH
  * ═══════════════════════════════════════════════════ */
 app.get("/api/health", (_req, res) =>
@@ -405,40 +499,16 @@ app.post("/api/farm/state", requireAuth, (req, res) => {
   const p = getPlayer(userId, username);
   calcRegen(p);
 
-  // Offline auto-harvest (Pet Butler mechanic)
-  let autoHarvestNotice = null;
-  if (p.pet.abilities.autoHarvest) {
-    const maxActions = p.pet.level * 2;
-    let harvested = 0;
-    for (const plot of p.farm.plots) {
-      if (harvested >= maxActions) break;
-      if (plot.crop && plot.plantedAt && getGrowthPct(plot) >= 1) {
-        const cfg = CROPS[plot.crop];
-        if (cfg) {
-          p.resources.gold += cfg.sellPrice;
-          p.farm.harvested[plot.crop] = (p.farm.harvested[plot.crop] || 0) + 1;
-          p.farm.xp += cfg.xp;
-          plot.crop = null;
-          plot.plantedAt = null;
-          plot.watered = false;
-          harvested++;
-        }
-      }
-    }
-    if (harvested > 0) {
-      const newLevel = Math.floor(p.farm.xp / 100) + 1;
-      p.farm.level = newLevel;
-      autoHarvestNotice = `🐾 ${p.pet.name} harvested ${harvested} crop${harvested > 1 ? "s" : ""} while you were away!`;
-      debouncedSaveDb();
-    }
-  }
+  // Run offline simulation (harvest → plant → water)
+  const offlineReport = processOfflineActions(p);
+  if (offlineReport) debouncedSaveDb();
 
   res.json({
     ...p.farm,
     plots: farmPlotsWithGrowth(p.farm),
     resources: p.resources,
     pet: p.pet,
-    autoHarvestNotice,
+    offlineReport,
   });
 });
 
@@ -490,8 +560,7 @@ app.post("/api/farm/harvest", requireAuth, (req, res) => {
     return res.status(400).json({ error: "not ready" });
   const cfg = CROPS[plot.crop];
   const cropId = plot.crop;
-  // Award gold and produce crop item for pet feeding
-  p.resources.gold += cfg.sellPrice;
+  // Produce crop item for pet feeding (no gold from harvest)
   p.farm.harvested[cropId] = (p.farm.harvested[cropId] || 0) + 1;
   p.farm.xp += cfg.xp;
   const newLevel = Math.floor(p.farm.xp / 100) + 1;

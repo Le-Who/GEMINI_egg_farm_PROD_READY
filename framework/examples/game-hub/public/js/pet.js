@@ -25,6 +25,7 @@ const PetCompanion = (function () {
   let stateTimer = null;
   let inactivityTimer = null;
   let panelOpen = false;
+  let dockMode = "ground"; // "ground" (Farm) | "perch" (Match3/Trivia)
 
   /* ─── GameStore Slice ─── */
   function registerSlice() {
@@ -85,6 +86,9 @@ const PetCompanion = (function () {
         if (panelOpen) renderInfoPanel();
       });
     }
+
+    // Start auto-water butler ability
+    startAutoWater();
   }
 
   /* ─── State Machine ─── */
@@ -123,9 +127,9 @@ const PetCompanion = (function () {
         return;
       }
 
-      // Pick next state: 60% idle, 40% roam
+      // Pick next state: 60% idle, 40% roam (only in ground mode)
       const roll = Math.random();
-      if (roll < 0.6) {
+      if (roll < 0.6 || dockMode === "perch") {
         setState(STATES.IDLE);
       } else {
         setState(STATES.ROAM);
@@ -142,12 +146,15 @@ const PetCompanion = (function () {
 
     const maxX = overlay.offsetWidth - 60;
     const newX = 30 + Math.random() * (maxX - 60);
-    const currentX = container.offsetLeft;
+
+    // Determine direction from current position
+    const computedStyle = getComputedStyle(container);
+    const matrix = new DOMMatrix(computedStyle.transform);
+    const currentX = matrix.m41;
 
     // Set direction for walk animation
     container.style.setProperty("--pet-dir", newX > currentX ? "1" : "-1");
-    container.style.left = `${newX}px`;
-    container.style.transform = "none";
+    container.style.transform = `translate3d(${newX}px, 0, 0) translateX(-50%)`;
 
     // Return to idle after reaching destination
     setTimeout(() => {
@@ -155,6 +162,44 @@ const PetCompanion = (function () {
         setState(STATES.IDLE);
       }
     }, 3000);
+  }
+
+  /* ─── Pet Action Bubble ─── */
+  function showBubble(text) {
+    const container = document.getElementById("pet-container");
+    if (!container) return;
+    // Remove any existing bubble
+    const old = container.querySelector(".pet-bubble");
+    if (old) old.remove();
+    const bubble = document.createElement("div");
+    bubble.className = "pet-bubble";
+    bubble.textContent = text;
+    container.appendChild(bubble);
+    setTimeout(() => bubble.remove(), 2500);
+  }
+
+  /* ─── Auto-Water (Butler ability, level ≥ 3) ─── */
+  let autoWaterTimer = null;
+  function startAutoWater() {
+    if (autoWaterTimer) clearInterval(autoWaterTimer);
+    autoWaterTimer = setInterval(() => {
+      if (!petData || petData.level < 3) return;
+      if (currentState === STATES.SLEEP) return;
+      // Check for crops needing water via GameStore
+      if (typeof GameStore === "undefined") return;
+      const farmState = GameStore.getState("farm");
+      if (!farmState || !farmState.plots) return;
+      const plotIndex = farmState.plots.findIndex((p) => p.crop && !p.watered);
+      if (plotIndex === -1) return;
+      // Auto-water via FarmGame
+      if (typeof FarmGame !== "undefined" && FarmGame.water) {
+        FarmGame.water(plotIndex);
+        showBubble("💧 Watered!");
+        setState(STATES.HAPPY);
+        spawnHeart();
+        setTimeout(() => setState(STATES.IDLE), 1200);
+      }
+    }, 30000); // Every 30s
   }
 
   /* ─── Inactivity → Sleep ─── */
@@ -313,6 +358,13 @@ const PetCompanion = (function () {
 
   /* ─── Feed Pet ─── */
   async function feedPet(cropId) {
+    // Optimistic update: show happy reaction immediately
+    const petSnapshot = petData ? { ...petData } : null;
+    const prevState = currentState;
+    setState(STATES.HAPPY);
+    spawnHeart();
+    spawnHeart();
+
     try {
       const data = await api("/api/pet/feed", {
         cropId,
@@ -320,7 +372,7 @@ const PetCompanion = (function () {
       });
 
       if (data && data.success) {
-        // Update pet state
+        // Update pet state from server
         if (data.pet) {
           petData = data.pet;
           if (typeof GameStore !== "undefined") {
@@ -331,13 +383,8 @@ const PetCompanion = (function () {
         // Update resources via HUD
         if (data.resources && typeof HUD !== "undefined") {
           HUD.syncFromServer(data.resources);
-          HUD.animateGoldChange(0); // No gold change, but trigger visual update
         }
 
-        // Happy reaction
-        setState(STATES.HAPPY);
-        spawnHeart();
-        spawnHeart();
         setTimeout(() => setState(STATES.IDLE), 1200);
 
         // Show toast
@@ -350,15 +397,31 @@ const PetCompanion = (function () {
 
         // Re-render panel if open
         if (panelOpen) renderInfoPanel();
-      } else if (data && data.error) {
-        if (typeof showToast === "function") {
-          showToast("❌ " + data.error, true);
+      } else {
+        // Rollback
+        if (petSnapshot) {
+          petData = petSnapshot;
+          if (typeof GameStore !== "undefined") {
+            GameStore.setState("pet", petSnapshot);
+          }
+        }
+        setState(prevState);
+        if (data && data.error && typeof showToast === "function") {
+          showToast("❌ " + data.error);
         }
       }
     } catch (e) {
+      // Rollback on network error
+      if (petSnapshot) {
+        petData = petSnapshot;
+        if (typeof GameStore !== "undefined") {
+          GameStore.setState("pet", petSnapshot);
+        }
+      }
+      setState(prevState);
       console.error("Pet feed error:", e);
       if (typeof showToast === "function") {
-        showToast("❌ Failed to feed pet", true);
+        showToast("❌ Failed to feed pet");
       }
     }
   }
@@ -376,10 +439,22 @@ const PetCompanion = (function () {
     }
   }
 
+  /* ─── Smart Docking ─── */
+  function setDockMode(mode) {
+    dockMode = mode;
+    if (mode === "perch") {
+      // Cancel roaming, force idle
+      if (currentState === STATES.ROAM) {
+        setState(STATES.IDLE);
+      }
+    }
+  }
+
   return {
     init,
     syncFromServer,
     feedPet,
     toggleInfoPanel,
+    setDockMode,
   };
 })();

@@ -48,6 +48,10 @@ body {
   height: 100dvh;
   height: 100vh;
   overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  -webkit-touch-callout: none;
 }
 
 /* ─── Viewport & Track ─── */
@@ -405,30 +409,29 @@ body.touch-device .nav-dots {
   font-weight: 900;
 }
 
-/* ─── Toast ─── */
+/* ─── Toast (top-right positioning) ─── */
 @keyframes toastSlide {
   0% {
-    transform: translateX(-50%) translateY(20px);
+    transform: translateX(20px);
     opacity: 0;
   }
   15% {
-    transform: translateX(-50%) translateY(0);
+    transform: translateX(0);
     opacity: 1;
   }
   85% {
-    transform: translateX(-50%) translateY(0);
+    transform: translateX(0);
     opacity: 1;
   }
   100% {
-    transform: translateX(-50%) translateY(-10px);
+    transform: translateX(10px);
     opacity: 0;
   }
 }
 .toast {
   position: fixed;
-  bottom: 50px;
-  left: 50%;
-  transform: translateX(-50%);
+  top: 56px;
+  right: 16px;
   padding: 10px 24px;
   background: rgba(30, 32, 50, 0.95);
   border: 1px solid var(--border);
@@ -438,6 +441,7 @@ body.touch-device .nav-dots {
   z-index: 300;
   animation: toastSlide 2s ease forwards;
   pointer-events: none;
+  max-width: calc(100vw - 32px);
 }
 
 /* ─── Responsive — Small Viewports ─── */
@@ -569,4 +573,67 @@ body.touch-device .nav-dots {
 }
 .water-splash {
   animation: waterSplash 0.5s ease-out;
+}
+
+/* ─── Quick-Feed Energy Modal ─── */
+.energy-feed-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-bottom: 6px;
+  background: var(--surface);
+}
+.energy-feed-item .feed-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+.energy-feed-item .feed-info {
+  flex: 1;
+  font-size: 0.82rem;
+  text-align: left;
+}
+.energy-feed-item .feed-info .feed-name {
+  font-weight: 700;
+}
+.energy-feed-item .feed-info .feed-qty {
+  color: var(--text-dim);
+  font-size: 0.75rem;
+}
+.energy-feed-item .feed-btn {
+  padding: 6px 16px;
+  border-radius: 10px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: white;
+  font-size: 0.8rem;
+  transition: transform 0.15s ease, opacity 0.2s ease;
+}
+.energy-feed-item .feed-btn:hover {
+  transform: scale(1.05);
+}
+.energy-feed-item .feed-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+  transform: none;
+}
+.energy-play-btn {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: white;
+  font-size: 1rem;
+  font-weight: 900;
+  cursor: pointer;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.04); }
 }

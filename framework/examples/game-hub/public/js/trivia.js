@@ -89,6 +89,9 @@ const TriviaGame = (() => {
     stopTimer();
     clearDuelPolling();
     if (duel?.lobbyTimeoutId) clearInterval(duel.lobbyTimeoutId);
+    duel = null;
+    session = null;
+    syncToStore();
     fetchDuelHistory();
   }
 
@@ -170,9 +173,13 @@ const TriviaGame = (() => {
 
   /* ═══ SOLO MODE ═══ */
   async function startSolo() {
-    // Energy gatekeep
+    // Energy gatekeep — show quick-feed modal instead of toast
     if (typeof HUD !== "undefined" && !HUD.hasEnergy(3)) {
-      showToast("⚡ Need 3 energy to play Trivia!");
+      if (HUD.showEnergyModal) {
+        HUD.showEnergyModal(3, () => startSolo());
+      } else {
+        showToast("⚡ Need 3 energy to play Trivia!");
+      }
       return;
     }
 
