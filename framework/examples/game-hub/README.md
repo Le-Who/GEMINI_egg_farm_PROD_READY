@@ -2,7 +2,7 @@
 
 > A combined Farm + Trivia + Match-3 game running as a single Discord Embedded App Activity with horizontal screen-swipe navigation.
 
-**v1.4** — Plant animation, side-panel leaderboard, duel history, shop qty persistence (±10), Discord invite fix
+**v1.6** — Energy System (Energy Core), Living Pet, Zustand-style State Management, Leaderboard Slide-in, Scrollbar Fixes.
 
 ## Quick Start
 
@@ -12,102 +12,96 @@ npm run dev
 # → http://localhost:8090
 ```
 
-## Features
+## features
+
+### ⚡ Energy Core (New in v1.6)
+
+- **Universal Energy**: 20 max energy, regenerates +1 every 5 minutes (passive).
+- **Game Costs**: Match-3 (-5⚡), Trivia (-3⚡).
+- **Gatekeeping**: "New Game" buttons disabled if insufficient energy.
+- **TopHUD**: Global bar showing Energy/Gold, syncs across all screens.
+
+### 🐾 Living Pet (New in v1.6)
+
+- **Pet Companion**: A virtual pet that lives on visiting players' screens.
+- **Interactions**: Click to pet (❤️), feed crops to restore Energy (+2⚡) and gain XP.
+- **States**: IDLE, ROAM, SLEEP, HAPPY (state machine-driven).
+- **Persistence**: Pet stats (Level, XP, Happiness) saved to server.
+
+### 🏛 State Management (Refactored)
+
+- **GameStore**: A robust, **Zustand-inspired** state manager pattern (`public/js/store.js`).
+- **Slices**: State divided into modular slices (`resources`, `farm`, `pet`, `match3`).
+- **Optimistic Updates**: UI updates instantly; server sync happens in background.
+- **Decoupled**: HUD and components subscribe to specific slices, reducing coupling.
 
 ### 🌱 Farm
 
 - 6 plots, seed shop, planting/watering/harvest cycle
-- **Skeleton loading** — shimmer UI while data loads
-- **Parallel fetch** — crops + state loaded via `Promise.all`, crops prefetched during Discord auth
-- **Client-side seed validation** — prevents planting with 0 seeds, friendly toast messages, dimmed empty seed cards
-- **Local growth timer** — client-side growth calculation for instant responsiveness; lazy server sync every 30s
-- **Tiered watering bonus** — slow crops (sunflower, golden) get up to 45% time reduction, fast crops 30%
-- **Harvest notifications** — pulsing gold badge on nav-dot + floating badge when plants are ready on another screen
-- **Plant animation** — growth bar fills to 100% then smoothly rolls back to actual value on fresh plant
-- **Shop ±10 buttons** — quick quantity adjustment with localStorage persistence (resets to 1 after purchase)
+- **Unified Economy**: Uses global Gold (syncs with TopHUD).
+- **Harvest Notifications**: Auto-harvest notices from Pet Butler ability.
+- **Skeleton loading** & **Parallel fetch** for fast UX.
 
 ### 🧠 Trivia
 
 - Solo quiz + async **Trivia Duels** (invite codes)
-- Difficulty tiers, streak/combo scoring
-- **Duel Lobby** — both players must press "Ready" before game starts (60s auto-start timeout)
-- **Voice Chat Invite** — 🎙️ button to share duel code with voice channel participants (SDK + clipboard fallback)
-- **Duel History** — recent duel results panel with pagination; collapses to bottom bar when submenus are open
-- **Improved invite diagnostics** — pre-checks guild context before attempting invite dialog
+- **Energy Gate**: Requires 3 energy to start.
+- **Duel Lobby** & **Voice Chat Invite**.
+- **Gold Rewards**: Earn gold for winning quizzes.
 
 ### 💎 Match-3
 
-- **Client-side engine** — swap/match/gravity/fill computed locally for instant response
-- **Game state persistence** — `POST /api/game/state` restores in-progress games on re-entry
-- **Smooth animations** — reduced cascade delays (450ms total vs. 630ms), CSS pop/fall classes
-- Server validation via fire-and-forget sync
-- Leaderboard (global + room-scoped)
-- **Side-panel leaderboard** — appears to the right of the board on wide screens, falls back to stacked on narrow viewports
-- **Reliable score saving** — dedicated `/api/game/end` endpoint ensures highScore persistence
+- **Client-side engine** with server validation.
+- **Energy Gate**: Requires 5 energy to start.
+- **Slide-in Leaderboard**: Responsive side-panel (fixed on narrow screens, glassmorphic backdrop).
+- **Gold Rewards**: Earn gold based on score thresholds.
 
-### 🖥 Responsive Layout
+### 🖥 Responsive Layout (v1.6 Fixes)
 
-- `100dvh` viewport units with `100vh` fallback
-- `@media` breakpoints for `<600px` height and `<400px` width
-- Dynamic match-3 cell sizing based on both viewport width and height
-
-### 🔧 Infrastructure
-
-- **Content-hash cache busting** — MD5-based asset hashes auto-injected into HTML at server start
-- **Aggressive cache headers** — `Cache-Control`, `Surrogate-Control`, `Pragma` prevent stale assets in Discord proxy
+- **Scrollbar Hidden**: Global overflow fix for Discord iframe.
+- **Slide-in Panels**: Leaderboard adapts to narrow viewports.
+- **Safe Areas**: Padding adjusted for TopHUD.
 
 ## API Endpoints
 
-| Method | Path                       | Description                     |
-| ------ | -------------------------- | ------------------------------- |
-| `POST` | `/api/farm/state`          | Get farm state                  |
-| `POST` | `/api/farm/plant`          | Plant a seed                    |
-| `POST` | `/api/farm/water`          | Water a plot                    |
-| `POST` | `/api/farm/harvest`        | Harvest a crop                  |
-| `POST` | `/api/farm/buy-seeds`      | Buy seeds                       |
-| `POST` | `/api/content/crops`       | Get crop definitions            |
-| `POST` | `/api/trivia/start`        | Start solo trivia               |
-| `POST` | `/api/trivia/answer`       | Answer trivia question          |
-| `POST` | `/api/trivia/duel/create`  | Create duel room                |
-| `POST` | `/api/trivia/duel/join`    | Join duel room                  |
-| `POST` | `/api/game/state`          | Get active match-3 game state   |
-| `POST` | `/api/game/start`          | Start new match-3 game          |
-| `POST` | `/api/game/move`           | Submit match-3 move             |
-| `POST` | `/api/game/end`            | Finalize game, save highScore   |
-| `POST` | `/api/trivia/duel/ready`   | Mark player ready in lobby      |
-| `GET`  | `/api/trivia/duel/history` | Recent duel results (paginated) |
-| `GET`  | `/api/leaderboard`         | Global leaderboard              |
+| Method | Path                   | Description                                |
+| ------ | ---------------------- | ------------------------------------------ |
+| `GET`  | `/api/resources/state` | Get global resources (Gold + Energy)       |
+| `POST` | `/api/pet/state`       | Get pet state                              |
+| `POST` | `/api/pet/feed`        | Feed pet (Cost: Crop, Reward: Energy + XP) |
+| `POST` | `/api/farm/state`      | Get farm state                             |
+| `POST` | `/api/game/state`      | Get Match-3 state                          |
+| `POST` | `/api/game/start`      | Start Match-3 (-5 Energy)                  |
+| `POST` | `/api/trivia/start`    | Start Trivia (-3 Energy)                   |
+| `GET`  | `/api/leaderboard`     | Global leaderboard                         |
 
 ## Project Structure
 
 ```
 game-hub/
-├── server.js            # Express backend (farm + trivia + match-3 + Discord auth)
-├── Dockerfile           # Multi-stage Node 20 Alpine
-├── package.json
-└── public/
-    ├── index.html       # 3-screen slider layout
+├── server.js            # Express backend (Game logic + Discord auth)
+├── public/
+    ├── index.html       # 3-screen slider layout (v1.6)
     ├── css/
-    │   ├── base.css     # Design tokens, viewport, nav, responsive
-    │   ├── farm.css     # Farm grid, skeleton, dimmed seeds, responsive
-    │   ├── trivia.css   # Trivia screen styles
-    │   └── match3.css   # Board, gems, animations, responsive
+    │   ├── base.css     # Design tokens, scrollbar fixes
+    │   ├── hud.css      # TopHUD resource bar
+    │   ├── pet.css      # Pet overlay styles
+    │   └── ...
     └── js/
-        ├── shared.js    # Discord SDK, API helper, navigation, crops prefetch
-        ├── farm.js      # Farm module (skeleton, parallel fetch, seed validation)
-        ├── trivia.js    # Trivia module (solo + duels)
-        └── match3.js    # Match-3 module (client engine, state restore)
+        ├── store.js     # GameStore (Zustand-pattern state manager)
+        ├── shared.js    # Init & Navigation
+        ├── hud.js       # Resources management
+        ├── pet.js       # Pet behaviors & interaction
+        └── ...
 ```
 
 ## Environment Variables
 
-| Variable                | Required | Description                 |
-| ----------------------- | -------- | --------------------------- |
-| `DISCORD_CLIENT_ID`     | ✅       | Discord app client ID       |
-| `DISCORD_CLIENT_SECRET` | ✅       | Discord app secret          |
-| `DISCORD_REDIRECT_URI`  | ✅       | OAuth2 redirect URI         |
-| `GCS_BUCKET`            | ❌       | GCS bucket for persistence  |
-| `PORT`                  | ❌       | Server port (default: 8090) |
+| Variable                | Required | Description                |
+| ----------------------- | -------- | -------------------------- |
+| `DISCORD_CLIENT_ID`     | ✅       | Discord app client ID      |
+| `DISCORD_CLIENT_SECRET` | ✅       | Discord app secret         |
+| `GCS_BUCKET`            | ❌       | GCS bucket for persistence |
 
 ## Deployment
 
