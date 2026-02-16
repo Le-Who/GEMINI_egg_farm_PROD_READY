@@ -2,7 +2,7 @@
 
 > A combined Farm + Trivia + Match-3 game running as a single Discord Embedded App Activity with horizontal screen-swipe navigation.
 
-**v2.0** — Zero-Flicker Pet (CSS class states), GPU-Optimized, All Farm Actions Fire-and-Forget.
+**v2.1** — Direction-Persistent Pet, Progressive Match-3 Gold (🪙 live display), Silent Auto-Water, Full Fire-and-Forget.
 
 ## Quick Start
 
@@ -21,7 +21,7 @@ npm run dev
 - **Quick-Feed Modal** (v1.7): When energy is too low to play, an inline modal lets players feed harvested crops to their pet — restoring +2⚡ each — then jump straight into the game via a **PLAY NOW** button. Replaces old toast notifications.
 - **TopHUD**: Global bar showing Energy/Gold, syncs across all screens.
 
-### 🐾 Living Pet (v1.6 → v2.0)
+### 🐾 Living Pet (v1.6 → v2.1)
 
 - **Pet Companion**: A virtual pet that lives on visiting players' screens.
 - **Interactions**: Click to pet (❤️), feed crops to restore Energy (+2⚡) and gain XP.
@@ -31,14 +31,16 @@ npm run dev
   - **Game Mode** (Match-3/Trivia): Roams within stats-bar panel bounds (`min(520px, 100vw-80px)`).
   - `.pet-roaming` class applied only during walks (prevents CSS transition flicker).
   - `.pet-transitioning` 0.5s class-based animation for screen switches.
-- **Zero-Flicker Animations** (v2.0):
-  - **CSS class-based states** (`.state-idle`, `.state-roam`, etc.) — synchronous class swap, no rAF animation reset hack.
+- **Zero-Flicker Animations** (v2.0 → v2.1):
+  - **CSS class-based states** (`.state-idle`, `.state-roam`, etc.) — synchronous class swap, no rAF animation reset.
+  - **Direction persistence**: `scaleX(var(--pet-dir))` in ALL keyframes — pet keeps facing direction on state change.
   - `animation-fill-mode: both` on all keyframes prevents 0%-keyframe flash.
-  - `will-change: transform` only active during `.pet-roaming`/`.pet-transitioning` (was GPU-thrashing permanently).
-  - Removed `transform-style: preserve-3d`, `backface-visibility: hidden` from sprite (reduced GPU layers from 2+ to 1).
-  - `filter: drop-shadow()` moved from sprite to container (fewer repaints per animation frame).
-  - Unified roam flow — state class + position set in single frame (no competing rAFs).
-  - Roam timeout cancellation prevents orphaned class removal.
+  - `will-change: transform` only active during `.pet-roaming`/`.pet-transitioning`, cleared via `transitionend`.
+  - `filter: drop-shadow()` on container (not sprite) — fewer GPU repaints.
+  - Unified roam flow — state class + position set in single frame.
+- **Silent Auto-Water** (v2.1): Bubble-only feedback, no HAPPY→IDLE animation pop.
+- **Cached Panel** (v2.1): Feed buttons use GameStore cache — zero phantom API calls.
+- **Fire-and-Forget Feed** (v2.1): `feedPet()` instant reaction, server sync in background.
 - **Offline Simulation** (v1.7): While you're away, your pet autonomously:
   - 🌾 Harvests ripe crops (1⚡ per crop)
   - 🌱 Plants random seeds (2⚡ per plant, partial growth applied)
@@ -75,13 +77,16 @@ npm run dev
 - **Duel Lobby** & **Voice Chat Invite**.
 - **Gold Rewards**: Earn gold for winning quizzes.
 
-### 💎 Match-3
+### 💎 Match-3 (v1.5 → v2.1)
 
 - **Client-side engine** with server validation.
 - **Swap Slide Animation** (v1.8): Gems visually glide into each other's positions (180ms CSS translate) before cascade begins.
 - **Energy Gate**: Requires 5 energy to start → quick-feed modal if insufficient.
 - **Slide-in Leaderboard**: Responsive side-panel (fixed on narrow screens, glassmorphic backdrop).
-- **Gold Rewards**: Earn gold based on score thresholds.
+- **Progressive Gold Rewards** (v2.1): `calcGoldReward(score)` — gold scales with score:
+  - <1000: proportional `score/1000 × 40🪙`
+  - 1000–1999: +5%/100 pts, 2000–2999: +10%, 3000–3999: +20%, 4000+: doubles each tier.
+- **Live 🪙 Display** (v2.1): Reward stat in stats bar updates in real-time as score changes.
 
 ### 🖥 Responsive Layout
 

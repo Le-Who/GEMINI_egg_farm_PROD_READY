@@ -23,6 +23,55 @@ export const ECONOMY = {
   FEED_PET_XP: 10,
 };
 
+/**
+ * Progressive gold reward for Match-3 based on score.
+ * - score < 0 or 0: REWARD_MATCH3_LOSE
+ * - 1..999: proportional (score / 1000) × base
+ * - 1000..1999: base + 5% per 100 points
+ * - 2000..2999: + 10% per 100 points
+ * - 3000..3999: + 20% per 100 points
+ * - 4000+: rate doubles each 1000 (capped at 200%)
+ */
+export function calcGoldReward(score) {
+  const BASE = ECONOMY.REWARD_MATCH3_WIN;
+  if (typeof score !== "number" || score <= 0)
+    return ECONOMY.REWARD_MATCH3_LOSE;
+  if (score < 1000)
+    return Math.max(
+      ECONOMY.REWARD_MATCH3_LOSE,
+      Math.floor(BASE * (score / 1000)),
+    );
+
+  let gold = BASE; // 1000 points = full base reward
+  const tiers = [
+    { min: 1000, max: 1999, ratePer100: 0.05 },
+    { min: 2000, max: 2999, ratePer100: 0.1 },
+    { min: 3000, max: 3999, ratePer100: 0.2 },
+  ];
+
+  for (const tier of tiers) {
+    if (score < tier.min) break;
+    const inTier = Math.min(score, tier.max + 1) - tier.min;
+    const steps = Math.floor(inTier / 100);
+    gold += Math.floor(steps * tier.ratePer100 * BASE);
+  }
+
+  // Beyond 4000: continue doubling, cap at 200% per 100 pts
+  if (score >= 4000) {
+    let tierStart = 4000;
+    let rate = 0.4;
+    while (tierStart <= score) {
+      const tierEnd = tierStart + 999;
+      const inTier = Math.min(score, tierEnd + 1) - tierStart;
+      const steps = Math.floor(inTier / 100);
+      gold += Math.floor(steps * rate * BASE);
+      tierStart += 1000;
+      rate = Math.min(rate * 2, 2.0);
+    }
+  }
+  return gold;
+}
+
 /* ═══════════════════════════════════════════════════
  *  CROP DEFINITIONS
  * ═══════════════════════════════════════════════════ */

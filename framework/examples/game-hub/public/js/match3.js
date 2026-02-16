@@ -25,6 +25,39 @@ const Match3Game = (() => {
   let highScore = 0;
   let gameActive = false;
 
+  /* ─── Progressive gold reward (mirrors game-logic.js calcGoldReward) ─── */
+  const REWARD_BASE = 40;
+  const REWARD_LOSE = 5;
+  function calcGoldReward(s) {
+    if (typeof s !== "number" || s <= 0) return REWARD_LOSE;
+    if (s < 1000)
+      return Math.max(REWARD_LOSE, Math.floor(REWARD_BASE * (s / 1000)));
+    let gold = REWARD_BASE;
+    const tiers = [
+      { min: 1000, max: 1999, r: 0.05 },
+      { min: 2000, max: 2999, r: 0.1 },
+      { min: 3000, max: 3999, r: 0.2 },
+    ];
+    for (const t of tiers) {
+      if (s < t.min) break;
+      gold += Math.floor(
+        Math.floor((Math.min(s, t.max + 1) - t.min) / 100) * t.r * REWARD_BASE,
+      );
+    }
+    if (s >= 4000) {
+      let ts = 4000,
+        rate = 0.4;
+      while (ts <= s) {
+        gold += Math.floor(
+          Math.floor((Math.min(s, ts + 1000) - ts) / 100) * rate * REWARD_BASE,
+        );
+        ts += 1000;
+        rate = Math.min(rate * 2, 2.0);
+      }
+    }
+    return gold;
+  }
+
   const $ = (id) => document.getElementById(id);
 
   /** Sync match3 state to GameStore */
@@ -480,6 +513,13 @@ const Match3Game = (() => {
     }
     $("m3-best").textContent = highScore;
     $("m3-moves").style.color = movesLeft <= 5 ? "#ef4444" : "";
+    // Live gold reward preview
+    const $g = $("m3-gold");
+    if ($g) {
+      const reward = gameActive ? calcGoldReward(score) : 0;
+      $g.textContent = gameActive ? `+${reward}` : "—";
+      $g.style.color = reward > REWARD_BASE ? "#fbbf24" : "";
+    }
   }
 
   function animateNumber(el, target) {

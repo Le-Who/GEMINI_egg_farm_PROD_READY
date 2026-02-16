@@ -94,6 +94,13 @@ const PetCompanion = (function () {
     // Start auto-water butler ability
     startAutoWater();
 
+    // GPU cleanup: clear will-change after roam transition ends
+    container.addEventListener("transitionend", () => {
+      if (!container.classList.contains("pet-roaming")) {
+        container.style.willChange = "auto";
+      }
+    });
+
     // Click-outside to close info panel (Fix 3)
     document.addEventListener("click", (e) => {
       if (!panelOpen) return;
@@ -300,9 +307,7 @@ const PetCompanion = (function () {
       }
       if (watered > 0) {
         showBubble(`💧 Watered ${watered}!`);
-        setState(STATES.HAPPY);
-        spawnHeart();
-        setTimeout(() => setState(STATES.IDLE), 1200);
+        // No setState(HAPPY) — bubble is sufficient, avoids animation pop
       }
     }, 10000); // Every 10s, up to 2 plants
   }
@@ -428,48 +433,42 @@ const PetCompanion = (function () {
     renderFeedButtons();
   }
 
-  async function renderFeedButtons() {
+  function renderFeedButtons() {
     const section = document.getElementById("pet-feed-section");
     if (!section) return;
 
-    // Fetch current harvested crops
-    try {
-      const data = await api("/api/resources/state");
-      if (data && data.harvested) {
-        const crops = Object.entries(data.harvested).filter(
-          ([, qty]) => qty > 0,
-        );
-        if (crops.length === 0) {
-          section.innerHTML = `<div style="text-align:center;color:#666;font-size:0.75rem;">
-            No harvested crops to feed 🌾<br>Visit the farm to harvest!
-          </div>`;
-          return;
-        }
-
-        section.innerHTML = crops
-          .map(
-            ([cropId, qty]) => `
-            <button class="pet-feed-btn" data-crop="${cropId}">
-              🍽️ Feed ${cropId} (${qty}) → +2⚡ +10XP
-            </button>
-          `,
-          )
-          .join("");
-
-        section.querySelectorAll(".pet-feed-btn").forEach((btn) => {
-          btn.onclick = () => feedPet(btn.getAttribute("data-crop"));
-        });
-      }
-    } catch (e) {
-      section.innerHTML = `<div style="color:#666;font-size:0.75rem;">Unable to load crops</div>`;
+    // Use cached GameStore data — no network request needed
+    let harvested = {};
+    if (typeof GameStore !== "undefined") {
+      harvested = GameStore.getState("resources")?.__harvested || {};
     }
+    const crops = Object.entries(harvested).filter(([, qty]) => qty > 0);
+
+    if (crops.length === 0) {
+      section.innerHTML = `<div style="text-align:center;color:#666;font-size:0.75rem;">
+        No harvested crops to feed 🌾<br>Visit the farm to harvest!
+      </div>`;
+      return;
+    }
+
+    section.innerHTML = crops
+      .map(
+        ([cropId, qty]) => `
+        <button class="pet-feed-btn" data-crop="${cropId}">
+          🍽️ Feed ${cropId} (${qty}) → +2⚡ +10XP
+        </button>
+      `,
+      )
+      .join("");
+
+    section.querySelectorAll(".pet-feed-btn").forEach((btn) => {
+      btn.onclick = () => feedPet(btn.getAttribute("data-crop"));
+    });
   }
 
-  /* ─── Feed Pet ─── */
-  async function feedPet(cropId) {
+  /* ─── Feed Pet (fire-and-forget) ─── */
+  function feedPet(cropId) {
     // Optimistic update: show happy reaction immediately
-    const petSnapshot = petData ? { ...petData } : null;
-    const prevState = currentState;
     setState(STATES.HAPPY);
     spawnHeart();
     spawnHeart();
@@ -484,65 +483,43 @@ const PetCompanion = (function () {
       }
     }
 
-    try {
-      const data = await api("/api/pet/feed", {
-        cropId,
-        userId: HUB.userId,
-      });
-
-      if (data && data.success) {
-        // Update pet state from server
-        if (data.pet) {
-          petData = data.pet;
-          if (typeof GameStore !== "undefined") {
-            GameStore.setState("pet", data.pet);
+    // Fire-and-forget
+    api("/api/pet/feed", {
+      cropId,
+      userId: HUB.userId,
+    })
+      .then((data) => {
+        if (data && data.success) {
+          if (data.pet) {
+            petData = data.pet;
+            if (typeof GameStore !== "undefined") {
+              GameStore.setState("pet", data.pet);
+            }
+          }
+          if (data.resources && typeof HUD !== "undefined") {
+            HUD.syncFromServer(data.resources);
+          }
+          if (typeof showToast === "function") {
+            const msg = data.leveledUp
+              ? `🎉 ${petData.name} leveled up to Lv ${petData.level}!`
+              : `🍽️ Fed ${petData.name}! +2⚡ +10XP`;
+            showToast(msg);
+          }
+          if (panelOpen) renderInfoPanel();
+        } else {
+          if (data && data.error && typeof showToast === "function") {
+            showToast("❌ " + data.error);
           }
         }
-
-        // Update resources via HUD
-        if (data.resources && typeof HUD !== "undefined") {
-          HUD.syncFromServer(data.resources);
-        }
-
         setTimeout(() => setState(STATES.IDLE), 1200);
-
-        // Show toast
+      })
+      .catch((e) => {
+        console.error("Pet feed error:", e);
         if (typeof showToast === "function") {
-          const msg = data.leveledUp
-            ? `🎉 ${petData.name} leveled up to Lv ${petData.level}!`
-            : `🍽️ Fed ${petData.name}! +2⚡ +10XP`;
-          showToast(msg);
+          showToast("❌ Failed to feed pet");
         }
-
-        // Re-render panel if open
-        if (panelOpen) renderInfoPanel();
-      } else {
-        // Rollback
-        if (petSnapshot) {
-          petData = petSnapshot;
-          if (typeof GameStore !== "undefined") {
-            GameStore.setState("pet", petSnapshot);
-          }
-        }
-        setState(prevState);
-        if (data && data.error && typeof showToast === "function") {
-          showToast("❌ " + data.error);
-        }
-      }
-    } catch (e) {
-      // Rollback on network error
-      if (petSnapshot) {
-        petData = petSnapshot;
-        if (typeof GameStore !== "undefined") {
-          GameStore.setState("pet", petSnapshot);
-        }
-      }
-      setState(prevState);
-      console.error("Pet feed error:", e);
-      if (typeof showToast === "function") {
-        showToast("❌ Failed to feed pet");
-      }
-    }
+        setTimeout(() => setState(STATES.IDLE), 1200);
+      });
   }
 
   /* ─── Sync from server data ─── */

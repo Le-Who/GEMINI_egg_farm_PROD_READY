@@ -127,10 +127,10 @@
 @keyframes petBob {
   0%,
   100% {
-    transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0) scaleX(var(--pet-dir, 1));
   }
   50% {
-    transform: translate3d(0, -4px, 0);
+    transform: translate3d(0, -4px, 0) scaleX(var(--pet-dir, 1));
   }
 }
 
@@ -146,36 +146,36 @@
 @keyframes petSleep {
   0%,
   100% {
-    transform: translate3d(0, 0, 0) rotate(0deg);
+    transform: translate3d(0, 0, 0) rotate(0deg) scaleX(var(--pet-dir, 1));
   }
   25% {
-    transform: translate3d(0, -2px, 0) rotate(-5deg);
+    transform: translate3d(0, -2px, 0) rotate(-5deg) scaleX(var(--pet-dir, 1));
   }
   75% {
-    transform: translate3d(0, -2px, 0) rotate(5deg);
+    transform: translate3d(0, -2px, 0) rotate(5deg) scaleX(var(--pet-dir, 1));
   }
 }
 
 @keyframes petHappy {
   0%,
   100% {
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: translate3d(0, 0, 0) scale(1) scaleX(var(--pet-dir, 1));
   }
   50% {
-    transform: translate3d(0, -12px, 0) scale(1.2);
+    transform: translate3d(0, -12px, 0) scale(1.2) scaleX(var(--pet-dir, 1));
   }
 }
 
 @keyframes petDizzy {
   0%,
   100% {
-    transform: rotate(0deg);
+    transform: rotate(0deg) scaleX(var(--pet-dir, 1));
   }
   25% {
-    transform: rotate(-15deg);
+    transform: rotate(-15deg) scaleX(var(--pet-dir, 1));
   }
   75% {
-    transform: rotate(15deg);
+    transform: rotate(15deg) scaleX(var(--pet-dir, 1));
   }
 }
 

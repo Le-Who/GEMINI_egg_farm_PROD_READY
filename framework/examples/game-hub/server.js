@@ -20,6 +20,7 @@ import {
   BOARD_SIZE,
   createDefaultPlayer,
   calcRegen,
+  calcGoldReward,
   processOfflineActions,
   getWateringMultiplier,
   getGrowthPct,
@@ -1193,11 +1194,8 @@ app.post("/api/game/end", requireAuth, (req, res) => {
   const { userId } = resolveUser(req);
   const { score } = req.body;
   const p = getPlayer(userId);
-  // Gold reward based on score
-  const goldReward =
-    typeof score === "number" && score > 0
-      ? ECONOMY.REWARD_MATCH3_WIN
-      : ECONOMY.REWARD_MATCH3_LOSE;
+  // Gold reward based on score (progressive tiers)
+  const goldReward = calcGoldReward(score);
   p.resources.gold += goldReward;
   if (typeof score === "number" && score > 0) {
     p.match3.highScore = Math.max(p.match3.highScore, score);
