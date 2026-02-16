@@ -15,6 +15,9 @@ const FarmGame = (() => {
   let buyQty = 1;
   let justPlantedPlot = -1; // Track freshly-planted plot for animation
   let plantVersion = 0; // Track rapid planting for stale response rejection
+  let harvestVersion = 0; // Track rapid harvesting for stale response rejection
+  let waterVersion = 0; // Track rapid watering for stale response rejection
+  const wateringInFlight = new Set(); // Prevent duplicate auto-water requests
 
   /** Push local state to GameStore (farm slice) */
   function syncToStore() {
@@ -517,67 +520,80 @@ const FarmGame = (() => {
       });
   }
 
-  async function water(plotId) {
-    // Optimistic update
-    const plotSnapshot = { ...state.plots[plotId] };
-    state.plots[plotId] = { ...plotSnapshot, watered: true };
+  function water(plotId) {
+    // Race guard: skip if already watering this plot
+    if (wateringInFlight.has(plotId)) return;
+    wateringInFlight.add(plotId);
+
+    // Optimistic update (instant UI)
+    state.plots[plotId] = { ...state.plots[plotId], watered: true };
     syncToStore();
     render();
+    showToast(`💧 Watered! Growth ~30% faster`);
 
-    const data = await api("/api/farm/water", { userId: HUB.userId, plotId });
-    if (data.success) {
-      state.plots = data.plots;
-      syncToStore();
-      render();
-      const plot = state.plots[plotId];
-      const mult = plot?.wateringMultiplier;
-      const bonusPct = mult ? Math.round((1 - mult) * 100) : 30;
-      showToast(`💧 Watered! Growth +${bonusPct}% faster`);
-    } else {
-      // Rollback
-      state.plots[plotId] = plotSnapshot;
-      syncToStore();
-      render();
-    }
+    // Fire-and-forget with version guard
+    const myVersion = ++waterVersion;
+    api("/api/farm/water", { userId: HUB.userId, plotId })
+      .then((data) => {
+        wateringInFlight.delete(plotId);
+        if (waterVersion !== myVersion) return;
+        if (data.success) {
+          state.plots = data.plots;
+          syncToStore();
+          render();
+        } else {
+          loadState();
+        }
+      })
+      .catch(() => {
+        wateringInFlight.delete(plotId);
+        if (waterVersion === myVersion) loadState();
+      });
   }
 
-  async function harvest(plotId) {
-    // Optimistic: clear the plot immediately
+  function harvest(plotId) {
+    // Optimistic: clear plot + show estimated reward instantly
     const plotSnapshot = { ...state.plots[plotId] };
-    const stateSnapshot = {
-      xp: state.xp,
-      level: state.level,
-    };
+    const cfg = crops[plotSnapshot.crop];
+    const estimatedCoins = cfg?.sellPrice || 0;
+    const estimatedXP = cfg?.xp || 0;
+
     state.plots[plotId] = { crop: null, plantedAt: null, watered: false };
+    state.xp += estimatedXP;
     syncToStore();
     render();
+    renderShop();
+    updateBuyBar();
 
-    const data = await api("/api/farm/harvest", { userId: HUB.userId, plotId });
-    if (data.success) {
-      state.plots = data.plots;
-      state.xp = data.xp;
-      state.level = data.level;
-      // Sync resources (gold awarded) to HUD
-      if (data.resources && typeof HUD !== "undefined") {
-        HUD.syncFromServer(data.resources);
-        if (data.reward) HUD.animateGoldChange(data.reward.coins);
-      }
-      syncToStore();
-      render();
-      renderShop();
-      updateBuyBar();
-      showToast(
-        `${data.reward.crop} +${data.reward.coins}💰 +${data.reward.xp}XP`,
-      );
-      if (data.leveledUp) showToast(`🎉 Level Up! Lv${data.level}`);
-    } else {
-      // Rollback
-      state.plots[plotId] = plotSnapshot;
-      state.xp = stateSnapshot.xp;
-      state.level = stateSnapshot.level;
-      syncToStore();
-      render();
-    }
+    // Instant optimistic feedback (< 16ms)
+    showToast(`${cfg?.emoji || "🌱"} +${estimatedCoins}💰 +${estimatedXP}XP`);
+    if (typeof HUD !== "undefined") HUD.animateGoldChange(estimatedCoins);
+
+    // Fire-and-forget with version guard
+    const myVersion = ++harvestVersion;
+    api("/api/farm/harvest", { userId: HUB.userId, plotId })
+      .then((data) => {
+        if (harvestVersion !== myVersion) return;
+        if (data.success) {
+          state.plots = data.plots;
+          state.xp = data.xp;
+          state.level = data.level;
+          if (data.resources && typeof HUD !== "undefined") {
+            HUD.syncFromServer(data.resources);
+          }
+          syncToStore();
+          render();
+          renderShop();
+          updateBuyBar();
+          if (data.leveledUp) showToast(`🎉 Level Up! Lv${data.level}`);
+        } else {
+          // Error: full resync
+          loadState();
+        }
+      })
+      .catch(() => {
+        if (harvestVersion === myVersion) loadState();
+      });
   }
 
   /* ─── Local Growth Computation (Issue 5) ─── */
@@ -597,6 +613,11 @@ const FarmGame = (() => {
     stopLocalGrowthTick();
     growthTickId = setInterval(() => {
       if (!state?.plots) return;
+      // Smart tick: skip render when nothing is growing (Solutions 4 + 7)
+      const hasGrowing = state.plots.some(
+        (p) => p.crop && getLocalGrowth(p) < 1,
+      );
+      if (!hasGrowing) return;
       render(); // re-render with locally computed growth
       updateFarmBadge();
     }, 500);

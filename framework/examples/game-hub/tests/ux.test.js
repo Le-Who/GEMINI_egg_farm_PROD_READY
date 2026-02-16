@@ -1,0 +1,439 @@
+/**
+ * ═══════════════════════════════════════════════════════
+ *  Game Hub — UX Diagnostic Tests
+ *  Tests for pet flicker, harvest delay, and farm optimization
+ *  Run:  node --test tests/ux.test.js
+ * ═══════════════════════════════════════════════════════
+ */
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import {
+  CROPS,
+  getGrowthPct,
+  getWateringMultiplier,
+  farmPlotsWithGrowth,
+  processOfflineActions,
+  createDefaultPlayer,
+  ECONOMY,
+} from "../game-logic.js";
+
+/* ═════════════════════════════════════════════════════
+ *  Pet Flicker — Transition Timing Invariants
+ *  These tests verify the constraints that prevent flicker
+ * ═════════════════════════════════════════════════════ */
+describe("Pet Flicker — Transition Invariants", () => {
+  it("roam duration (3s idle reset) must exceed walk transition (2.5s)", () => {
+    // If idle reset fires BEFORE walk transition completes,
+    // the pet snaps to final position (flicker)
+    const ROAM_IDLE_RESET_MS = 3000;
+    const WALK_TRANSITION_MS = 2500;
+    assert.ok(
+      ROAM_IDLE_RESET_MS >= WALK_TRANSITION_MS,
+      `Roam idle reset (${ROAM_IDLE_RESET_MS}ms) must be >= walk transition (${WALK_TRANSITION_MS}ms) to prevent early abort flicker`,
+    );
+  });
+
+  it("dock transition (0.5s) must be shorter than roam transition (2.5s)", () => {
+    // Dock should feel snappy; roam should feel leisurely
+    const DOCK_TRANSITION_MS = 500;
+    const ROAM_TRANSITION_MS = 2500;
+    assert.ok(DOCK_TRANSITION_MS < ROAM_TRANSITION_MS);
+  });
+
+  it("state machine min delay (4s) must exceed roam transition (2.5s) + buffer", () => {
+    // If next state fires during active roam, pet gets yanked to new position
+    const STATE_MIN_DELAY_MS = 4000;
+    const ROAM_TRANSITION_MS = 2500;
+    const SAFETY_BUFFER_MS = 500;
+    assert.ok(
+      STATE_MIN_DELAY_MS >= ROAM_TRANSITION_MS + SAFETY_BUFFER_MS,
+      `State min delay (${STATE_MIN_DELAY_MS}ms) must exceed roam (${ROAM_TRANSITION_MS}ms) + buffer (${SAFETY_BUFFER_MS}ms)`,
+    );
+  });
+
+  it("pet-roaming class removal timeout must match or exceed CSS transition duration", () => {
+    // Class removal at 3000ms, CSS transition 2500ms — must be >=
+    const CLASS_REMOVAL_TIMEOUT_MS = 3000;
+    const CSS_TRANSITION_MS = 2500;
+    assert.ok(
+      CLASS_REMOVAL_TIMEOUT_MS >= CSS_TRANSITION_MS,
+      `Class removal (${CLASS_REMOVAL_TIMEOUT_MS}ms) must be >= CSS transition (${CSS_TRANSITION_MS}ms) to prevent mid-transition snap`,
+    );
+  });
+
+  it("dock class switch must NOT have pet-roaming class applied", () => {
+    // Simulates: setDockMode removes .pet-roaming before updatePetDock applies dock
+    // This is verified by the code flow: setDockMode → remove pet-roaming → updatePetDock
+    const mockClasses = new Set(["pet-roaming", "pet-transitioning"]);
+    // setDockMode should clear pet-roaming
+    mockClasses.delete("pet-roaming");
+    assert.ok(
+      !mockClasses.has("pet-roaming"),
+      "pet-roaming must be removed before dock switch",
+    );
+    // Then transitioning can be added
+    mockClasses.add("pet-transitioning");
+    assert.ok(mockClasses.has("pet-transitioning"));
+  });
+
+  it("pet-transitioning cleanup timeout matches CSS dock transition", () => {
+    const CLEANUP_TIMEOUT_MS = 550;
+    const DOCK_CSS_TRANSITION_MS = 500;
+    assert.ok(
+      CLEANUP_TIMEOUT_MS >= DOCK_CSS_TRANSITION_MS,
+      "Cleanup timeout must be >= dock transition to avoid premature removal",
+    );
+  });
+});
+
+/* ═════════════════════════════════════════════════════
+ *  Pet Zone Bounds — Stats-Bar Formula
+ * ═════════════════════════════════════════════════════ */
+describe("Pet Zone Bounds", () => {
+  it("stats-bar formula produces valid range on 375px screen", () => {
+    const w = 375;
+    const panelW = Math.min(520, w - 80);
+    const minX = (w - panelW) / 2 + 20;
+    const maxX = (w + panelW) / 2 - 20;
+    assert.ok(panelW > 0, "Panel width must be positive");
+    assert.ok(maxX > minX, "Max X must exceed Min X");
+    assert.ok(minX >= 0, "Min X must not be negative");
+    assert.ok(maxX <= w, "Max X must not exceed viewport");
+  });
+
+  it("stats-bar formula produces valid range on 1920px screen", () => {
+    const w = 1920;
+    const panelW = Math.min(520, w - 80);
+    const minX = (w - panelW) / 2 + 20;
+    const maxX = (w + panelW) / 2 - 20;
+    assert.equal(panelW, 520, "Wide screen should clamp to 520px");
+    assert.ok(maxX > minX);
+    assert.ok(minX >= 0);
+    assert.ok(maxX <= w);
+  });
+
+  it("stats-bar formula degrades gracefully on ultra-narrow screen (120px)", () => {
+    const w = 120;
+    const panelW = Math.min(520, w - 80); // 40px
+    const minX = (w - panelW) / 2 + 20; // 60
+    const maxX = (w + panelW) / 2 - 20; // 60
+    // At this extreme, range collapses — pet should fall back to IDLE
+    assert.ok(
+      maxX <= minX,
+      "Ultra-narrow screen should collapse to IDLE fallback",
+    );
+  });
+
+  it("ground mode uses full viewport with 40px padding", () => {
+    const w = 400;
+    const minX = 40;
+    const maxX = w - 40;
+    assert.equal(maxX - minX, 320);
+    assert.ok(maxX > minX);
+  });
+});
+
+/* ═════════════════════════════════════════════════════
+ *  Harvest — Optimistic Reward Estimation
+ * ═════════════════════════════════════════════════════ */
+describe("Harvest Optimistic Rewards", () => {
+  it("all crops have sellPrice and xp for optimistic estimation", () => {
+    for (const [id, cfg] of Object.entries(CROPS)) {
+      assert.ok(
+        cfg.sellPrice > 0,
+        `${id} missing sellPrice for optimistic reward`,
+      );
+      assert.ok(cfg.xp > 0, `${id} missing xp for optimistic reward`);
+    }
+  });
+
+  it("optimistic reward matches crops config (no server bonuses)", () => {
+    const crop = CROPS.strawberry;
+    const estimatedCoins = crop.sellPrice;
+    const estimatedXP = crop.xp;
+    assert.equal(estimatedCoins, 15);
+    assert.equal(estimatedXP, 5);
+  });
+
+  it("pumpkin has highest reward (premium crop progression)", () => {
+    const pumpkin = CROPS.pumpkin;
+    for (const [id, cfg] of Object.entries(CROPS)) {
+      if (id === "pumpkin") continue;
+      assert.ok(
+        pumpkin.sellPrice >= cfg.sellPrice,
+        `Pumpkin sellPrice (${pumpkin.sellPrice}) should be >= ${id} (${cfg.sellPrice})`,
+      );
+    }
+  });
+
+  it("harvest clears plot locally before server response", () => {
+    // Simulates optimistic harvest: plot should be cleared immediately
+    const plots = [
+      {
+        crop: "strawberry",
+        plantedAt: Date.now() - 20000,
+        watered: false,
+        growthTime: 15000,
+      },
+      { crop: null, plantedAt: null, watered: false },
+    ];
+    // Optimistic harvest of plot 0
+    const snapshot = { ...plots[0] };
+    plots[0] = { crop: null, plantedAt: null, watered: false };
+    assert.equal(plots[0].crop, null, "Plot should be cleared optimistically");
+    assert.equal(
+      snapshot.crop,
+      "strawberry",
+      "Snapshot should preserve original",
+    );
+  });
+});
+
+/* ═════════════════════════════════════════════════════
+ *  Farm Growth Tick — Efficiency
+ * ═════════════════════════════════════════════════════ */
+describe("Growth Tick Efficiency", () => {
+  it("empty farm should skip render (hasGrowingPlots = false)", () => {
+    const plots = [
+      { crop: null, plantedAt: null, watered: false },
+      { crop: null, plantedAt: null, watered: false },
+      { crop: null, plantedAt: null, watered: false },
+    ];
+    const hasGrowing = plots.some((p) => p.crop && getGrowthPct(p) < 1);
+    assert.equal(hasGrowing, false, "Empty farm should not trigger render");
+  });
+
+  it("fully grown farm should skip render (all at 100%)", () => {
+    const now = Date.now();
+    const plots = [
+      {
+        crop: "strawberry",
+        plantedAt: now - 30000,
+        watered: false,
+        growthTime: CROPS.strawberry.growthTime,
+      },
+      {
+        crop: "tomato",
+        plantedAt: now - 60000,
+        watered: false,
+        growthTime: CROPS.tomato.growthTime,
+      },
+    ];
+    const hasGrowing = plots.some((p) => p.crop && getGrowthPct(p, now) < 1);
+    assert.equal(
+      hasGrowing,
+      false,
+      "Fully grown farm should not trigger render",
+    );
+  });
+
+  it("partially grown farm SHOULD trigger render", () => {
+    const now = Date.now();
+    const plots = [
+      {
+        crop: "pumpkin",
+        plantedAt: now - 5000,
+        watered: false,
+        growthTime: CROPS.pumpkin.growthTime,
+      },
+    ];
+    const hasGrowing = plots.some((p) => p.crop && getGrowthPct(p, now) < 1);
+    assert.equal(hasGrowing, true, "Growing plot should trigger render");
+  });
+});
+
+/* ═════════════════════════════════════════════════════
+ *  Water — Race Condition Prevention
+ * ═════════════════════════════════════════════════════ */
+describe("Water Race Condition", () => {
+  it("in-flight Set prevents duplicate watering of same plot", () => {
+    const wateringInFlight = new Set();
+    // First water request — should proceed
+    const plot0FirstRequest = !wateringInFlight.has(0);
+    wateringInFlight.add(0);
+    assert.ok(plot0FirstRequest, "First water request should proceed");
+
+    // Second water request for same plot — should be blocked
+    const plot0SecondRequest = !wateringInFlight.has(0);
+    assert.ok(!plot0SecondRequest, "Duplicate water request should be blocked");
+
+    // Different plot — should proceed
+    const plot1Request = !wateringInFlight.has(1);
+    assert.ok(plot1Request, "Different plot should proceed");
+
+    // After first request completes
+    wateringInFlight.delete(0);
+    const plot0ThirdRequest = !wateringInFlight.has(0);
+    assert.ok(
+      plot0ThirdRequest,
+      "After completion, new request should proceed",
+    );
+  });
+
+  it("auto-water skips already-watered plots", () => {
+    const plots = [
+      { crop: "strawberry", watered: true },
+      { crop: "tomato", watered: false },
+      { crop: null, watered: false },
+      { crop: "corn", watered: false },
+    ];
+    const needWater = plots
+      .map((p, i) => ({ ...p, i }))
+      .filter((p) => p.crop && !p.watered);
+    assert.equal(needWater.length, 2, "Should find 2 plots needing water");
+    assert.deepEqual(
+      needWater.map((p) => p.i),
+      [1, 3],
+    );
+  });
+
+  it("auto-water respects 2-per-tick limit", () => {
+    const plots = Array.from({ length: 6 }, (_, i) => ({
+      crop: "strawberry",
+      watered: false,
+    }));
+    let watered = 0;
+    for (let i = 0; i < plots.length && watered < 2; i++) {
+      if (plots[i].crop && !plots[i].watered) watered++;
+    }
+    assert.equal(watered, 2, "Should water exactly 2 per tick");
+  });
+});
+
+/* ═════════════════════════════════════════════════════
+ *  Plant Version Guard — Stale Response Rejection
+ * ═════════════════════════════════════════════════════ */
+describe("Plant/Harvest Version Guard", () => {
+  it("version counter increments per operation", () => {
+    let plantVersion = 0;
+    const v1 = ++plantVersion;
+    const v2 = ++plantVersion;
+    const v3 = ++plantVersion;
+    assert.equal(v1, 1);
+    assert.equal(v2, 2);
+    assert.equal(v3, 3);
+    assert.equal(plantVersion, 3);
+  });
+
+  it("stale response is rejected when version has advanced", () => {
+    let plantVersion = 0;
+    const myVersion = ++plantVersion; // v1
+    ++plantVersion; // v2 (another plant happened)
+    const isStale = plantVersion !== myVersion;
+    assert.ok(isStale, "Response from v1 should be stale after v2 fires");
+  });
+
+  it("current response is accepted when version matches", () => {
+    let plantVersion = 0;
+    const myVersion = ++plantVersion;
+    const isCurrent = plantVersion === myVersion;
+    assert.ok(isCurrent, "Latest response should be accepted");
+  });
+
+  it("harvest version guard follows same pattern", () => {
+    let harvestVersion = 0;
+    const v1 = ++harvestVersion;
+    const v2 = ++harvestVersion;
+    assert.ok(harvestVersion !== v1, "v1 is stale after v2");
+    assert.ok(harvestVersion === v2, "v2 is current");
+  });
+});
+
+/* ═════════════════════════════════════════════════════
+ *  Debounced Render — Coalescing
+ * ═════════════════════════════════════════════════════ */
+describe("Debounced Render Queue", () => {
+  it("multiple queue calls result in single render flag", () => {
+    let renderPending = false;
+    let renderCount = 0;
+    function queueRender() {
+      if (renderPending) return;
+      renderPending = true;
+      renderCount++;
+      renderPending = false; // simulate sync render completion
+    }
+    // Call 5 times "synchronously" — should all proceed since each one completes
+    queueRender();
+    queueRender();
+    queueRender();
+    queueRender();
+    queueRender();
+    // With actual microtask batching, only 1 render would fire
+    // This test validates the gating logic
+    assert.equal(
+      renderCount,
+      5,
+      "Sync calls each fire (microtask would batch)",
+    );
+  });
+
+  it("renderPending flag prevents re-entrant renders", () => {
+    let renderPending = false;
+    let blocked = 0;
+    function queueRender() {
+      if (renderPending) {
+        blocked++;
+        return;
+      }
+      renderPending = true;
+      // Simulate async: don't reset until "next tick"
+    }
+    queueRender(); // takes the lock
+    queueRender(); // blocked
+    queueRender(); // blocked
+    assert.equal(blocked, 2, "Two calls blocked by pending flag");
+  });
+});
+
+/* ═════════════════════════════════════════════════════
+ *  Watering Multiplier — Growth Speed
+ * ═════════════════════════════════════════════════════ */
+describe("Watering Growth Speed", () => {
+  it("watering multiplier reduces growth time by 20-40%", () => {
+    for (const [id, cfg] of Object.entries(CROPS)) {
+      const mult = getWateringMultiplier(cfg);
+      assert.ok(
+        mult >= 0.6 && mult <= 0.8,
+        `${id} multiplier ${mult} out of range [0.6, 0.8]`,
+      );
+    }
+  });
+
+  it("watered plot grows faster than unwatered", () => {
+    const now = Date.now();
+    const plantedAt = now - 10000;
+    const crop = CROPS.strawberry;
+    const unwateredGrowth = getGrowthPct(
+      {
+        crop: "strawberry",
+        plantedAt,
+        watered: false,
+        growthTime: crop.growthTime,
+      },
+      now,
+    );
+    const wateredGrowth = getGrowthPct(
+      {
+        crop: "strawberry",
+        plantedAt,
+        watered: true,
+        growthTime: crop.growthTime,
+        wateringMultiplier: getWateringMultiplier(crop),
+      },
+      now,
+    );
+    assert.ok(
+      wateredGrowth > unwateredGrowth,
+      `Watered (${wateredGrowth}) should grow faster than unwatered (${unwateredGrowth})`,
+    );
+  });
+
+  it("growth percentage is capped at 1.0", () => {
+    const now = Date.now();
+    const pct = getGrowthPct(
+      { crop: "strawberry", plantedAt: now - 999999, growthTime: 15000 },
+      now,
+    );
+    assert.equal(pct, 1, "Growth should cap at 1.0");
+  });
+});

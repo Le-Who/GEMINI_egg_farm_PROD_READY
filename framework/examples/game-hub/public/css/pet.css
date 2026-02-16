@@ -98,7 +98,7 @@
   transform: translate3d(50vw, 0, 0) translateX(-50%);
   pointer-events: auto;
   cursor: pointer;
-  transition: transform 3s cubic-bezier(0.25, 0.1, 0.25, 1);
+  transition: none; /* Opt-in only via .pet-roaming / .pet-transitioning */
   will-change: transform;
   transform-style: preserve-3d;
 }
