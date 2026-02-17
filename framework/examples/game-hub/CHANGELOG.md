@@ -1,5 +1,11 @@
 # Changelog
 
+## v4.3.1 — 2026-02-17
+
+### Hotfix
+
+- **Blox Startup Crash**: Fixed `SyntaxError: Identifier 'dragPreviewEl' has already been declared` caused by duplicate variable declaration in v4.3. `blox.js`.
+
 ## v4.3 — 2026-02-17
 
 ### Critical Fixes

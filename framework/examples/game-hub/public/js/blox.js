@@ -134,6 +134,7 @@ const BloxGame = (() => {
   // Drag state (touch)
   let dragPieceIdx = -1;
   let dragPreviewEl = null;
+  let dragPreviewCellSize = 28; // default, updated dynamically
 
   const $ = (id) => document.getElementById(id);
 
@@ -642,9 +643,6 @@ const BloxGame = (() => {
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
   }
-
-  let dragPreviewEl = null;
-  let dragPreviewCellSize = 28; // default, updated dynamically
 
   // ── Drag preview (shared by touch + mouse) ──
   function createDragPreview(piece, pointer, isTouch) {
