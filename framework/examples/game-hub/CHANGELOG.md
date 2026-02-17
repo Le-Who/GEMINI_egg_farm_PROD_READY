@@ -1,5 +1,38 @@
 # Changelog
 
+## v4.0 — 2026-02-17
+
+### New: Building Blox 🧱
+
+- **10×10 grid block puzzle**: place Tetris-like pieces, clear rows and columns for points
+- 12 piece shapes (1-cell dot through 5-cell pentomino) with distinct colors
+- Piece tray shows 3 upcoming pieces with mini-preview grids
+- Ghost preview on hover shows valid/invalid placement
+- Progressive scoring: bonus for multi-line clears, `calcBloxReward` reward curve
+- Energy cost: 4⚡ per game (via `/api/blox/start` + `/api/blox/end` server endpoints)
+- Game-over detection: ends when no remaining piece fits on the board
+- `blox.test.js`: piece shapes, placement, line clearing, scoring, game-over, reward
+
+### Fix: Match-3 Mode Selector
+
+- Removed absolute-positioned sidebar layout (was clipped by `overflow-x: hidden`)
+- Mode selector is now an inline horizontal card row above the board
+- Active mode highlighted during gameplay with dimmed non-active modes
+
+### Navigation Expansion (3 → 4 screens)
+
+- Screen order: Trivia → Building Blox → Farm → Match-3
+- Farm remains the default/center screen (index 2)
+- Updated: `screenNames`, `SmartLoader`, `updatePetDock`, nav dots, bounds, cell sizing
+
+### Version
+
+- All `?v=3.x` → `?v=4.0` (index.html, shared.js SmartLoader)
+- Version badge → v4.0
+- package.json → 4.0.0
+
+---
+
 ## v3.3 — 2026-02-17
 
 ### Bug Fixes

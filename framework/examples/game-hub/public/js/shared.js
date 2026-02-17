@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Shared Infrastructure (v3.2)
+ *  Game Hub — Shared Infrastructure (v4.0)
  *  Discord SDK auth, API helper, screen navigation
  *  CSP-compliant: no inline handlers, no external fonts
  * ═══════════════════════════════════════════════════ */
@@ -9,9 +9,9 @@ const HUB = {
   username: "Player",
   accessToken: null,
   sdk: null,
-  currentScreen: 1, // 0=Trivia, 1=Farm, 2=Match3
-  screenNames: ["trivia", "farm", "match3"],
-  initialized: { trivia: false, farm: false, match3: false },
+  currentScreen: 2, // 0=Trivia, 1=Blox, 2=Farm, 3=Match3
+  screenNames: ["trivia", "blox", "farm", "match3"],
+  initialized: { trivia: false, blox: false, farm: false, match3: false },
   isTouchDevice: false,
 };
 
@@ -154,7 +154,7 @@ async function api(path, body) {
 /* ─── Navigation ─── */
 function navigate(dir) {
   const next = HUB.currentScreen + dir;
-  if (next < 0 || next > 2) return;
+  if (next < 0 || next > 3) return;
   HUB.currentScreen = next;
   applyScreenPosition();
   updateNavUI();
@@ -163,7 +163,7 @@ function navigate(dir) {
 }
 
 function goToScreen(index) {
-  if (index < 0 || index > 2 || index === HUB.currentScreen) return;
+  if (index < 0 || index > 3 || index === HUB.currentScreen) return;
   HUB.currentScreen = index;
   applyScreenPosition();
   updateNavUI();
@@ -181,9 +181,10 @@ function updatePetDock() {
   const container = document.getElementById("pet-container");
   if (!overlay || !container) return;
 
-  const isFarm = HUB.currentScreen === 1;
+  const isFarm = HUB.currentScreen === 2;
   const isTrivia = HUB.currentScreen === 0;
-  const isMatch3 = HUB.currentScreen === 2;
+  const isMatch3 = HUB.currentScreen === 3;
+  const isBlox = HUB.currentScreen === 1;
 
   // Determine new dock mode
   const newDockClass = isFarm
@@ -225,7 +226,7 @@ function updateNavUI() {
   const $left = document.getElementById("nav-left");
   const $right = document.getElementById("nav-right");
   $left.classList.toggle("hidden", HUB.currentScreen === 0);
-  $right.classList.toggle("hidden", HUB.currentScreen === 2);
+  $right.classList.toggle("hidden", HUB.currentScreen === 3);
 
   document.querySelectorAll(".nav-dot").forEach((dot, i) => {
     dot.classList.toggle("active", i === HUB.currentScreen);
@@ -256,6 +257,7 @@ async function triggerScreenCallbacks() {
       TriviaGame.init();
     if (name === "match3" && typeof Match3Game !== "undefined")
       Match3Game.init();
+    if (name === "blox" && typeof BloxGame !== "undefined") BloxGame.init();
   }
   // Screen enter callbacks
   if (name === "farm" && typeof FarmGame !== "undefined") FarmGame.onEnter();
@@ -263,6 +265,7 @@ async function triggerScreenCallbacks() {
     TriviaGame.onEnter();
   if (name === "match3" && typeof Match3Game !== "undefined")
     Match3Game.onEnter();
+  if (name === "blox" && typeof BloxGame !== "undefined") BloxGame.onEnter();
 }
 
 /* ─── Toast ─── */
@@ -281,15 +284,15 @@ function sleep(ms) {
 
 /* ─── SmartLoader (Predictive Proximity Loading) ─── */
 const SmartLoader = {
-  loaded: { farm: false, trivia: false, match3: false },
-  loading: { farm: null, trivia: null, match3: null },
+  loaded: { farm: false, trivia: false, match3: false, blox: false },
+  loading: { farm: null, trivia: null, match3: null, blox: null },
 
   loadScript(name) {
     if (this.loaded[name]) return Promise.resolve();
     if (this.loading[name]) return this.loading[name];
     this.loading[name] = new Promise((resolve, reject) => {
       const script = document.createElement("script");
-      script.src = `js/${name}.js?v=3.3`;
+      script.src = `js/${name}.js?v=4.0`;
       script.onload = () => {
         this.loaded[name] = true;
         resolve();
@@ -308,7 +311,7 @@ const SmartLoader = {
   prefetchNeighbors(index) {
     setTimeout(() => {
       if (index > 0) this.loadScript(HUB.screenNames[index - 1]);
-      if (index < 2) this.loadScript(HUB.screenNames[index + 1]);
+      if (index < 3) this.loadScript(HUB.screenNames[index + 1]);
     }, 2000);
   },
 };
@@ -328,11 +331,14 @@ function bindNavigation() {
     .getElementById("nav-dot-trivia")
     .addEventListener("click", () => goToScreen(0));
   document
-    .getElementById("nav-dot-farm")
+    .getElementById("nav-dot-blox")
     .addEventListener("click", () => goToScreen(1));
   document
-    .getElementById("nav-dot-match3")
+    .getElementById("nav-dot-farm")
     .addEventListener("click", () => goToScreen(2));
+  document
+    .getElementById("nav-dot-match3")
+    .addEventListener("click", () => goToScreen(3));
 
   // Trivia buttons
   document
@@ -386,6 +392,11 @@ function bindNavigation() {
   document
     .getElementById("btn-lb-tab-room")
     ?.addEventListener("click", () => Match3Game.setLbTab("room"));
+
+  // Building Blox buttons
+  document
+    .getElementById("btn-blox-play-again")
+    ?.addEventListener("click", () => BloxGame.startGame());
 }
 
 /* ─── Device Detection ─── */
@@ -534,6 +545,23 @@ window.addEventListener("DOMContentLoaded", async () => {
     );
     document.documentElement.style.setProperty("--m3-cell", cs + "px");
   }
+
+  // Cell size for Building Blox (10x10 grid, slightly smaller cells)
+  function updateBloxCellSize() {
+    const maxByWidth = Math.floor((window.innerWidth - 60) / 10);
+    const maxByHeight = Math.floor((window.innerHeight - 320) / 10);
+    const isMobile = window.innerWidth <= 480 || HUB.isTouchDevice;
+    const cs = Math.max(
+      isMobile ? 28 : 24,
+      Math.min(isMobile ? 44 : 38, maxByWidth, maxByHeight),
+    );
+    document.documentElement.style.setProperty("--blox-cell", cs + "px");
+  }
+
   updateM3CellSize();
-  window.addEventListener("resize", updateM3CellSize);
+  updateBloxCellSize();
+  window.addEventListener("resize", () => {
+    updateM3CellSize();
+    updateBloxCellSize();
+  });
 });

@@ -64,11 +64,11 @@ body {
 }
 .screen-track {
   display: flex;
-  width: 300vw;
+  width: 400vw;
   height: 100dvh;
   height: 100vh; /* fallback */
   transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-  transform: translateX(-100vw); /* Start on Farm (center) */
+  transform: translateX(-200vw); /* Start on Farm (index 2 of 4) */
 }
 .screen {
   width: 100vw;
@@ -203,22 +203,22 @@ body.touch-device .nav-dots {
 /* ─── Swipe Hint Animation (first visit) ─── */
 @keyframes swipeHint {
   0% {
-    transform: translateX(-100vw);
+    transform: translateX(-200vw);
   }
   15% {
-    transform: translateX(calc(-100vw + 24px));
+    transform: translateX(calc(-200vw + 24px));
   }
   30% {
-    transform: translateX(-100vw);
+    transform: translateX(-200vw);
   }
   45% {
-    transform: translateX(calc(-100vw + 12px));
+    transform: translateX(calc(-200vw + 12px));
   }
   60% {
-    transform: translateX(-100vw);
+    transform: translateX(-200vw);
   }
   100% {
-    transform: translateX(-100vw);
+    transform: translateX(-200vw);
   }
 }
 .screen-track.hint-bounce {

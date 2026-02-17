@@ -21,6 +21,9 @@ export const ECONOMY = {
   REWARD_TRIVIA_LOSE: 5,
   FEED_ENERGY: 2,
   FEED_PET_XP: 10,
+  COST_BLOX: 4,
+  REWARD_BLOX_WIN: 35,
+  REWARD_BLOX_LOSE: 5,
 };
 
 /**
@@ -207,6 +210,10 @@ export function createDefaultPlayer(userId, username, now = Date.now()) {
       totalGames: 0,
       currentGame: null,
     },
+    blox: {
+      highScore: 0,
+      totalGames: 0,
+    },
   };
 }
 
@@ -339,6 +346,139 @@ export function getGrowthPct(plot, now = Date.now()) {
   const time = cfg.growthTime * mult;
   return Math.min(1, elapsed / time);
 }
+
+/**
+ * Progressive gold reward for Building Blox based on lines cleared.
+ * Similar curve to calcGoldReward but tuned for block puzzle pace.
+ */
+export function calcBloxReward(score) {
+  const BASE = ECONOMY.REWARD_BLOX_WIN;
+  if (typeof score !== "number" || score <= 0) return ECONOMY.REWARD_BLOX_LOSE;
+  if (score < 100)
+    return Math.max(ECONOMY.REWARD_BLOX_LOSE, Math.floor(BASE * (score / 100)));
+  let gold = BASE;
+  if (score >= 100)
+    gold += Math.floor(((Math.min(score, 300) - 100) / 50) * 0.08 * BASE);
+  if (score >= 300)
+    gold += Math.floor(((Math.min(score, 600) - 300) / 50) * 0.15 * BASE);
+  if (score >= 600) gold += Math.floor(((score - 600) / 50) * 0.25 * BASE);
+  return Math.min(gold, 400);
+}
+
+/* Building Blox — Piece Definitions
+ * Each piece is an array of [row, col] offsets from top-left corner.
+ */
+export const BLOX_PIECES = [
+  // 1-cell
+  { id: "dot", cells: [[0, 0]], color: "#94a3b8" },
+  // 2-cell
+  {
+    id: "h2",
+    cells: [
+      [0, 0],
+      [0, 1],
+    ],
+    color: "#60a5fa",
+  },
+  {
+    id: "v2",
+    cells: [
+      [0, 0],
+      [1, 0],
+    ],
+    color: "#60a5fa",
+  },
+  // 3-cell L
+  {
+    id: "l3",
+    cells: [
+      [0, 0],
+      [1, 0],
+      [1, 1],
+    ],
+    color: "#f97316",
+  },
+  {
+    id: "l3r",
+    cells: [
+      [0, 0],
+      [0, 1],
+      [1, 0],
+    ],
+    color: "#f97316",
+  },
+  {
+    id: "h3",
+    cells: [
+      [0, 0],
+      [0, 1],
+      [0, 2],
+    ],
+    color: "#22c55e",
+  },
+  {
+    id: "v3",
+    cells: [
+      [0, 0],
+      [1, 0],
+      [2, 0],
+    ],
+    color: "#22c55e",
+  },
+  // Tetrominos (4-cell)
+  {
+    id: "sq",
+    cells: [
+      [0, 0],
+      [0, 1],
+      [1, 0],
+      [1, 1],
+    ],
+    color: "#fbbf24",
+  },
+  {
+    id: "t4",
+    cells: [
+      [0, 0],
+      [0, 1],
+      [0, 2],
+      [1, 1],
+    ],
+    color: "#a78bfa",
+  },
+  {
+    id: "s4",
+    cells: [
+      [0, 1],
+      [0, 2],
+      [1, 0],
+      [1, 1],
+    ],
+    color: "#ef4444",
+  },
+  {
+    id: "i4",
+    cells: [
+      [0, 0],
+      [0, 1],
+      [0, 2],
+      [0, 3],
+    ],
+    color: "#06b6d4",
+  },
+  // Pentomino (5-cell)
+  {
+    id: "i5",
+    cells: [
+      [0, 0],
+      [0, 1],
+      [0, 2],
+      [0, 3],
+      [0, 4],
+    ],
+    color: "#e879f9",
+  },
+];
 
 export function farmPlotsWithGrowth(farm, now = Date.now()) {
   return farm.plots.map((pl) => {

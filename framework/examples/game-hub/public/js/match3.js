@@ -386,9 +386,9 @@ const Match3Game = (() => {
     if (!sel) {
       sel = document.createElement("div");
       sel.id = "m3-mode-selector";
-      sel.className = "m3-mode-selector m3-mode-sidebar show";
+      sel.className = "m3-mode-selector show";
       sel.innerHTML = `
-        <div class="m3-mode-title">Mode</div>
+        <div class="m3-mode-title">Choose Mode</div>
         <div class="m3-mode-cards">
           <button class="m3-mode-card" data-mode="classic">
             <span class="m3-mode-icon">💎</span>
@@ -411,24 +411,31 @@ const Match3Game = (() => {
         const card = e.target.closest(".m3-mode-card");
         if (card) startGame(card.dataset.mode);
       });
-      // Insert as left sidebar: inside m3-layout, before m3-main
-      const layout = $("m3-board-container")?.closest(".m3-layout");
-      const main = layout?.querySelector(".m3-main");
-      if (layout && main) {
-        layout.insertBefore(sel, main);
-      } else {
-        $("m3-board-container")?.parentElement?.insertBefore(
-          sel,
-          $("m3-board-container"),
-        );
+      // Insert inline inside m3-main, before the board
+      const main = $("m3-board-container")?.closest(".m3-main");
+      const boardC = $("m3-board-container");
+      if (main && boardC) {
+        main.insertBefore(sel, boardC);
+      } else if (boardC) {
+        boardC.parentElement.insertBefore(sel, boardC);
       }
     } else {
       sel.classList.add("show");
     }
+    // Remove playing state and active highlights
+    sel.classList.remove("playing");
+    sel
+      .querySelectorAll(".m3-mode-card")
+      .forEach((c) => c.classList.remove("active"));
   }
   function hideModeSelector() {
     const sel = $("m3-mode-selector");
-    if (sel) sel.classList.remove("show");
+    if (!sel) return;
+    // Don't hide — keep visible but mark as playing with active mode
+    sel.classList.add("playing");
+    sel.querySelectorAll(".m3-mode-card").forEach((c) => {
+      c.classList.toggle("active", c.dataset.mode === gameMode);
+    });
   }
 
   /* ─── Timed Mode Countdown ─── */

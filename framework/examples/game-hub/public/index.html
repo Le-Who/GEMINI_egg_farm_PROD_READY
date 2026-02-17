@@ -3,17 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>🎮 Game Hub — Farm + Trivia + Match-3</title>
+    <title>🎮 Game Hub — Farm + Trivia + Match-3 + Building Blox</title>
     <meta
       name="description"
       content="Unified Game Hub: Farm, Trivia (Solo & Duel), Match-3 with Leaderboard — Discord Activities Framework Demo"
     />
-    <link rel="stylesheet" href="css/base.css?v=3.2" />
-    <link rel="stylesheet" href="css/farm.css?v=3.2" />
-    <link rel="stylesheet" href="css/trivia.css?v=3.2" />
-    <link rel="stylesheet" href="css/match3.css?v=3.2" />
-    <link rel="stylesheet" href="css/hud.css?v=3.2" />
-    <link rel="stylesheet" href="css/pet.css?v=3.2" />
+    <link rel="stylesheet" href="css/base.css?v=4.0" />
+    <link rel="stylesheet" href="css/farm.css?v=4.0" />
+    <link rel="stylesheet" href="css/trivia.css?v=4.0" />
+    <link rel="stylesheet" href="css/match3.css?v=4.0" />
+    <link rel="stylesheet" href="css/blox.css?v=4.0" />
+    <link rel="stylesheet" href="css/hud.css?v=4.0" />
+    <link rel="stylesheet" href="css/pet.css?v=4.0" />
   </head>
   <body>
     <!-- ═══ Boot Loading Overlay ═══ -->
@@ -25,6 +26,7 @@
     <!-- ═══ Nav Dots (mobile: top center) ═══ -->
     <div class="nav-dots">
       <button class="nav-dot" id="nav-dot-trivia" title="Trivia"></button>
+      <button class="nav-dot" id="nav-dot-blox" title="Building Blox"></button>
       <button class="nav-dot active" id="nav-dot-farm" title="Farm"></button>
       <button class="nav-dot" id="nav-dot-match3" title="Match-3"></button>
     </div>
@@ -251,6 +253,87 @@
             style="display: none"
           >
             ⚔️ Recent Duels ▲
+          </div>
+        </section>
+
+        <!-- ────── BUILDING BLOX SCREEN ────── -->
+        <section class="screen" id="screen-blox">
+          <div class="screen-header">
+            <h1>🧱 Building Blox</h1>
+            <div class="subtitle">Block Puzzle • Clear Lines</div>
+          </div>
+
+          <div class="stats-bar">
+            <div class="stat">
+              <div class="stat-value text-gold" id="blox-score">0</div>
+              <div class="stat-label">Score</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value" style="color: #06b6d4" id="blox-lines">
+                0
+              </div>
+              <div class="stat-label">Lines</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value" style="color: #a78bfa" id="blox-best">
+                0
+              </div>
+              <div class="stat-label">Best</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value text-gold" id="blox-reward">—</div>
+              <div class="stat-label">Gold</div>
+            </div>
+          </div>
+
+          <div class="blox-layout">
+            <div class="blox-board" id="blox-board"></div>
+            <div class="blox-tray" id="blox-tray"></div>
+          </div>
+
+          <button class="btn btn-primary mt-16" id="blox-btn-start">
+            🧱 New Game
+          </button>
+
+          <!-- Game Over Overlay -->
+          <div class="overlay" id="blox-overlay">
+            <div class="overlay-card">
+              <h2>🏆 Game Over</h2>
+              <div
+                style="
+                  font-size: 2.5rem;
+                  font-weight: 900;
+                  color: var(--gold);
+                  margin: 10px 0;
+                "
+                id="blox-final-score"
+              >
+                0
+              </div>
+              <div
+                style="
+                  font-size: 0.85rem;
+                  color: var(--text-dim);
+                  margin-bottom: 6px;
+                "
+              >
+                Lines:
+                <strong class="text-accent" id="blox-final-lines">0</strong>
+              </div>
+              <div
+                style="
+                  font-size: 0.85rem;
+                  color: var(--text-dim);
+                  margin-bottom: 20px;
+                "
+              >
+                Best:
+                <strong class="text-accent" id="blox-final-best">0</strong>
+              </div>
+              <button class="btn btn-primary" id="btn-blox-play-again">
+                🔄 Play Again
+              </button>
+            </div>
           </div>
         </section>
 
@@ -498,14 +581,14 @@
         font-family: monospace;
       "
     >
-      v3.2
+      v4.0
     </div>
 
     <!-- ═══ Scripts (shared.js loads game scripts dynamically via SmartLoader) ═══ -->
     <script src="js/discord-sdk.js"></script>
-    <script src="js/store.js?v=3.2"></script>
-    <script src="js/hud.js?v=3.2"></script>
-    <script src="js/pet.js?v=3.2"></script>
-    <script src="js/shared.js?v=3.2"></script>
+    <script src="js/store.js?v=4.0"></script>
+    <script src="js/hud.js?v=4.0"></script>
+    <script src="js/pet.js?v=4.0"></script>
+    <script src="js/shared.js?v=4.0"></script>
   </body>
 </html>
