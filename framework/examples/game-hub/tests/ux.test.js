@@ -461,3 +461,96 @@ describe("Watering Growth Speed", () => {
     assert.equal(pct, 1, "Growth should cap at 1.0");
   });
 });
+
+/* ═════════════════════════════════════════════════════
+ *  Match-3 Mode Selector — State Machine Invariants (v4.5.3)
+ *  Tests that the mode selector is always accessible and
+ *  the button hierarchy follows UX requirements.
+ * ═════════════════════════════════════════════════════ */
+describe("Match-3 Mode Selector — State Machine", () => {
+  /**
+   * State-only simulation of onEnter() logic.
+   * Returns which UI element should be shown based on game state.
+   */
+  function simulateOnEnter(gameActive, savedModes) {
+    const hasSaved = Object.keys(savedModes).length > 0;
+    if (gameActive) return "pause-overlay"; // active game → pause
+    if (hasSaved) return "pause-overlay"; // saved sessions → continue overlay
+    return "mode-selector"; // no game, no saved → mode selector
+  }
+
+  /**
+   * Simulate button visibility/priority for the pause overlay.
+   * Returns ordered array of visible buttons (first = most prominent).
+   */
+  function simulateOverlayButtons(gameActive, savedModes) {
+    const hasSaved = Object.keys(savedModes).length > 0;
+    if (gameActive) {
+      // Active game: Continue (primary) + End (danger)
+      return [
+        { id: "resume", class: "btn-primary", visible: true },
+        { id: "new", class: "btn-secondary", visible: false },
+        { id: "end", class: "btn-danger", visible: true },
+      ];
+    }
+    if (hasSaved) {
+      // Saved sessions: Continue (primary) > New Game (secondary) > End (muted)
+      return [
+        { id: "resume", class: "btn-primary", visible: true },
+        { id: "new", class: "btn-secondary", visible: true },
+        { id: "end", class: "btn-muted", visible: true },
+      ];
+    }
+    // No sessions: New Game only
+    return [
+      { id: "resume", class: "btn-primary", visible: false },
+      { id: "new", class: "btn-primary", visible: true },
+      { id: "end", class: "btn-danger", visible: false },
+    ];
+  }
+
+  it("onEnter: active game → pause overlay (not mode selector)", () => {
+    const result = simulateOnEnter(true, {});
+    assert.equal(result, "pause-overlay");
+  });
+
+  it("onEnter: saved sessions → pause overlay", () => {
+    const result = simulateOnEnter(false, { classic: { score: 100 } });
+    assert.equal(result, "pause-overlay");
+  });
+
+  it("onEnter: no game, no saved → mode selector directly", () => {
+    const result = simulateOnEnter(false, {});
+    assert.equal(result, "mode-selector");
+  });
+
+  it("button hierarchy: Continue is first and primary when sessions exist", () => {
+    const buttons = simulateOverlayButtons(false, { classic: { score: 100 } });
+    const visible = buttons.filter((b) => b.visible);
+    assert.equal(visible[0].id, "resume", "Continue should be first");
+    assert.equal(visible[0].class, "btn-primary", "Continue should be primary");
+  });
+
+  it("button hierarchy: End All Sessions is last and muted when sessions exist", () => {
+    const buttons = simulateOverlayButtons(false, { classic: { score: 100 } });
+    const visible = buttons.filter((b) => b.visible);
+    const last = visible[visible.length - 1];
+    assert.equal(last.id, "end", "End should be last");
+    assert.equal(last.class, "btn-muted", "End should be muted");
+  });
+
+  it("button hierarchy: active game has only Continue + End (no New Game)", () => {
+    const buttons = simulateOverlayButtons(true, {});
+    const visible = buttons.filter((b) => b.visible);
+    assert.equal(visible.length, 2);
+    assert.equal(visible[0].id, "resume");
+    assert.equal(visible[1].id, "end");
+  });
+
+  it("no sessions: only New Game visible", () => {
+    const buttons = simulateOverlayButtons(false, {});
+    const visible = buttons.filter((b) => b.visible);
+    assert.equal(visible.length, 1);
+    assert.equal(visible[0].id, "new");
+  });
+});

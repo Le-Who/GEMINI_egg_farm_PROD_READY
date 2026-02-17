@@ -1,5 +1,5 @@
 /**
- * Match-3 Tile Clearing Tests — v3.1
+ * Match-3 Tile Clearing Tests — v4.5.3
  * Run: node --test tests/match3.test.js
  *
  * Tests extracted match-3 logic (findMatches, resolveBoard, gravity)
@@ -204,9 +204,22 @@ describe("resolveBoard", () => {
     const result = resolveBoard(b);
     assert.ok(result.totalPoints > 0, "Should award points");
 
-    // After resolve, the non-matched row 7 tiles should still be present
-    assert.equal(b[7][3], "water");
-    assert.equal(b[7][4], "earth");
+    // Verify the FIRST step cleared exactly the 3 matched tiles
+    const firstCleared = result.steps[0].cleared
+      .map((c) => `${c.x},${c.y}`)
+      .sort();
+    assert.deepEqual(
+      firstCleared,
+      ["0,7", "1,7", "2,7"],
+      "Should clear only matched tiles",
+    );
+
+    // Board should be fully populated after resolve (gravity + fill)
+    for (let y = 0; y < BOARD_SIZE; y++) {
+      for (let x = 0; x < BOARD_SIZE; x++) {
+        assert.ok(b[y][x] !== null, `Cell [${x},${y}] should not be empty`);
+      }
+    }
   });
 
   it("applies gravity: tiles fall down to fill gaps", () => {

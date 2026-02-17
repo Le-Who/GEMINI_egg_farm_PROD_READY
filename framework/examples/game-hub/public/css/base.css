@@ -391,6 +391,18 @@ body.touch-device #version-badge {
 .btn-secondary:hover {
   background: var(--surface-hover);
 }
+.btn-muted {
+  background: transparent;
+  color: var(--text-dim);
+  border: none;
+  font-size: 0.78rem;
+  opacity: 0.7;
+  padding: 8px 16px;
+}
+.btn-muted:hover {
+  opacity: 1;
+  color: var(--text);
+}
 .btn-sm {
   padding: 8px 18px;
   font-size: 0.8rem;
@@ -433,6 +445,13 @@ body.touch-device #version-badge {
   font-size: 1.6rem;
   font-weight: 900;
   margin-bottom: 8px;
+}
+.overlay-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+  align-items: stretch;
 }
 
 /* ─── Card ─── */

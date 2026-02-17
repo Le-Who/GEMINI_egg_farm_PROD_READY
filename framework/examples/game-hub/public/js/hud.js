@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — HUD Module (v4.5)
+ *  Game Hub — HUD Module (v4.5.3)
  *  TopHUD for Energy & Gold display
  *  Registers 'resources' slice in GameStore
  * ═══════════════════════════════════════════════════ */

@@ -2,7 +2,7 @@
 
 > A 4-in-1 social game hub built as a **Discord Embedded App Activity**. Cozy Farm, Brain Blitz trivia, Gem Crush match-3, and Building Blox puzzle — all in one app with a unified pet companion, resource economy, and offline simulation.
 
-**Current version: v4.5.1**
+**Current version: v4.5.3**
 
 ---
 
@@ -152,7 +152,7 @@ The project includes a **reusable game framework** for scaffolding new Discord A
 | ⚔️ **Card Battle Arena** | Card Battle | 8081 |
 | 🧠 **Brain Blitz**       | Trivia      | 8082 |
 | 🌱 **Cozy Farm**         | Farm Sim    | 8083 |
-| 🎮 **Game Hub**          | 3-in-1 Hub  | 8090 |
+| 🎮 **Game Hub**          | 4-in-1 Hub  | 8090 |
 
 ---
 

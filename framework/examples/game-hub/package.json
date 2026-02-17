@@ -1,6 +1,6 @@
 {
   "name": "game-hub",
-  "version": "4.5.1",
+  "version": "4.5.3",
   "type": "module",
   "private": true,
   "description": "Unified Game Hub — Farm + Trivia + Match-3 in one Discord Activity",
@@ -9,7 +9,7 @@
     "prestart": "npm run build",
     "start": "node server.js",
     "dev": "node server.js",
-    "test": "node --test tests/unit.test.js tests/api.test.js tests/perf.test.js",
+    "test": "node --test tests/unit.test.js tests/api.test.js tests/blox.test.js tests/match3.test.js tests/ux.test.js tests/gcp.test.js tests/perf.test.js",
     "test:perf": "node --test tests/perf.test.js"
   },
   "dependencies": {

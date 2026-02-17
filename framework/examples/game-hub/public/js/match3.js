@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Match-3 Module (v4.5.1)
+ *  Game Hub — Match-3 Module (v4.5.3)
  *  Client-side engine, CSS transitions, state restore
  *  ─ GameStore integration (match3 slice)
  *  ─ Pause/Continue overlay, touch swipe, default mode
@@ -279,48 +279,21 @@ const Match3Game = (() => {
         gameActive,
       });
     }
-    $("m3-btn-start").onclick = () => startGame(); // Bug 6 fix: prevent MouseEvent arg leak
+    // v4.5.3: "New Game" button always goes through mode selector
+    $("m3-btn-start").onclick = () => showModeSelector();
     $("m3-btn-lb").onclick = toggleLeaderboard;
     // Leaderboard close handlers
     $("m3-lb-close").onclick = closeLeaderboard;
     $("m3-lb-backdrop").onclick = closeLeaderboard;
-
-    // Bind pause overlay buttons
-    $("m3-pause-new")?.addEventListener("click", () => {
-      hideM3PauseOverlay();
-      showModeSelector();
-    });
-    $("m3-pause-resume")?.addEventListener("click", () => {
-      hideM3PauseOverlay();
-    });
-    $("m3-pause-end")?.addEventListener("click", async () => {
-      hideM3PauseOverlay();
-      if (gameActive) {
-        gameActive = false;
-        stopTimedCountdown();
-        highScore = Math.max(highScore, score);
-        const endData = await api("/api/game/end", {
-          userId: HUB.userId,
-          score,
-          mode: gameMode,
-        }).catch(() => null);
-        if (endData?.highScore) highScore = endData.highScore;
-        if (endData?.resources && typeof HUD !== "undefined") {
-          HUD.syncFromServer(endData.resources);
-          if (endData.goldReward) HUD.animateGoldChange(endData.goldReward);
-        }
-        showGameOver(score);
-        fetchLeaderboard();
-        syncToStore();
-        updateStartButton();
-      }
-    });
 
     fetchLeaderboard();
     updateStartButton();
 
     // Hydrate savedModes from localStorage before restoring from server
     loadSavedModes();
+
+    // v4.5.3: Eagerly create mode selector so it always exists for hideModeSelector()
+    showModeSelector();
 
     // Try to restore an existing game from the server
     await restoreGame();
@@ -355,15 +328,26 @@ const Match3Game = (() => {
   }
 
   function onEnter() {
-    /* board persists in JS across screen switches */
+    /* v4.5.3: properly handle all states on screen re-entry */
     if (gameActive) {
+      // Game in progress — show pause overlay with Resume/End
       showM3PauseOverlay();
     } else {
-      showM3PauseOverlay();
+      const hasSaved = Object.keys(savedModes).length > 0;
+      if (hasSaved) {
+        // Saved sessions — show Continue/New/End overlay
+        showM3PauseOverlay();
+      } else {
+        // No game, no saved sessions — show mode selector directly
+        showModeSelector();
+      }
     }
   }
 
   /* ── Pause / Resume overlay (mirror of Blox pattern) ── */
+  /* v4.5.3: Button hierarchy — Continue (primary) > New Game (secondary) > End (muted)
+   * Continue is always the most prominent action when a session can be resumed.
+   * Handlers are reset each call to prevent leaking onclick from prior states. */
   function showM3PauseOverlay() {
     gamePaused = true;
     HUB.swipeBlocked = false; // allow screen swiping when paused
@@ -371,21 +355,62 @@ const Match3Game = (() => {
     let overlay = $("m3-pause-overlay");
     if (!overlay) return;
 
-    const btnNew = $("m3-pause-new");
     const btnResume = $("m3-pause-resume");
+    const btnNew = $("m3-pause-new");
     const btnEnd = $("m3-pause-end");
     const title = $("m3-pause-title");
+    const actionsContainer = btnResume?.parentElement;
+
+    // Reset all handlers to prevent leaks from prior overlay state
+    if (btnResume) btnResume.onclick = null;
+    if (btnNew) btnNew.onclick = null;
+    if (btnEnd) btnEnd.onclick = null;
 
     const hasSaved = Object.keys(savedModes).length > 0;
 
     if (gameActive) {
-      // Game in progress — show resume + end
+      // Game in progress — Continue (primary), End (secondary)
       if (title) title.textContent = "⏸ Paused";
+      if (btnResume) {
+        btnResume.style.display = "";
+        btnResume.className = "btn btn-primary";
+        btnResume.textContent = "▶ Continue";
+        btnResume.onclick = () => hideM3PauseOverlay();
+      }
       if (btnNew) btnNew.style.display = "none";
-      if (btnResume) btnResume.style.display = "";
-      if (btnEnd) btnEnd.style.display = "";
+      if (btnEnd) {
+        btnEnd.style.display = "";
+        btnEnd.className = "btn btn-danger";
+        btnEnd.textContent = "🛑 End Game";
+        btnEnd.onclick = async () => {
+          hideM3PauseOverlay();
+          if (gameActive) {
+            gameActive = false;
+            stopTimedCountdown();
+            highScore = Math.max(highScore, score);
+            const endData = await api("/api/game/end", {
+              userId: HUB.userId,
+              score,
+              mode: gameMode,
+            }).catch(() => null);
+            if (endData?.highScore) highScore = endData.highScore;
+            if (endData?.resources && typeof HUD !== "undefined") {
+              HUD.syncFromServer(endData.resources);
+              if (endData.goldReward) HUD.animateGoldChange(endData.goldReward);
+            }
+            showGameOver(score);
+            fetchLeaderboard();
+            syncToStore();
+            updateStartButton();
+          }
+        };
+      }
+      // v4.5.3: DOM order — Continue first, End second
+      if (actionsContainer && btnResume && btnEnd) {
+        actionsContainer.insertBefore(btnResume, actionsContainer.firstChild);
+      }
     } else if (hasSaved) {
-      // v4.5.1: Saved sessions exist — show Continue + New Game
+      // Saved sessions — Continue (primary, prominent), New Game (secondary), End All (muted)
       const lastMode =
         localStorage.getItem(LAST_MODE_KEY) || Object.keys(savedModes)[0];
       const modeLabel =
@@ -397,6 +422,7 @@ const Match3Game = (() => {
       if (title) title.textContent = `💎 Continue ${modeLabel}?`;
       if (btnResume) {
         btnResume.style.display = "";
+        btnResume.className = "btn btn-primary";
         btnResume.textContent = `▶ Continue`;
         btnResume.onclick = () => {
           hideM3PauseOverlay();
@@ -405,6 +431,7 @@ const Match3Game = (() => {
       }
       if (btnNew) {
         btnNew.style.display = "";
+        btnNew.className = "btn btn-secondary";
         btnNew.textContent = "🎮 New Game";
         btnNew.onclick = () => {
           hideM3PauseOverlay();
@@ -413,6 +440,7 @@ const Match3Game = (() => {
       }
       if (btnEnd) {
         btnEnd.style.display = "";
+        btnEnd.className = "btn btn-muted";
         btnEnd.textContent = "🛑 End All Sessions";
         btnEnd.onclick = () => {
           savedModes = {};
@@ -421,11 +449,17 @@ const Match3Game = (() => {
           showModeSelector();
         };
       }
+      // v4.5.3: DOM order — Continue first (most prominent), New Game second, End last
+      if (actionsContainer && btnResume) {
+        actionsContainer.insertBefore(btnResume, actionsContainer.firstChild);
+        if (btnNew) actionsContainer.insertBefore(btnNew, btnEnd);
+      }
     } else {
       // No saved sessions — show New Game only
       if (title) title.textContent = "💎 Gem Crush";
       if (btnNew) {
         btnNew.style.display = "";
+        btnNew.className = "btn btn-primary";
         btnNew.textContent = "🎮 New Game";
         btnNew.onclick = () => {
           hideM3PauseOverlay();
@@ -1372,5 +1406,12 @@ const Match3Game = (() => {
     fetchLeaderboard(scope);
   }
 
-  return { init, onEnter, startGame, toggleLeaderboard, setLbTab };
+  return {
+    init,
+    onEnter,
+    startGame,
+    showModeSelector,
+    toggleLeaderboard,
+    setLbTab,
+  };
 })();

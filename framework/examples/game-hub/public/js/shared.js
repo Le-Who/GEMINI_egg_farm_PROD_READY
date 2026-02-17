@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Shared Infrastructure (v4.5)
+ *  Game Hub — Shared Infrastructure (v4.5.3)
  *  Discord SDK auth, API helper, screen navigation
  *  CSP-compliant: no inline handlers, no external fonts
  * ═══════════════════════════════════════════════════ */
@@ -307,7 +307,7 @@ const SmartLoader = {
     if (this.loading[name]) return this.loading[name];
     this.loading[name] = new Promise((resolve, reject) => {
       const script = document.createElement("script");
-      script.src = `js/${name}.js?v=4.1`;
+      script.src = `js/${name}.js?v=4.5.3`;
       script.onload = () => {
         this.loaded[name] = true;
         resolve();
@@ -408,7 +408,7 @@ function bindNavigation() {
   // Match-3 buttons
   document
     .getElementById("btn-m3-play-again")
-    ?.addEventListener("click", () => Match3Game.startGame());
+    ?.addEventListener("click", () => Match3Game.showModeSelector());
   document
     .getElementById("btn-lb-tab-all")
     ?.addEventListener("click", () => Match3Game.setLbTab("all"));

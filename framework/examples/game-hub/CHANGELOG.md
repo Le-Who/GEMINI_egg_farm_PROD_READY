@@ -1,5 +1,46 @@
 # Changelog
 
+## v4.5.3 — 2026-02-18
+
+### Match-3 Mode Selector Fix (Critical)
+
+- **Mode selector always accessible**: `init()` eagerly creates the mode selector so it exists for `hideModeSelector()`. After "Continue", mode switcher bar appears inline — player can always switch modes.
+- **`onEnter()` state handling**: Properly distinguishes active game → pause overlay, saved sessions → continue overlay, no sessions → mode selector directly. Previously showed pause overlay in all cases.
+- **"New Game" / "Play Again" → mode selector**: Both `m3-btn-start` and `btn-m3-play-again` now open the mode selector instead of calling `startGame()` directly.
+- **`showModeSelector` exported**: Available to external callers (`shared.js` wiring).
+
+### UX Button Hierarchy
+
+- **Continue is primary**: When saved sessions exist, "▶ Continue" is `btn-primary` (first, most prominent), "🎮 New Game" is `btn-secondary`, "🛑 End All Sessions" is `btn-muted` (small, transparent, least prominent).
+- **DOM reordering**: Buttons dynamically reordered each time the pause overlay opens to ensure correct visual hierarchy regardless of initial HTML order.
+- **Handler reset**: All button `onclick` handlers reset on each overlay open to prevent leaking handlers from prior overlay states.
+- **`.btn-muted` CSS class**: New button style — transparent, dim, small text — for destructive-but-rare actions.
+- **`.overlay-actions`**: Flex column layout for consistent vertical button stacking.
+
+### Version Bump
+
+- All file headers, cache-bust strings, package.json → `v4.5.3`.
+
+## v4.5.2 — 2026-02-18
+
+### Stale Cache Fix (Critical)
+
+- **Cache-bust audit**: All `?v=4.1` strings in `index.html` (7 CSS + 4 JS) and `shared.js` SmartLoader updated to `?v=4.5.2`. Server content-hash injection still runs at runtime, but source now matches.
+- **SmartLoader**: Dynamically created `<script>` tags now use `?v=4.5.2` instead of stale `?v=4.1`.
+
+### Test Script Fix (Critical)
+
+- **`npm test` now runs all 167 tests**: Added `blox.test.js` (26), `match3.test.js` (12), `ux.test.js` (29), `gcp.test.js` (20) to `package.json` test script. Previously only 80 of 167 tests ran.
+
+### Header Audit
+
+- **All file headers aligned to `v4.5.2`**: `shared.js`, `store.js`, `hud.js`, `pet.js`, `farm.js`, `trivia.js`, `blox.js`, `match3.js`, `match3.css`, `blox.css`, `blox.test.js`.
+- **Version badge**: `index.html` badge updated to `v4.5.2`.
+
+### Docs
+
+- **README**: Fixed Demo Showcase `3-in-1 Hub` → `4-in-1 Hub`.
+
 ## v4.5.1 — 2026-02-18
 
 ### Match-3 Session Persistence (Critical)
