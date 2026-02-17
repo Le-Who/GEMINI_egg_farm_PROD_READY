@@ -1,9 +1,10 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Match-3 Module (v4.3)
+ *  Game Hub — Match-3 Module (v4.4)
  *  Client-side engine, CSS transitions, state restore
  *  ─ GameStore integration (match3 slice)
  *  ─ Pause/Continue overlay, touch swipe, default mode
  *  ─ Star Drop fixes: no deadlocks, mode persistence
+ *  ─ v4.4: savedModes localStorage persistence, energy-guard fix
  *
  *  NOTE: calcGoldReward, findMatches, generateBoard, randomGem are
  *  intentionally duplicated from game-logic.js. The client needs its
@@ -37,6 +38,25 @@ const Match3Game = (() => {
   /* ─── Game Mode System ─── */
   let gameMode = "classic"; // "classic" | "timed" | "drop"
   let savedModes = {}; // { mode: { board, score, movesLeft, ... } }
+  const SAVED_MODES_KEY = "m3_saved_modes";
+
+  /** Persist savedModes to localStorage so they survive reload */
+  function persistSavedModes() {
+    try {
+      localStorage.setItem(SAVED_MODES_KEY, JSON.stringify(savedModes));
+    } catch (_) {
+      /* quota exceeded — ignore */
+    }
+  }
+  /** Hydrate savedModes from localStorage */
+  function loadSavedModes() {
+    try {
+      const raw = localStorage.getItem(SAVED_MODES_KEY);
+      if (raw) savedModes = JSON.parse(raw);
+    } catch (_) {
+      savedModes = {};
+    }
+  }
   let timedTimer = null;
   let timedSecondsLeft = 0;
   let dropStars = []; // [{x, y, dropped: bool}] for drop mode
@@ -299,12 +319,17 @@ const Match3Game = (() => {
     fetchLeaderboard();
     updateStartButton();
 
+    // Hydrate savedModes from localStorage before restoring from server
+    loadSavedModes();
+
     // Try to restore an existing game from the server
     await restoreGame();
     syncToStore();
 
     // If no active game was restored, show mode selector + preview board
     if (!gameActive) {
+      // Check if any savedModes exist — show continue-ready overlay
+      const hasSaved = Object.keys(savedModes).length > 0;
       board = generateBoard();
       renderBoard(true);
       showM3PauseOverlay();
@@ -378,21 +403,33 @@ const Match3Game = (() => {
         username: HUB.username,
       });
       if (data && data.game) {
+        const restoredMode = data.game.mode || gameMode;
         board = data.game.board;
         score = data.game.score || 0;
         movesLeft = data.game.movesLeft || 0;
         combo = data.game.combo || 0;
         highScore = data.highScore || 0;
         gameActive = movesLeft > 0;
+        gameMode = restoredMode;
 
         if (gameActive) {
+          // Also stash into savedModes so mode-switching can find it
+          savedModes[restoredMode] = {
+            board: JSON.parse(JSON.stringify(board)),
+            score,
+            movesLeft,
+            combo,
+            dropStars: JSON.parse(JSON.stringify(dropStars)),
+            starsDropped,
+            timedSecondsLeft,
+          };
+          persistSavedModes();
           updateStatsUI();
           renderBoard(true);
           showToast("💎 Game restored!");
         } else {
           highScore = data.highScore || 0;
           $("m3-best").textContent = highScore;
-          // Generate a preview board so the screen isn't empty
           board = generateBoard();
           renderBoard(true);
         }
@@ -415,34 +452,31 @@ const Match3Game = (() => {
       const lastMode = localStorage.getItem(LAST_MODE_KEY);
       mode = lastMode || "classic";
     }
-    // Save persistence of PREVIOUS mode before switching
-    if (gameActive && score > 0) {
-      savedModes[gameMode] = {
-        board: JSON.parse(JSON.stringify(board)),
-        score,
-        movesLeft,
-        combo,
-        dropStars: JSON.parse(JSON.stringify(dropStars)),
-        starsDropped,
-        timedSecondsLeft,
-      };
-    }
 
-    // Stop any existing timers (fix 1.2: timer bleed)
-    stopTimedCountdown();
-
-    //Save chosen mode
-    localStorage.setItem(LAST_MODE_KEY, mode);
-    gameMode = mode;
-
-    // Check if we have a saved state for this new mode
+    // Check if we have a saved state for this mode — resume it (no energy cost)
     if (savedModes[mode]) {
+      // Save current mode FIRST (if active) before restoring the target mode
+      if (gameActive && score > 0 && gameMode !== mode) {
+        savedModes[gameMode] = {
+          board: JSON.parse(JSON.stringify(board)),
+          score,
+          movesLeft,
+          combo,
+          dropStars: JSON.parse(JSON.stringify(dropStars)),
+          starsDropped,
+          timedSecondsLeft,
+        };
+      }
+      stopTimedCountdown();
+      localStorage.setItem(LAST_MODE_KEY, mode);
+      gameMode = mode;
+
       const s = savedModes[mode];
-      board = s.board;
+      board = JSON.parse(JSON.stringify(s.board));
       score = s.score;
       movesLeft = s.movesLeft;
       combo = s.combo;
-      dropStars = s.dropStars || [];
+      dropStars = s.dropStars ? JSON.parse(JSON.stringify(s.dropStars)) : [];
       starsDropped = s.starsDropped || 0;
       timedSecondsLeft = s.timedSecondsLeft || TIMED_DURATION;
       gameActive = true;
@@ -461,6 +495,7 @@ const Match3Game = (() => {
         $("m3-moves-label").textContent = "Moves";
       }
 
+      persistSavedModes();
       updateStatsUI();
       renderBoard(true);
       syncToStore();
@@ -469,7 +504,7 @@ const Match3Game = (() => {
       return;
     }
 
-    // Energy gatekeep — show quick-feed modal instead of toast
+    // Energy gatekeep — checked BEFORE any mode state mutation (v4.4 fix)
     if (typeof HUD !== "undefined" && !HUD.hasEnergy(5)) {
       if (HUD.showEnergyModal) {
         HUD.showEnergyModal(5, () => startGame(mode));
@@ -479,11 +514,33 @@ const Match3Game = (() => {
       return;
     }
 
+    // Energy OK → save current mode state before switching
+    if (gameActive && score > 0 && gameMode !== mode) {
+      savedModes[gameMode] = {
+        board: JSON.parse(JSON.stringify(board)),
+        score,
+        movesLeft,
+        combo,
+        dropStars: JSON.parse(JSON.stringify(dropStars)),
+        starsDropped,
+        timedSecondsLeft,
+      };
+      persistSavedModes();
+    }
+
+    // Stop any existing timers (timer bleed fix)
+    stopTimedCountdown();
+
+    // Save chosen mode
+    localStorage.setItem(LAST_MODE_KEY, mode);
+    gameMode = mode;
+
     $("m3-overlay").classList.remove("show");
     hideM3PauseOverlay();
     hideModeSelector();
     selected = null;
     isAnimating = false;
+    gamePaused = false;
 
     // Generate board client-side
     board = generateBoard();
@@ -674,6 +731,7 @@ const Match3Game = (() => {
     }
     // Clear saved state for this mode on game over
     delete savedModes["timed"];
+    persistSavedModes();
 
     setTimeout(() => showGameOver(score), 500);
     fetchLeaderboard();
@@ -1001,6 +1059,7 @@ const Match3Game = (() => {
       }
       // Clear saved state for this mode
       delete savedModes[gameMode];
+      persistSavedModes();
 
       setTimeout(() => showGameOver(score), 500);
       fetchLeaderboard();

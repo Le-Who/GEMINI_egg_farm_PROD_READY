@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Building Blox Module (v4.3)
+ *  Game Hub — Building Blox Module (v4.4)
  *  10×10 Block Puzzle: place pieces, clear lines
  *  ─ localStorage persistence, pause overlay, touch drag,
  *    grab-point anchor ghost, mouse drag-and-drop,
@@ -510,13 +510,19 @@ const BloxGame = (() => {
   }
 
   // ── Touch drag-and-drop ──
+  const TOUCH_LIFT_FACTOR = 2.125; // cells above finger (was 2.5, reduced 15%)
   function onTrayTouchStart(e, idx) {
     if (!gameActive || gamePaused) return;
     if (tray[idx]?.placed) return;
     e.preventDefault(); // Block swipe nav
     dragPieceIdx = idx;
     selectedPiece = idx;
-    renderTray();
+
+    // v4.4: DON'T call renderTray() here — it destroys the touch target mid-event
+    // and causes browsers to cancel the touch sequence ("stuck piece" bug).
+    // Instead, visually mark the piece via CSS class on its wrapper.
+    const wrapper = e.target.closest(".blox-piece-wrapper");
+    if (wrapper) wrapper.classList.add("dragging");
 
     // Disable pointer-events on tray wrappers to prevent stuck-piece stacking
     const trayEl = $("blox-tray");
@@ -528,16 +534,21 @@ const BloxGame = (() => {
     // Block swipe navigation while dragging
     HUB.swipeBlocked = true;
 
+    // Compute liftY once for consistent ghost alignment
+    const gridEl = $("blox-board");
+    const cellPx = gridEl ? gridEl.getBoundingClientRect().width / GRID : 28;
+    const liftY = cellPx * TOUCH_LIFT_FACTOR;
+
     const onMove = (ev) => {
       ev.preventDefault();
       if (dragPieceIdx < 0) return;
       moveDragPreview(ev.touches[0], true);
 
-      // Show ghost on board
+      // Show ghost on board — offset by liftY to match preview position
       clearGhost();
       const target = getBoardTarget(
         ev.touches[0].clientX,
-        ev.touches[0].clientY,
+        ev.touches[0].clientY - liftY,
         tray[dragPieceIdx].piece,
       );
       if (target)
@@ -553,11 +564,15 @@ const BloxGame = (() => {
       // Re-enable tray pointer-events
       if (trayEl) trayEl.style.pointerEvents = "";
 
+      // v4.4: Now safe to renderTray to restore visual state
+      renderTray();
+
       if (dragPieceIdx < 0) return;
       const touch = ev.changedTouches[0];
+      // Use same liftY offset for placement target
       const target = getBoardTarget(
         touch.clientX,
-        touch.clientY,
+        touch.clientY - liftY,
         tray[dragPieceIdx].piece,
       );
       if (target) onCellClick(target.targetR, target.targetC);
@@ -681,8 +696,8 @@ const BloxGame = (() => {
     }
 
     const offset = getCenterOffset(piece);
-    // Lift: on touch, lift high enough to see under finger (e.g. 1.5 cells up)
-    const liftY = isTouch ? cellPx * 2.5 : 10;
+    // Lift: on touch, lift above finger for visibility (v4.4: reduced 15%)
+    const liftY = isTouch ? cellPx * TOUCH_LIFT_FACTOR : 10;
 
     el.style.left = `${pointer.clientX - (offset.dc + 0.5) * cellPx}px`;
     el.style.top = `${pointer.clientY - (offset.dr + 0.5) * cellPx - liftY}px`;
@@ -695,7 +710,7 @@ const BloxGame = (() => {
     const piece = tray[dragPieceIdx].piece;
     const offset = getCenterOffset(piece);
     const cellPx = dragPreviewCellSize;
-    const liftY = isTouch ? cellPx * 2.5 : 10;
+    const liftY = isTouch ? cellPx * TOUCH_LIFT_FACTOR : 10;
 
     dragPreviewEl.style.left = `${pointer.clientX - (offset.dc + 0.5) * cellPx}px`;
     dragPreviewEl.style.top = `${pointer.clientY - (offset.dr + 0.5) * cellPx - liftY}px`;

@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Building Blox Screen Styles (v4.3)
+ *  Game Hub — Building Blox Screen Styles (v4.4)
  * ═══════════════════════════════════════════════════ */
 
 /* Scope overlays to this screen only */
@@ -132,6 +132,11 @@
   opacity: 0.15;
   pointer-events: none;
   transform: scale(0.85);
+}
+.blox-piece-wrapper.dragging {
+  opacity: 0.4;
+  transform: scale(0.95);
+  border-color: var(--accent);
 }
 
 /* Mini piece preview grid */
