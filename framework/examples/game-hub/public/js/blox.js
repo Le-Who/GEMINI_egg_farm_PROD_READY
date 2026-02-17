@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Building Blox Module (v4.2)
+ *  Game Hub — Building Blox Module (v4.3)
  *  10×10 Block Puzzle: place pieces, clear lines
  *  ─ localStorage persistence, pause overlay, touch drag,
  *    grab-point anchor ghost, mouse drag-and-drop,
@@ -643,14 +643,28 @@ const BloxGame = (() => {
     document.addEventListener("mouseup", onUp);
   }
 
+  let dragPreviewEl = null;
+  let dragPreviewCellSize = 28; // default, updated dynamically
+
   // ── Drag preview (shared by touch + mouse) ──
   function createDragPreview(piece, pointer, isTouch) {
     removeDragPreview();
+
+    // Determine cell size: use board's actual cell size if available, else default
+    const gridEl = $("blox-board");
+    let cellPx = 28;
+    if (gridEl) {
+      const rect = gridEl.getBoundingClientRect();
+      cellPx = rect.width / GRID;
+    }
+    dragPreviewCellSize = cellPx;
+
     const el = document.createElement("div");
     el.className = "blox-drag-preview";
     const maxR = Math.max(...piece.cells.map((c) => c[0])) + 1;
     const maxC = Math.max(...piece.cells.map((c) => c[1])) + 1;
-    const cellPx = 28;
+
+    // Scale preview to 1:1 match with board
     el.style.width = `${maxC * cellPx}px`;
     el.style.height = `${maxR * cellPx}px`;
     el.style.gridTemplateColumns = `repeat(${maxC}, ${cellPx}px)`;
@@ -669,7 +683,9 @@ const BloxGame = (() => {
     }
 
     const offset = getCenterOffset(piece);
-    const liftY = isTouch ? 40 : 10; // Lift higher on touch to avoid finger occlusion
+    // Lift: on touch, lift high enough to see under finger (e.g. 1.5 cells up)
+    const liftY = isTouch ? cellPx * 2.5 : 10;
+
     el.style.left = `${pointer.clientX - (offset.dc + 0.5) * cellPx}px`;
     el.style.top = `${pointer.clientY - (offset.dr + 0.5) * cellPx - liftY}px`;
     document.body.appendChild(el);
@@ -680,8 +696,9 @@ const BloxGame = (() => {
     if (!dragPreviewEl || dragPieceIdx < 0) return;
     const piece = tray[dragPieceIdx].piece;
     const offset = getCenterOffset(piece);
-    const cellPx = 28;
-    const liftY = isTouch ? 40 : 10;
+    const cellPx = dragPreviewCellSize;
+    const liftY = isTouch ? cellPx * 2.5 : 10;
+
     dragPreviewEl.style.left = `${pointer.clientX - (offset.dc + 0.5) * cellPx}px`;
     dragPreviewEl.style.top = `${pointer.clientY - (offset.dr + 0.5) * cellPx - liftY}px`;
   }

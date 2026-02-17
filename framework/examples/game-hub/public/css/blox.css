@@ -1,10 +1,11 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Building Blox Screen Styles (v4.2)
+ *  Game Hub — Building Blox Screen Styles (v4.3)
  * ═══════════════════════════════════════════════════ */
 
 /* Scope overlays to this screen only */
 #screen-blox {
   position: relative;
+  touch-action: none;
 }
 #screen-blox .overlay {
   position: absolute;

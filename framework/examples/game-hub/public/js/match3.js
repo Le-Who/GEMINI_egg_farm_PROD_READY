@@ -1,9 +1,9 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Match-3 Module (v4.2)
+ *  Game Hub — Match-3 Module (v4.3)
  *  Client-side engine, CSS transitions, state restore
  *  ─ GameStore integration (match3 slice)
  *  ─ Pause/Continue overlay, touch swipe, default mode
- *  ─ Star Drop bonus cells (gravity-safe)
+ *  ─ Star Drop fixes: no deadlocks, mode persistence
  *
  *  NOTE: calcGoldReward, findMatches, generateBoard, randomGem are
  *  intentionally duplicated from game-logic.js. The client needs its
@@ -36,6 +36,7 @@ const Match3Game = (() => {
 
   /* ─── Game Mode System ─── */
   let gameMode = "classic"; // "classic" | "timed" | "drop"
+  let savedModes = {}; // { mode: { board, score, movesLeft, ... } }
   let timedTimer = null;
   let timedSecondsLeft = 0;
   let dropStars = []; // [{x, y, dropped: bool}] for drop mode
@@ -161,6 +162,34 @@ const Match3Game = (() => {
       }
     }
     return matches;
+  }
+
+  /** Check if board has any valid moves (prevents deadlocks) */
+  function hasValidMoves(b) {
+    // Clone board validation is expensive but necessary for Star Drop
+    // Try every horizontal swap
+    for (let y = 0; y < BOARD_SIZE; y++) {
+      for (let x = 0; x < BOARD_SIZE - 1; x++) {
+        // Swap (x,y) with (x+1,y)
+        [b[y][x], b[y][x + 1]] = [b[y][x + 1], b[y][x]];
+        const hasMatch = findMatches(b).size > 0;
+        // Swap back
+        [b[y][x], b[y][x + 1]] = [b[y][x + 1], b[y][x]];
+        if (hasMatch) return true;
+      }
+    }
+    // Try every vertical swap
+    for (let x = 0; x < BOARD_SIZE; x++) {
+      for (let y = 0; y < BOARD_SIZE - 1; y++) {
+        // Swap (x,y) with (x,y+1)
+        [b[y + 1][x], b[y][x]] = [b[y][x], b[y + 1][x]];
+        const hasMatch = findMatches(b).size > 0;
+        // Swap back
+        [b[y + 1][x], b[y][x]] = [b[y][x], b[y + 1][x]];
+        if (hasMatch) return true;
+      }
+    }
+    return false;
   }
 
   /** Run a full cascade: match → clear → gravity → fill → repeat.
@@ -386,9 +415,59 @@ const Match3Game = (() => {
       const lastMode = localStorage.getItem(LAST_MODE_KEY);
       mode = lastMode || "classic";
     }
-    // Save chosen mode
+    // Save persistence of PREVIOUS mode before switching
+    if (gameActive && score > 0) {
+      savedModes[gameMode] = {
+        board: JSON.parse(JSON.stringify(board)),
+        score,
+        movesLeft,
+        combo,
+        dropStars: JSON.parse(JSON.stringify(dropStars)),
+        starsDropped,
+        timedSecondsLeft,
+      };
+    }
+
+    // Stop any existing timers (fix 1.2: timer bleed)
+    stopTimedCountdown();
+
+    //Save chosen mode
     localStorage.setItem(LAST_MODE_KEY, mode);
     gameMode = mode;
+
+    // Check if we have a saved state for this new mode
+    if (savedModes[mode]) {
+      const s = savedModes[mode];
+      board = s.board;
+      score = s.score;
+      movesLeft = s.movesLeft;
+      combo = s.combo;
+      dropStars = s.dropStars || [];
+      starsDropped = s.starsDropped || 0;
+      timedSecondsLeft = s.timedSecondsLeft || TIMED_DURATION;
+      gameActive = true;
+
+      $("m3-overlay").classList.remove("show");
+      hideM3PauseOverlay();
+      hideModeSelector();
+      selected = null;
+      isAnimating = false;
+
+      // Resume timer if needed
+      if (gameMode === "timed") {
+        $("m3-moves").style.color = timedSecondsLeft <= 10 ? "#ef4444" : "";
+        startTimedCountdown();
+      } else {
+        $("m3-moves-label").textContent = "Moves";
+      }
+
+      updateStatsUI();
+      renderBoard(true);
+      syncToStore();
+      updateStartButton();
+      showToast(`🔄 Resumed ${mode} game`);
+      return;
+    }
 
     // Energy gatekeep — show quick-feed modal instead of toast
     if (typeof HUD !== "undefined" && !HUD.hasEnergy(5)) {
@@ -462,8 +541,22 @@ const Match3Game = (() => {
     }
 
     // Place drop stars AFTER server board is applied (critical fix!)
+    // AND ensure board is solvable (deadlock fix)
     if (gameMode === "drop") {
-      placeDropStars();
+      let attempts = 0;
+      do {
+        // If retrying, regenerate base board first
+        if (attempts > 0) board = generateBoard();
+        placeDropStars();
+        attempts++;
+      } while (!hasValidMoves(board) && attempts < 10);
+
+      if (attempts >= 10) {
+        console.warn("Could not generate valid drop board in 10 attempts");
+        // Fallback: simple board, minimal stars
+        board = generateBoard();
+        placeDropStars();
+      }
     }
 
     updateStatsUI();
@@ -579,6 +672,9 @@ const Match3Game = (() => {
       HUD.syncFromServer(endData.resources);
       if (endData.goldReward) HUD.animateGoldChange(endData.goldReward);
     }
+    // Clear saved state for this mode on game over
+    delete savedModes["timed"];
+
     setTimeout(() => showGameOver(score), 500);
     fetchLeaderboard();
     syncToStore();
@@ -903,6 +999,9 @@ const Match3Game = (() => {
         HUD.syncFromServer(endData.resources);
         if (endData.goldReward) HUD.animateGoldChange(endData.goldReward);
       }
+      // Clear saved state for this mode
+      delete savedModes[gameMode];
+
       setTimeout(() => showGameOver(score), 500);
       fetchLeaderboard();
       syncToStore();

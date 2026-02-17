@@ -1,5 +1,25 @@
 # Changelog
 
+## v4.3 — 2026-02-17
+
+### Critical Fixes
+
+- **Match-3 Star Drop Deadlock**: Added `hasValidMoves()` check after board generation and star placement. If no moves are possible, the board is regenerated until playable. `match3.js`.
+- **Match-3 State Persistence**: Switching modes (Classic/Timed/Drop) now saves the previous game state (board/score/timer). Returning resumes where you left off without consuming energy. `match3.js`.
+- **Match-3 Timer Fix**: Fixed "Time Attack" timer bleeding into other modes. Timer is now properly cleared on mode switch. `match3.js`.
+- **Blox Mobile Drag**: Drag preview now scaled to **1:1 board size** (was mini) and offset above finger for better visibility. `blox.js`.
+- **Touch Stability**: Added `touch-action: none` to full gameplay containers to prevent browser scrolling interference. `blox.css`, `match3.css`.
+
+## v4.2 — 2026-02-17
+
+### Improvements
+
+- **Blox PC Drag**: Added mouse drag-and-drop (click-hold). `blox.js`.
+- **Blox Stability**: Fixed mobile touch piece-stuck issue. `blox.js`.
+- **Match-3 Pause**: Added pause/continue overlay to match Blox UX. `match3.js`.
+- **Match-3 Swipe**: Added touch/mouse swipe gesture for gem swapping. `match3.js`.
+- **Star Drop Logic**: Bonus items now preserved during gravity/cascades. `match3.js`.
+
 ## v4.1 — 2026-02-17
 
 ### UX Overhaul
