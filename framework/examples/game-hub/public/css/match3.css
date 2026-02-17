@@ -421,3 +421,73 @@
     font-size: calc(var(--m3-cell, 44px) * 0.52);
   }
 }
+
+/* ─── Mode Selector ─── */
+.m3-mode-selector {
+  display: none;
+  text-align: center;
+  margin-bottom: 12px;
+}
+.m3-mode-selector.show {
+  display: block;
+}
+.m3-mode-title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: rgba(255, 255, 255, 0.85);
+}
+.m3-mode-cards {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.m3-mode-card {
+  flex: 0 0 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 14px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: "Inter", sans-serif;
+  color: rgba(255, 255, 255, 0.8);
+}
+.m3-mode-card:hover {
+  border-color: rgba(147, 51, 234, 0.5);
+  background: rgba(147, 51, 234, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(147, 51, 234, 0.2);
+}
+.m3-mode-icon {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+.m3-mode-name {
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.m3-mode-desc {
+  font-size: 0.6rem;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+/* ─── Star Gem (Drop Mode) ─── */
+.m3-cell.star-gem {
+  animation: starGlow 1.5s ease-in-out infinite;
+}
+@keyframes starGlow {
+  0%, 100% {
+    box-shadow: 0 0 4px rgba(255, 215, 0, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 16px rgba(255, 215, 0, 0.6);
+  }
+}

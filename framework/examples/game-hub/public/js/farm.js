@@ -107,6 +107,7 @@ const FarmGame = (() => {
           "hub_crops_cache",
           JSON.stringify({
             data: cropsData,
+            hash: cropsData.__hash || null,
             cachedAt: Date.now(),
           }),
         );
@@ -142,6 +143,15 @@ const FarmGame = (() => {
       if (!isNaN(idx)) onPlotClick(idx);
       else if (plot.classList.contains("buy-plot-card")) buyPlot();
     });
+
+    // Farm panel tab switching
+    const tabInv = $("farm-tab-inv");
+    const tabShop = $("farm-tab-shop");
+    if (tabInv && tabShop) {
+      tabInv.onclick = () => switchFarmTab("inv");
+      tabShop.onclick = () => switchFarmTab("shop");
+    }
+    renderInventory();
   }
 
   async function loadState() {
@@ -378,6 +388,53 @@ const FarmGame = (() => {
     }
   }
 
+  /* ─── Farm Panel Tab Switching ─── */
+  function switchFarmTab(tab) {
+    // Toggle active tab button
+    const tabs = document.querySelectorAll(".farm-tab");
+    tabs.forEach((t) => t.classList.toggle("active", t.dataset.tab === tab));
+    // Toggle active content
+    const contents = document.querySelectorAll(".farm-tab-content");
+    contents.forEach((c) =>
+      c.classList.toggle("active", c.id === `farm-tab-content-${tab}`),
+    );
+    if (tab === "inv") renderInventory();
+  }
+
+  /* ─── Inventory Rendering (reads __harvested from resources slice) ─── */
+  function renderInventory() {
+    const grid = $("farm-inventory-grid");
+    if (!grid) return;
+
+    let harvested = {};
+    if (typeof GameStore !== "undefined") {
+      harvested = GameStore.getState("resources")?.__harvested || {};
+    }
+
+    const entries = Object.entries(harvested).filter(([, qty]) => qty > 0);
+    if (entries.length === 0) {
+      grid.innerHTML =
+        '<div class="farm-inv-empty">No crops harvested yet</div>';
+      return;
+    }
+
+    grid.innerHTML = "";
+    for (const [cropId, qty] of entries) {
+      const cfg = crops[cropId] || {};
+      const item = document.createElement("div");
+      item.className = "farm-inv-item";
+      item.innerHTML = `
+        <span class="farm-inv-emoji">${cfg.emoji || "🌱"}</span>
+        <div class="farm-inv-info">
+          <div class="farm-inv-name">${cfg.name || cropId}</div>
+          <div class="farm-inv-sell">Sell: ${cfg.sellPrice || 0}🪙</div>
+        </div>
+        <span class="farm-inv-qty">×${qty}</span>
+      `;
+      grid.appendChild(item);
+    }
+  }
+
   function selectSeed(id) {
     // Toggle: clicking same seed deselects it
     if (selectedSeed === id) {
@@ -596,9 +653,12 @@ const FarmGame = (() => {
     render();
     renderShop();
     updateBuyBar();
+    renderInventory();
 
     // Instant optimistic feedback (< 16ms)
-    showToast(`${cfg?.emoji || "🌱"} +${estimatedCoins}💰 +${estimatedXP}XP`);
+    showToast(
+      `${cfg?.emoji || "🌱"} Harvested! +${estimatedCoins}🪙 +${estimatedXP}XP`,
+    );
     if (typeof HUD !== "undefined") HUD.animateGoldChange(estimatedCoins);
 
     // Fire-and-forget with version guard

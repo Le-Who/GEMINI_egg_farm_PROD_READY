@@ -94,12 +94,18 @@
   pointer-events: auto;
   cursor: pointer;
   transition: none; /* Opt-in only via .pet-roaming / .pet-transitioning */
-  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4)); /* Shadow on container, not sprite */
+  filter: drop-shadow(
+    0 2px 6px rgba(0, 0, 0, 0.4)
+  ); /* Shadow on container, not sprite */
 }
 
 .pet-sprite {
   font-size: 2.7rem; /* +35% on PC (was 2rem) */
   line-height: 1;
+  contain: content; /* Self-contained rendering — prevents re-rasterization */
+  transform: translateZ(
+    0
+  ); /* Stable GPU composite layer for emoji glyph caching */
 }
 
 /* ─── State Animations (class-based — synchronous swap, no rAF needed) ─── */

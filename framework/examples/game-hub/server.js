@@ -252,7 +252,16 @@ app.get("/api/health", (_req, res) =>
  * ═══════════════════════════════════════════════════ */
 /* CROPS, getWateringMultiplier, getGrowthPct, farmPlotsWithGrowth — imported from game-logic.js */
 
-app.get("/api/content/crops", (_req, res) => res.json(CROPS));
+// Compute crops config hash for cache invalidation
+const cropsHash = crypto
+  .createHash("md5")
+  .update(JSON.stringify(CROPS))
+  .digest("hex")
+  .slice(0, 8);
+
+app.get("/api/content/crops", (_req, res) =>
+  res.json({ ...CROPS, __hash: cropsHash }),
+);
 
 app.post("/api/farm/state", requireAuth, (req, res) => {
   const { userId, username } = resolveUser(req);

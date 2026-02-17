@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Match-3 Module (v1.5)
+ *  Game Hub — Match-3 Module (v3.0)
  *  Client-side engine, CSS transitions, state restore
  *  ─ GameStore integration (match3 slice)
  * ═══════════════════════════════════════════════════ */
@@ -24,6 +24,17 @@ const Match3Game = (() => {
   let isAnimating = false;
   let highScore = 0;
   let gameActive = false;
+
+  /* ─── Game Mode System ─── */
+  let gameMode = "classic"; // "classic" | "timed" | "drop"
+  let timedTimer = null;
+  let timedSecondsLeft = 0;
+  let dropStars = []; // [{x, y, dropped: bool}] for drop mode
+  let starsDropped = 0;
+  const TIMED_DURATION = 90; // seconds
+  const DROP_MOVE_LIMIT = 20;
+  const DROP_STAR_COUNT = 3;
+  const STAR_TYPE = "star"; // special gem type
 
   /* ─── Progressive gold reward (mirrors game-logic.js calcGoldReward) ─── */
   const REWARD_BASE = 40;
@@ -70,6 +81,7 @@ const Match3Game = (() => {
         combo,
         highScore,
         gameActive,
+        gameMode,
       });
     }
   }
@@ -102,7 +114,13 @@ const Match3Game = (() => {
     // Horizontal
     for (let y = 0; y < BOARD_SIZE; y++) {
       for (let x = 0; x < BOARD_SIZE - 2; x++) {
-        if (b[y][x] && b[y][x] === b[y][x + 1] && b[y][x] === b[y][x + 2]) {
+        // Skip star-type gems (they don't match)
+        if (
+          b[y][x] &&
+          b[y][x] !== STAR_TYPE &&
+          b[y][x] === b[y][x + 1] &&
+          b[y][x] === b[y][x + 2]
+        ) {
           let end = x;
           while (end < BOARD_SIZE && b[y][end] === b[y][x]) end++;
           for (let i = x; i < end; i++) matches.add(`${i},${y}`);
@@ -113,7 +131,12 @@ const Match3Game = (() => {
     // Vertical
     for (let x = 0; x < BOARD_SIZE; x++) {
       for (let y = 0; y < BOARD_SIZE - 2; y++) {
-        if (b[y][x] && b[y][x] === b[y + 1][x] && b[y][x] === b[y + 2][x]) {
+        if (
+          b[y][x] &&
+          b[y][x] !== STAR_TYPE &&
+          b[y][x] === b[y + 1][x] &&
+          b[y][x] === b[y + 2][x]
+        ) {
           let end = y;
           while (end < BOARD_SIZE && b[end][x] === b[y][x]) end++;
           for (let i = y; i < end; i++) matches.add(`${x},${i}`);
@@ -246,11 +269,18 @@ const Match3Game = (() => {
   }
 
   /* ═══ Start Game ═══ */
-  async function startGame() {
+  async function startGame(mode) {
+    // If no mode passed, show mode selector
+    if (!mode) {
+      showModeSelector();
+      return;
+    }
+    gameMode = mode;
+
     // Energy gatekeep — show quick-feed modal instead of toast
     if (typeof HUD !== "undefined" && !HUD.hasEnergy(5)) {
       if (HUD.showEnergyModal) {
-        HUD.showEnergyModal(5, () => startGame());
+        HUD.showEnergyModal(5, () => startGame(mode));
       } else {
         showToast("⚡ Need 5 energy to play Match-3!");
       }
@@ -258,26 +288,42 @@ const Match3Game = (() => {
     }
 
     $("m3-overlay").classList.remove("show");
+    hideModeSelector();
     selected = null;
     isAnimating = false;
 
     // Generate board client-side
     board = generateBoard();
     score = 0;
-    movesLeft = 30;
     combo = 0;
     gameActive = true;
+    starsDropped = 0;
+    dropStars = [];
+
+    // Mode-specific init
+    if (gameMode === "timed") {
+      movesLeft = 9999; // Unlimited moves in timed mode
+      timedSecondsLeft = TIMED_DURATION;
+      startTimedCountdown();
+    } else if (gameMode === "drop") {
+      movesLeft = DROP_MOVE_LIMIT;
+      placeDropStars();
+    } else {
+      movesLeft = 30;
+    }
 
     // Notify server of new game (deducts energy)
     const data = await api("/api/game/start", {
       userId: HUB.userId,
       username: HUB.username,
+      mode: gameMode,
     });
 
     // Handle energy error
     if (data && data.error === "NOT_ENOUGH_ENERGY") {
       showToast("⚡ Not enough energy!");
       gameActive = false;
+      stopTimedCountdown();
       return;
     }
 
@@ -292,13 +338,150 @@ const Match3Game = (() => {
     if (data && data.game && data.game.board) {
       board = data.game.board;
       score = data.game.score || 0;
-      movesLeft = data.game.movesLeft || 30;
+      if (gameMode === "classic") {
+        movesLeft = data.game.movesLeft || 30;
+      }
     }
 
     updateStatsUI();
     renderBoard(true);
     syncToStore();
     updateStartButton();
+  }
+
+  /* ─── Mode Selector UI ─── */
+  function showModeSelector() {
+    let sel = $("m3-mode-selector");
+    if (!sel) {
+      sel = document.createElement("div");
+      sel.id = "m3-mode-selector";
+      sel.className = "m3-mode-selector show";
+      sel.innerHTML = `
+        <div class="m3-mode-title">Choose Mode</div>
+        <div class="m3-mode-cards">
+          <button class="m3-mode-card" data-mode="classic">
+            <span class="m3-mode-icon">💎</span>
+            <span class="m3-mode-name">Classic</span>
+            <span class="m3-mode-desc">30 moves</span>
+          </button>
+          <button class="m3-mode-card" data-mode="timed">
+            <span class="m3-mode-icon">⏱️</span>
+            <span class="m3-mode-name">Time Attack</span>
+            <span class="m3-mode-desc">90s · 1.5× score</span>
+          </button>
+          <button class="m3-mode-card" data-mode="drop">
+            <span class="m3-mode-icon">🎯</span>
+            <span class="m3-mode-name">Star Drop</span>
+            <span class="m3-mode-desc">Drop 3 🌟 in 20 moves</span>
+          </button>
+        </div>
+      `;
+      sel.addEventListener("click", (e) => {
+        const card = e.target.closest(".m3-mode-card");
+        if (card) startGame(card.dataset.mode);
+      });
+      $("m3-board-container")?.parentElement?.insertBefore(
+        sel,
+        $("m3-board-container"),
+      );
+    } else {
+      sel.classList.add("show");
+    }
+  }
+  function hideModeSelector() {
+    const sel = $("m3-mode-selector");
+    if (sel) sel.classList.remove("show");
+  }
+
+  /* ─── Timed Mode Countdown ─── */
+  function startTimedCountdown() {
+    stopTimedCountdown();
+    timedTimer = setInterval(() => {
+      timedSecondsLeft--;
+      $("m3-moves").textContent = `${timedSecondsLeft}s`;
+      if (timedSecondsLeft <= 10) {
+        $("m3-moves").style.color = "#ef4444";
+      }
+      if (timedSecondsLeft <= 0) {
+        stopTimedCountdown();
+        endTimedGame();
+      }
+    }, 1000);
+  }
+  function stopTimedCountdown() {
+    if (timedTimer) clearInterval(timedTimer);
+    timedTimer = null;
+  }
+  async function endTimedGame() {
+    if (!gameActive) return;
+    gameActive = false;
+    // Timed mode: 1.5x score for reward calculation
+    const adjustedScore = Math.floor(score * 1.5);
+    highScore = Math.max(highScore, score);
+
+    const endData = await api("/api/game/end", {
+      userId: HUB.userId,
+      score: adjustedScore,
+      mode: "timed",
+    }).catch(() => null);
+    if (endData?.highScore) highScore = endData.highScore;
+    if (endData?.resources && typeof HUD !== "undefined") {
+      HUD.syncFromServer(endData.resources);
+      if (endData.goldReward) HUD.animateGoldChange(endData.goldReward);
+    }
+    setTimeout(() => showGameOver(score), 500);
+    fetchLeaderboard();
+    syncToStore();
+    updateStartButton();
+  }
+
+  /* ─── Drop Mode: Star Objects ─── */
+  function placeDropStars() {
+    dropStars = [];
+    starsDropped = 0;
+    // Place stars in top 2 rows at random columns
+    const usedCols = new Set();
+    for (let i = 0; i < DROP_STAR_COUNT; i++) {
+      let col;
+      do {
+        col = Math.floor(Math.random() * BOARD_SIZE);
+      } while (usedCols.has(col));
+      usedCols.add(col);
+      const row = Math.floor(Math.random() * 2); // row 0 or 1
+      board[row][col] = STAR_TYPE;
+      dropStars.push({ x: col, y: row, dropped: false });
+    }
+  }
+
+  function checkStarDrops() {
+    // Stars "drop" when they reach the bottom row (row 7)
+    for (const star of dropStars) {
+      if (star.dropped) continue;
+      // Find the star on the board
+      for (let y = 0; y < BOARD_SIZE; y++) {
+        for (let x = 0; x < BOARD_SIZE; x++) {
+          if (board[y][x] === STAR_TYPE) {
+            star.x = x;
+            star.y = y;
+          }
+        }
+      }
+      if (star.y === BOARD_SIZE - 1) {
+        // Star reached bottom — mark as dropped
+        star.dropped = true;
+        starsDropped++;
+        board[star.y][star.x] = randomGem(); // Replace star with regular gem
+        showToast(`🌟 Star dropped! (${starsDropped}/${DROP_STAR_COUNT})`);
+      }
+    }
+  }
+
+  function calcDropReward() {
+    // Base: 100🪙, +50 per star, +250 bonus for all 3
+    let reward = 100;
+    reward += starsDropped * 50;
+    if (starsDropped >= DROP_STAR_COUNT) reward += 250;
+    return reward;
   }
 
   /* ═══ Render Board (persistent DOM elements) ═══ */
@@ -312,11 +495,13 @@ const Match3Game = (() => {
         const type = board[y][x];
         const cell = document.createElement("div");
         cell.className = "m3-cell";
+        if (type === STAR_TYPE) cell.classList.add("star-gem");
         if (animate) cell.classList.add("entering");
         cell.dataset.type = type;
         cell.dataset.x = x;
         cell.dataset.y = y;
-        cell.innerHTML = `<span class="gem-icon">${GEM_ICONS[type] || "?"}</span>`;
+        const icon = type === STAR_TYPE ? "🌟" : GEM_ICONS[type] || "?";
+        cell.innerHTML = `<span class="gem-icon">${icon}</span>`;
         if (animate) cell.style.animationDelay = `${(x + y) * 25}ms`;
         cell.addEventListener("click", () => onCellClick(x, y));
         $b.appendChild(cell);
@@ -398,8 +583,12 @@ const Match3Game = (() => {
     // 3. Resolve cascades client-side
     const result = resolveBoard(board);
     score += result.totalPoints;
-    movesLeft--;
+    // Don't decrement moves in timed mode (unlimited)
+    if (gameMode !== "timed") movesLeft--;
     combo = result.combo;
+
+    // Drop mode: check if stars reached bottom
+    if (gameMode === "drop") checkStarDrops();
 
     // 4. Animate the cascade steps
     await animateCascade(result.steps);
@@ -412,11 +601,17 @@ const Match3Game = (() => {
     if (result.totalPoints > 0)
       showFloatingPoints(toX, toY, result.totalPoints);
 
-    // 6. Check game over
-    if (movesLeft <= 0) {
+    // 6. Check game over (mode-specific)
+    const isGameOver = gameMode === "timed" ? false : movesLeft <= 0;
+    const isDropComplete =
+      gameMode === "drop" && starsDropped >= DROP_STAR_COUNT;
+
+    if (isGameOver || isDropComplete) {
       highScore = Math.max(highScore, score);
       gameActive = false;
-      // Send final move + end game via dedicated endpoint
+      stopTimedCountdown();
+
+      // Send final move
       api("/api/game/move", {
         userId: HUB.userId,
         fromX,
@@ -424,15 +619,20 @@ const Match3Game = (() => {
         toX,
         toY,
       }).catch(() => {});
-      // Save score and get server-side highScore + gold reward
+
+      // Calculate end score based on mode
+      let endScore = score;
+      if (gameMode === "drop") {
+        // Drop mode uses flat reward, not score-based
+        endScore = calcDropReward();
+      }
+
       const endData = await api("/api/game/end", {
         userId: HUB.userId,
-        score,
+        score: endScore,
+        mode: gameMode,
       }).catch(() => null);
-      if (endData?.highScore) {
-        highScore = endData.highScore;
-      }
-      // Sync gold reward to HUD
+      if (endData?.highScore) highScore = endData.highScore;
       if (endData?.resources && typeof HUD !== "undefined") {
         HUD.syncFromServer(endData.resources);
         if (endData.goldReward) HUD.animateGoldChange(endData.goldReward);
@@ -478,10 +678,12 @@ const Match3Game = (() => {
           const type = board[y][x];
           const cell = document.createElement("div");
           cell.className = "m3-cell";
+          if (type === STAR_TYPE) cell.classList.add("star-gem");
           cell.dataset.type = type;
           cell.dataset.x = x;
           cell.dataset.y = y;
-          cell.innerHTML = `<span class="gem-icon">${GEM_ICONS[type] || "?"}</span>`;
+          const icon = type === STAR_TYPE ? "🌟" : GEM_ICONS[type] || "?";
+          cell.innerHTML = `<span class="gem-icon">${icon}</span>`;
           if (changedSet.has(`${x},${y}`)) {
             cell.classList.add("falling");
             // Column-based stagger: each column starts slightly later for cascade effect
@@ -504,7 +706,15 @@ const Match3Game = (() => {
 
   function updateStatsUI() {
     animateNumber($("m3-score"), score);
-    $("m3-moves").textContent = movesLeft;
+    // Mode-specific moves/timer display
+    if (gameMode === "timed") {
+      $("m3-moves").textContent = `${timedSecondsLeft}s`;
+      $("m3-moves").style.color = timedSecondsLeft <= 10 ? "#ef4444" : "";
+    } else {
+      $("m3-moves").textContent = movesLeft === 9999 ? "∞" : movesLeft;
+      $("m3-moves").style.color =
+        movesLeft <= 5 && gameMode !== "timed" ? "#ef4444" : "";
+    }
     const $c = $("m3-combo");
     $c.textContent = combo > 0 ? `${combo}×` : "—";
     if (combo > 1) {
@@ -512,11 +722,19 @@ const Match3Game = (() => {
       setTimeout(() => $c.classList.remove("m3-combo-flash"), 400);
     }
     $("m3-best").textContent = highScore;
-    $("m3-moves").style.color = movesLeft <= 5 ? "#ef4444" : "";
-    // Live gold reward preview
+    // Live gold reward preview (mode-aware)
     const $g = $("m3-gold");
     if ($g) {
-      const reward = gameActive ? calcGoldReward(score) : 0;
+      let reward;
+      if (!gameActive) {
+        reward = 0;
+      } else if (gameMode === "drop") {
+        reward = calcDropReward();
+      } else if (gameMode === "timed") {
+        reward = calcGoldReward(Math.floor(score * 1.5));
+      } else {
+        reward = calcGoldReward(score);
+      }
       $g.textContent = gameActive ? `+${reward}` : "—";
       $g.style.color = reward > REWARD_BASE ? "#fbbf24" : "";
     }

@@ -108,6 +108,15 @@ const HUD = (function () {
               }
               GameStore.setState("resources", { ...res, energy: e });
             }
+            // Update regen micro-progress bar (0-100% within current 5min tick)
+            const elapsed = now - e.lastRegenTimestamp;
+            const pct = Math.min(100, (elapsed / interval) * 100);
+            const regenFill = document.getElementById("hud-energy-regen-fill");
+            if (regenFill) regenFill.style.width = `${pct}%`;
+          } else {
+            // Energy full — hide regen progress
+            const regenFill = document.getElementById("hud-energy-regen-fill");
+            if (regenFill) regenFill.style.width = "0%";
           }
           updateDisplay({ ...res, energy: e });
         }

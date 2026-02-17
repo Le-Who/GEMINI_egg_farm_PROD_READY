@@ -155,7 +155,7 @@ const PetCompanion = (function () {
 
   function scheduleNextState() {
     if (stateTimer) clearTimeout(stateTimer);
-    const delay = 4000 + Math.random() * 7000; // 4-11s (slightly faster tempo)
+    const delay = 3000 + Math.random() * 4000; // 3-7s (lively tempo)
     stateTimer = setTimeout(() => {
       if (currentState === STATES.HAPPY || currentState === STATES.DIZZY) {
         // Don't interrupt reaction states
@@ -167,29 +167,29 @@ const PetCompanion = (function () {
         return;
       }
 
-      // Weighted behavior: 65% ROAM, 25% IDLE, 10% SLEEP
-      // Anti-repeat: skip SLEEP if previous was SLEEP; boost IDLE after consecutive ROAMs
+      // Weighted behavior: 80% ROAM, 15% IDLE, 5% SLEEP
+      // Anti-repeat: skip SLEEP if previous was SLEEP
       let roll = Math.random();
       const canRoam =
         dockMode === "ground" || dockMode === "match3" || dockMode === "trivia";
 
       // Anti-repeat adjustments
       if (previousState === STATES.SLEEP) {
-        // After waking, never immediately sleep again — redistribute to ROAM/IDLE
-        roll = Math.random() * 0.9; // Clamp out SLEEP range (0.9-1.0)
+        // After waking, never immediately sleep again
+        roll = Math.random() * 0.95; // Clamp out SLEEP range (0.95-1.0)
       }
 
       previousState = currentState;
 
-      if (roll < 0.65 && canRoam) {
-        // 65%: ROAM (most movement)
+      if (roll < 0.8 && canRoam) {
+        // 80%: ROAM (most movement — lively pet)
         setState(STATES.ROAM);
         roamToRandomPosition();
-      } else if (roll < 0.9) {
-        // 25%: IDLE (standing still)
+      } else if (roll < 0.95) {
+        // 15%: IDLE (brief pause)
         setState(STATES.IDLE);
       } else {
-        // 10%: SLEEP (interruptible, 30s max)
+        // 5%: SLEEP (short nap, 12s max)
         enterSleep();
       }
       scheduleNextState();
@@ -201,12 +201,12 @@ const PetCompanion = (function () {
     setState(STATES.SLEEP);
     if (sleepTimer) clearTimeout(sleepTimer);
     sleepTimer = setTimeout(() => {
-      // Auto-wake after 30 seconds
+      // Auto-wake after 12 seconds (short nap)
       if (currentState === STATES.SLEEP) {
         setState(STATES.IDLE);
         scheduleNextState();
       }
-    }, 30000);
+    }, 12000);
   }
 
   function roamToRandomPosition() {
