@@ -12,6 +12,7 @@ import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 import { fileURLToPath } from "url";
+import compression from "compression";
 import { initStorage, gcsRead, gcsWrite, getBucket } from "./storage.js";
 import {
   ECONOMY,
@@ -36,6 +37,7 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
+app.use(compression());
 app.use(express.json());
 
 const PORT = process.env.PORT || 8090;

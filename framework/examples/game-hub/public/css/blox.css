@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Building Blox Screen Styles (v4.1)
+ *  Game Hub — Building Blox Screen Styles (v4.2)
  * ═══════════════════════════════════════════════════ */
 
 /* Scope overlays to this screen only */
@@ -30,6 +30,7 @@
   border: 1px solid var(--border);
   border-radius: 16px;
   backdrop-filter: blur(12px);
+  touch-action: none; /* prevent browser gestures on board */
 }
 
 /* ─── Cell ─── */
@@ -108,7 +109,7 @@
   padding: 8px;
   border: 2px solid transparent;
   border-radius: 12px;
-  cursor: pointer;
+  cursor: grab;
   transition: all 0.2s ease;
   min-width: 60px;
   min-height: 56px;
@@ -215,7 +216,7 @@
   transform: scale(1.02);
 }
 
-/* ─── Touch Drag Preview ─── */
+/* ─── Drag Preview (touch + mouse) ─── */
 .blox-drag-preview {
   position: fixed;
   z-index: 500;
@@ -223,6 +224,7 @@
   pointer-events: none;
   opacity: 0.85;
   filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));
+  will-change: transform, left, top;
 }
 
 /* ─── Responsive ─── */

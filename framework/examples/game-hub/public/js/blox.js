@@ -1,8 +1,9 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Building Blox Module (v4.1)
+ *  Game Hub — Building Blox Module (v4.2)
  *  10×10 Block Puzzle: place pieces, clear lines
  *  ─ localStorage persistence, pause overlay, touch drag,
- *    center-of-mass ghost, swipe blocking
+ *    grab-point anchor ghost, mouse drag-and-drop,
+ *    swipe blocking
  * ═══════════════════════════════════════════════════ */
 
 const BloxGame = (() => {
@@ -169,14 +170,26 @@ const BloxGame = (() => {
     }
   }
 
-  // ── Center-of-mass offset for a piece ──
+  // ── Grab-point anchor: nearest real cell to geometric center ──
+  // Returns the cell [dr, dc] from the piece that's closest to its
+  // geometric center. This ensures the anchor is always an actual
+  // cell, preventing the ghost from "wobbling" between grid positions.
   function getCenterOffset(piece) {
     const rows = piece.cells.map((c) => c[0]);
     const cols = piece.cells.map((c) => c[1]);
-    return {
-      dr: Math.round(rows.reduce((a, b) => a + b, 0) / rows.length),
-      dc: Math.round(cols.reduce((a, b) => a + b, 0) / cols.length),
-    };
+    const avgR = rows.reduce((a, b) => a + b, 0) / rows.length;
+    const avgC = cols.reduce((a, b) => a + b, 0) / cols.length;
+    // Snap to nearest actual cell in the piece
+    let bestCell = piece.cells[0];
+    let bestDist = Infinity;
+    for (const [r, c] of piece.cells) {
+      const d = (r - avgR) ** 2 + (c - avgC) ** 2;
+      if (d < bestDist) {
+        bestDist = d;
+        bestCell = [r, c];
+      }
+    }
+    return { dr: bestCell[0], dc: bestCell[1] };
   }
 
   // ── Line clearing ──
@@ -343,6 +356,9 @@ const BloxGame = (() => {
         passive: false,
       });
 
+      // Mouse drag (PC)
+      wrapper.addEventListener("mousedown", (e) => onTrayMouseDown(e, i));
+
       const preview = document.createElement("div");
       preview.className = "blox-piece-preview";
       const maxR = Math.max(...t.piece.cells.map((c) => c[0])) + 1;
@@ -475,6 +491,23 @@ const BloxGame = (() => {
     });
   }
 
+  // ── Shared: compute board target from a pointer position ──
+  function getBoardTarget(clientX, clientY, piece) {
+    const gridEl = $("blox-board");
+    if (!gridEl) return null;
+    const rect = gridEl.getBoundingClientRect();
+    const cellSize = rect.width / GRID;
+    const hoveredR = Math.floor((clientY - rect.top) / cellSize);
+    const hoveredC = Math.floor((clientX - rect.left) / cellSize);
+    if (hoveredR < 0 || hoveredR >= GRID || hoveredC < 0 || hoveredC >= GRID)
+      return null;
+    const offset = getCenterOffset(piece);
+    return {
+      targetR: hoveredR - offset.dr,
+      targetC: hoveredC - offset.dc,
+    };
+  }
+
   // ── Touch drag-and-drop ──
   function onTrayTouchStart(e, idx) {
     if (!gameActive || gamePaused) return;
@@ -484,8 +517,12 @@ const BloxGame = (() => {
     selectedPiece = idx;
     renderTray();
 
-    // Create floating preview
-    createDragPreview(tray[idx].piece, e.touches[0]);
+    // Disable pointer-events on tray wrappers to prevent stuck-piece stacking
+    const trayEl = $("blox-tray");
+    if (trayEl) trayEl.style.pointerEvents = "none";
+
+    // Create floating preview (positioned anchored to touch point)
+    createDragPreview(tray[idx].piece, e.touches[0], true);
 
     // Block swipe navigation while dragging
     HUB.swipeBlocked = true;
@@ -493,28 +530,17 @@ const BloxGame = (() => {
     const onMove = (ev) => {
       ev.preventDefault();
       if (dragPieceIdx < 0) return;
-      const touch = ev.touches[0];
-      moveDragPreview(touch);
+      moveDragPreview(ev.touches[0], true);
 
       // Show ghost on board
-      const gridEl = $("blox-board");
-      if (!gridEl) return;
-      const rect = gridEl.getBoundingClientRect();
-      const cellSize = rect.width / GRID;
-      const hoveredR = Math.floor((touch.clientY - rect.top) / cellSize);
-      const hoveredC = Math.floor((touch.clientX - rect.left) / cellSize);
-      const offset = getCenterOffset(tray[dragPieceIdx].piece);
-      const targetR = hoveredR - offset.dr;
-      const targetC = hoveredC - offset.dc;
       clearGhost();
-      if (
-        hoveredR >= 0 &&
-        hoveredR < GRID &&
-        hoveredC >= 0 &&
-        hoveredC < GRID
-      ) {
-        showGhostAt(tray[dragPieceIdx].piece, targetR, targetC);
-      }
+      const target = getBoardTarget(
+        ev.touches[0].clientX,
+        ev.touches[0].clientY,
+        tray[dragPieceIdx].piece,
+      );
+      if (target)
+        showGhostAt(tray[dragPieceIdx].piece, target.targetR, target.targetC);
     };
 
     const onEnd = (ev) => {
@@ -523,35 +549,102 @@ const BloxGame = (() => {
       removeDragPreview();
       clearGhost();
 
+      // Re-enable tray pointer-events
+      if (trayEl) trayEl.style.pointerEvents = "";
+
       if (dragPieceIdx < 0) return;
       const touch = ev.changedTouches[0];
-      const gridEl = $("blox-board");
-      if (gridEl) {
-        const rect = gridEl.getBoundingClientRect();
-        const cellSize = rect.width / GRID;
-        const hoveredR = Math.floor((touch.clientY - rect.top) / cellSize);
-        const hoveredC = Math.floor((touch.clientX - rect.left) / cellSize);
-        const offset = getCenterOffset(tray[dragPieceIdx].piece);
-        const targetR = hoveredR - offset.dr;
-        const targetC = hoveredC - offset.dc;
-
-        if (
-          hoveredR >= 0 &&
-          hoveredR < GRID &&
-          hoveredC >= 0 &&
-          hoveredC < GRID
-        ) {
-          onCellClick(targetR, targetC);
-        }
-      }
+      const target = getBoardTarget(
+        touch.clientX,
+        touch.clientY,
+        tray[dragPieceIdx].piece,
+      );
+      if (target) onCellClick(target.targetR, target.targetC);
       dragPieceIdx = -1;
+      // Restore swipe after short delay (let touchend propagate)
+      setTimeout(() => {
+        if (!gameActive) HUB.swipeBlocked = false;
+      }, 100);
     };
 
     document.addEventListener("touchmove", onMove, { passive: false });
     document.addEventListener("touchend", onEnd, { passive: false });
   }
 
-  function createDragPreview(piece, touch) {
+  // ── Mouse drag-and-drop (PC) ──
+  let mouseDragging = false;
+  function onTrayMouseDown(e, idx) {
+    if (!gameActive || gamePaused) return;
+    if (tray[idx]?.placed) return;
+    if (e.button !== 0) return; // Left-click only
+    e.preventDefault();
+
+    dragPieceIdx = idx;
+    selectedPiece = idx;
+    mouseDragging = false; // Will become true on first mousemove
+    renderTray();
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const DRAG_THRESHOLD = 5; // px before recognizing as drag vs click
+
+    const onMove = (ev) => {
+      if (dragPieceIdx < 0) return;
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+
+      if (
+        !mouseDragging &&
+        dx * dx + dy * dy > DRAG_THRESHOLD * DRAG_THRESHOLD
+      ) {
+        mouseDragging = true;
+        createDragPreview(tray[dragPieceIdx].piece, ev, false);
+        document.body.style.cursor = "grabbing";
+      }
+
+      if (mouseDragging) {
+        moveDragPreview(ev, false);
+        clearGhost();
+        const target = getBoardTarget(
+          ev.clientX,
+          ev.clientY,
+          tray[dragPieceIdx].piece,
+        );
+        if (target)
+          showGhostAt(tray[dragPieceIdx].piece, target.targetR, target.targetC);
+      }
+    };
+
+    const onUp = (ev) => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
+
+      if (mouseDragging) {
+        removeDragPreview();
+        clearGhost();
+        if (dragPieceIdx >= 0) {
+          const target = getBoardTarget(
+            ev.clientX,
+            ev.clientY,
+            tray[dragPieceIdx].piece,
+          );
+          if (target) onCellClick(target.targetR, target.targetC);
+        }
+        dragPieceIdx = -1;
+        mouseDragging = false;
+      } else {
+        // Short click — use existing click-to-select (already handled by click event)
+        dragPieceIdx = -1;
+      }
+    };
+
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }
+
+  // ── Drag preview (shared by touch + mouse) ──
+  function createDragPreview(piece, pointer, isTouch) {
     removeDragPreview();
     const el = document.createElement("div");
     el.className = "blox-drag-preview";
@@ -576,19 +669,21 @@ const BloxGame = (() => {
     }
 
     const offset = getCenterOffset(piece);
-    el.style.left = `${touch.clientX - (offset.dc + 0.5) * cellPx}px`;
-    el.style.top = `${touch.clientY - (offset.dr + 0.5) * cellPx - 40}px`; // Lift above finger
+    const liftY = isTouch ? 40 : 10; // Lift higher on touch to avoid finger occlusion
+    el.style.left = `${pointer.clientX - (offset.dc + 0.5) * cellPx}px`;
+    el.style.top = `${pointer.clientY - (offset.dr + 0.5) * cellPx - liftY}px`;
     document.body.appendChild(el);
     dragPreviewEl = el;
   }
 
-  function moveDragPreview(touch) {
+  function moveDragPreview(pointer, isTouch) {
     if (!dragPreviewEl || dragPieceIdx < 0) return;
     const piece = tray[dragPieceIdx].piece;
     const offset = getCenterOffset(piece);
     const cellPx = 28;
-    dragPreviewEl.style.left = `${touch.clientX - (offset.dc + 0.5) * cellPx}px`;
-    dragPreviewEl.style.top = `${touch.clientY - (offset.dr + 0.5) * cellPx - 40}px`;
+    const liftY = isTouch ? 40 : 10;
+    dragPreviewEl.style.left = `${pointer.clientX - (offset.dc + 0.5) * cellPx}px`;
+    dragPreviewEl.style.top = `${pointer.clientY - (offset.dr + 0.5) * cellPx - liftY}px`;
   }
 
   function removeDragPreview() {

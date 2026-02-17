@@ -1,7 +1,9 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Match-3 Module (v4.1)
+ *  Game Hub — Match-3 Module (v4.2)
  *  Client-side engine, CSS transitions, state restore
  *  ─ GameStore integration (match3 slice)
+ *  ─ Pause/Continue overlay, touch swipe, default mode
+ *  ─ Star Drop bonus cells (gravity-safe)
  *
  *  NOTE: calcGoldReward, findMatches, generateBoard, randomGem are
  *  intentionally duplicated from game-logic.js. The client needs its
@@ -30,6 +32,7 @@ const Match3Game = (() => {
   let isAnimating = false;
   let highScore = 0;
   let gameActive = false;
+  let gamePaused = false;
 
   /* ─── Game Mode System ─── */
   let gameMode = "classic"; // "classic" | "timed" | "drop"
@@ -161,7 +164,8 @@ const Match3Game = (() => {
   }
 
   /** Run a full cascade: match → clear → gravity → fill → repeat.
-   *  Returns { steps, totalPoints, combo } for animation. */
+   *  Returns { steps, totalPoints, combo } for animation.
+   *  Drop tokens (star drop mode) survive gravity and never get replaced. */
   function resolveBoard(b) {
     const steps = [];
     let totalPoints = 0;
@@ -176,10 +180,12 @@ const Match3Game = (() => {
       });
       totalPoints += cleared.length * 10 * Math.min(cascadeCombo, 5);
 
-      // Clear
-      for (const { x, y } of cleared) b[y][x] = null;
+      // Clear matched cells (but NEVER clear drop tokens)
+      for (const { x, y } of cleared) {
+        if (!DROP_TYPES.includes(b[y][x])) b[y][x] = null;
+      }
 
-      // Gravity + fill
+      // Gravity + fill (drop tokens fall with gravity but are never replaced)
       const fallen = [];
       const filled = [];
       for (let x = 0; x < BOARD_SIZE; x++) {
@@ -201,6 +207,10 @@ const Match3Game = (() => {
       }
 
       steps.push({ cleared, fallen, filled, combo: cascadeCombo });
+
+      // Check star drops after each cascade step
+      if (gameMode === "drop") checkStarDrops();
+
       matches = findMatches(b);
     }
 
@@ -225,6 +235,38 @@ const Match3Game = (() => {
     // Leaderboard close handlers
     $("m3-lb-close").onclick = closeLeaderboard;
     $("m3-lb-backdrop").onclick = closeLeaderboard;
+
+    // Bind pause overlay buttons
+    $("m3-pause-new")?.addEventListener("click", () => {
+      hideM3PauseOverlay();
+      showModeSelector();
+    });
+    $("m3-pause-resume")?.addEventListener("click", () => {
+      hideM3PauseOverlay();
+    });
+    $("m3-pause-end")?.addEventListener("click", async () => {
+      hideM3PauseOverlay();
+      if (gameActive) {
+        gameActive = false;
+        stopTimedCountdown();
+        highScore = Math.max(highScore, score);
+        const endData = await api("/api/game/end", {
+          userId: HUB.userId,
+          score,
+          mode: gameMode,
+        }).catch(() => null);
+        if (endData?.highScore) highScore = endData.highScore;
+        if (endData?.resources && typeof HUD !== "undefined") {
+          HUD.syncFromServer(endData.resources);
+          if (endData.goldReward) HUD.animateGoldChange(endData.goldReward);
+        }
+        showGameOver(score);
+        fetchLeaderboard();
+        syncToStore();
+        updateStartButton();
+      }
+    });
+
     fetchLeaderboard();
     updateStartButton();
 
@@ -236,7 +278,7 @@ const Match3Game = (() => {
     if (!gameActive) {
       board = generateBoard();
       renderBoard(true);
-      showModeSelector();
+      showM3PauseOverlay();
     }
   }
 
@@ -255,6 +297,49 @@ const Match3Game = (() => {
 
   function onEnter() {
     /* board persists in JS across screen switches */
+    // Show pause overlay when entering screen (mirror Blox behavior)
+    if (gameActive) {
+      showM3PauseOverlay();
+    } else {
+      showM3PauseOverlay();
+    }
+  }
+
+  /* ── Pause / Resume overlay (mirror of Blox pattern) ── */
+  function showM3PauseOverlay() {
+    gamePaused = true;
+    HUB.swipeBlocked = false; // allow screen swiping when paused
+
+    let overlay = $("m3-pause-overlay");
+    if (!overlay) return;
+
+    const btnNew = $("m3-pause-new");
+    const btnResume = $("m3-pause-resume");
+    const btnEnd = $("m3-pause-end");
+    const title = $("m3-pause-title");
+
+    if (gameActive) {
+      // Game in progress — show resume + end
+      if (title) title.textContent = "⏸ Paused";
+      if (btnNew) btnNew.style.display = "none";
+      if (btnResume) btnResume.style.display = "";
+      if (btnEnd) btnEnd.style.display = "";
+    } else {
+      // No active game — show New Game (+ Continue if restored)
+      if (title) title.textContent = "💎 Gem Crush";
+      if (btnNew) btnNew.style.display = "";
+      if (btnResume) btnResume.style.display = "none";
+      if (btnEnd) btnEnd.style.display = "none";
+    }
+    overlay.classList.add("show");
+  }
+
+  function hideM3PauseOverlay() {
+    gamePaused = false;
+    const overlay = $("m3-pause-overlay");
+    if (overlay) overlay.classList.remove("show");
+    // Block swipe when playing
+    if (gameActive) HUB.swipeBlocked = true;
   }
 
   async function restoreGame() {
@@ -294,14 +379,15 @@ const Match3Game = (() => {
   }
 
   /* ═══ Start Game ═══ */
+  const LAST_MODE_KEY = "m3_last_mode";
   async function startGame(mode) {
-    // If no mode passed, show mode selector
+    // If no mode passed, use last mode or default to classic
     if (!mode) {
-      // Bug 3.2 fix: close game-over overlay BEFORE showing mode selector
-      $("m3-overlay").classList.remove("show");
-      showModeSelector();
-      return;
+      const lastMode = localStorage.getItem(LAST_MODE_KEY);
+      mode = lastMode || "classic";
     }
+    // Save chosen mode
+    localStorage.setItem(LAST_MODE_KEY, mode);
     gameMode = mode;
 
     // Energy gatekeep — show quick-feed modal instead of toast
@@ -315,6 +401,7 @@ const Match3Game = (() => {
     }
 
     $("m3-overlay").classList.remove("show");
+    hideM3PauseOverlay();
     hideModeSelector();
     selected = null;
     isAnimating = false;
@@ -327,7 +414,7 @@ const Match3Game = (() => {
     starsDropped = 0;
     dropStars = [];
 
-    // Mode-specific init
+    // Mode-specific init (drop stars placed AFTER server board)
     if (gameMode === "timed") {
       movesLeft = 9999; // Unlimited moves in timed mode
       timedSecondsLeft = TIMED_DURATION;
@@ -337,7 +424,7 @@ const Match3Game = (() => {
       startTimedCountdown();
     } else if (gameMode === "drop") {
       movesLeft = DROP_MOVE_LIMIT;
-      placeDropStars();
+      // placeDropStars() will be called AFTER server board is applied
     } else {
       movesLeft = 30;
       $("m3-moves-label").textContent = "Moves";
@@ -372,6 +459,11 @@ const Match3Game = (() => {
       if (gameMode === "classic") {
         movesLeft = data.game.movesLeft || 30;
       }
+    }
+
+    // Place drop stars AFTER server board is applied (critical fix!)
+    if (gameMode === "drop") {
+      placeDropStars();
     }
 
     updateStatsUI();
@@ -589,11 +681,95 @@ const Match3Game = (() => {
         $b.appendChild(cell);
       }
     }
+
+    // Bind pointer swipe on board (once)
+    initBoardPointerSwipe();
+  }
+
+  /* ─── Pointer Swipe (unified touch + mouse drag for gem swapping) ─── */
+  let _swipeBound = false;
+  function initBoardPointerSwipe() {
+    const $b = $("m3-board");
+    if (!$b || _swipeBound) return;
+    _swipeBound = true;
+
+    let startX = 0,
+      startY = 0;
+    let startCellX = -1,
+      startCellY = -1;
+    let swiping = false;
+
+    $b.addEventListener("pointerdown", (e) => {
+      if (isAnimating || !gameActive || gamePaused) return;
+      const cell = e.target.closest(".m3-cell");
+      if (!cell) return;
+
+      startX = e.clientX;
+      startY = e.clientY;
+      startCellX = parseInt(cell.dataset.x);
+      startCellY = parseInt(cell.dataset.y);
+      swiping = true;
+
+      // Block screen swipe while interacting with board
+      HUB.swipeBlocked = true;
+      e.preventDefault();
+    });
+
+    $b.addEventListener("pointerup", (e) => {
+      if (!swiping || startCellX < 0) {
+        swiping = false;
+        return;
+      }
+      swiping = false;
+
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      const THRESHOLD = 20; // px
+
+      // Restore screen swipe
+      setTimeout(() => {
+        if (!gameActive) HUB.swipeBlocked = false;
+      }, 100);
+
+      // If movement is too small, treat as click (handled by click listener)
+      if (Math.abs(dx) < THRESHOLD && Math.abs(dy) < THRESHOLD) return;
+
+      // Determine dominant direction
+      let toX = startCellX,
+        toY = startCellY;
+      if (Math.abs(dx) >= Math.abs(dy)) {
+        toX += dx > 0 ? 1 : -1; // horizontal
+      } else {
+        toY += dy > 0 ? 1 : -1; // vertical
+      }
+
+      // Bounds check
+      if (toX < 0 || toX >= BOARD_SIZE || toY < 0 || toY >= BOARD_SIZE) return;
+
+      // Clear any click-selection and attempt swap
+      if (selected) {
+        getCell(selected.x, selected.y)?.classList.remove("selected");
+        selected = null;
+      }
+      attemptSwap(startCellX, startCellY, toX, toY);
+      startCellX = -1;
+    });
+
+    // Prevent default to avoid text selection during swipe
+    $b.addEventListener("pointermove", (e) => {
+      if (swiping) e.preventDefault();
+    });
+
+    // Cancel swipe if pointer leaves board
+    $b.addEventListener("pointerleave", () => {
+      swiping = false;
+      startCellX = -1;
+    });
   }
 
   /* ═══ Cell Click ═══ */
   function onCellClick(x, y) {
-    if (isAnimating || !gameActive) return;
+    if (isAnimating || !gameActive || gamePaused) return;
     if (!selected) {
       selected = { x, y };
       getCell(x, y)?.classList.add("selected");

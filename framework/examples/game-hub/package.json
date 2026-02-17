@@ -1,6 +1,6 @@
 {
   "name": "game-hub",
-  "version": "4.1.0",
+  "version": "4.2.0",
   "type": "module",
   "private": true,
   "description": "Unified Game Hub — Farm + Trivia + Match-3 in one Discord Activity",
@@ -15,6 +15,7 @@
   "dependencies": {
     "@discord/embedded-app-sdk": "^2.4.0",
     "@google-cloud/storage": "^7.7.0",
+    "compression": "^1.8.1",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "node-fetch": "^3.3.2"
