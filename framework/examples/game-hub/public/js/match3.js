@@ -411,14 +411,12 @@ const Match3Game = (() => {
         const card = e.target.closest(".m3-mode-card");
         if (!card) return;
         const newMode = card.dataset.mode;
-        // If game is active and mode is different, confirm restart
+        // If switching mode during active game, just switch (no confirm — blocked by Discord sandbox)
         if (gameActive && newMode !== gameMode && score > 0) {
-          if (
-            !confirm(
-              `Switch to ${card.querySelector(".m3-mode-name")?.textContent || newMode}? Current game will end.`,
-            )
-          )
-            return;
+          const label =
+            card.querySelector(".m3-mode-name")?.textContent || newMode;
+          if (typeof showToast === "function")
+            showToast(`🔄 Switching to ${label}…`);
         }
         startGame(newMode);
       });

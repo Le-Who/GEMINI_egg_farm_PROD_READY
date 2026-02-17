@@ -322,7 +322,7 @@ const BloxGame = (() => {
           cell.classList.add("filled");
           cell.style.background = board[r][c];
         }
-        cell.addEventListener("click", () => onCellClick(r, c));
+        // No per-cell click — handled by board-level click in initBoardMouseTracking
         gridEl.appendChild(cell);
       }
     }
@@ -397,15 +397,20 @@ const BloxGame = (() => {
     return Math.min(gold, 400);
   }
 
-  // ── Ghost preview (board-level mousemove, center-of-mass offset) ──
+  // ── Ghost preview + click (board-level, center-of-mass offset) ──
   function initBoardMouseTracking() {
     const gridEl = $("blox-board");
     if (!gridEl) return;
 
-    gridEl.addEventListener("mousemove", (e) => {
-      if (selectedPiece < 0 || !gameActive || gamePaused) return;
+    // Guard: only bind once per DOM element
+    if (gridEl._bloxBound) return;
+    gridEl._bloxBound = true;
+
+    // Shared function: compute placement target from mouse/click position
+    function getTargetFromEvent(e) {
+      if (selectedPiece < 0 || !gameActive || gamePaused) return null;
       const t = tray[selectedPiece];
-      if (!t || t.placed) return;
+      if (!t || t.placed) return null;
 
       const rect = gridEl.getBoundingClientRect();
       const cellSize = rect.width / GRID;
@@ -418,20 +423,30 @@ const BloxGame = (() => {
         hoveredC < 0 ||
         hoveredC >= GRID
       ) {
-        clearGhost();
-        return;
+        return null;
       }
 
-      // Center-of-mass offset
       const offset = getCenterOffset(t.piece);
-      const targetR = hoveredR - offset.dr;
-      const targetC = hoveredC - offset.dc;
+      return {
+        piece: t.piece,
+        targetR: hoveredR - offset.dr,
+        targetC: hoveredC - offset.dc,
+      };
+    }
 
+    gridEl.addEventListener("mousemove", (e) => {
       clearGhost();
-      showGhostAt(t.piece, targetR, targetC);
+      const target = getTargetFromEvent(e);
+      if (target) showGhostAt(target.piece, target.targetR, target.targetC);
     });
 
     gridEl.addEventListener("mouseleave", clearGhost);
+
+    // Board-level click: same offset math as ghost
+    gridEl.addEventListener("click", (e) => {
+      const target = getTargetFromEvent(e);
+      if (target) onCellClick(target.targetR, target.targetC);
+    });
   }
 
   function showGhostAt(piece, r, c) {
