@@ -479,15 +479,30 @@
   color: rgba(255, 255, 255, 0.45);
 }
 
-/* ─── Star Gem (Drop Mode) ─── */
-.m3-cell.star-gem {
-  animation: starGlow 1.5s ease-in-out infinite;
+/* ─── Drop Gems (Star Drop mode — 3 unique reward types) ─── */
+.m3-cell.drop-gem {
+  animation: dropGlow 1.5s ease-in-out infinite;
+  border: 2px solid rgba(255, 255, 255, 0.3);
 }
-@keyframes starGlow {
+.m3-cell.drop-gold {
+  background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
+}
+.m3-cell.drop-seeds {
+  background: linear-gradient(135deg, #22c55e, #16a34a) !important;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
+}
+.m3-cell.drop-energy {
+  background: linear-gradient(135deg, #06b6d4, #0891b2) !important;
+  box-shadow: 0 0 8px rgba(6, 182, 212, 0.5);
+}
+@keyframes dropGlow {
   0%, 100% {
-    box-shadow: 0 0 4px rgba(255, 215, 0, 0.3);
+    filter: brightness(1);
+    transform: scale(1);
   }
   50% {
-    box-shadow: 0 0 16px rgba(255, 215, 0, 0.6);
+    filter: brightness(1.2);
+    transform: scale(1.06);
   }
 }

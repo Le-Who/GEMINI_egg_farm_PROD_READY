@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Farm Module  (v3.0)
+ *  Game Hub — Farm Module (v3.1)
  *  Plots, planting, watering, harvesting, seed shop
  *  ─ Local growth timer, diff-update fix, farm badge
  *  ─ Diff-update plots (no blink), horizontal buy bar, plot dispatcher
@@ -24,6 +24,13 @@ const FarmGame = (() => {
     if (state && typeof GameStore !== "undefined") {
       GameStore.setState("farm", { ...state });
     }
+  }
+
+  /** Sync server-side farm.harvested → resources.__harvested in GameStore */
+  function syncHarvestedToStore(harvested) {
+    if (!harvested || typeof GameStore === "undefined") return;
+    const res = GameStore.getState("resources") || {};
+    GameStore.setState("resources", { ...res, __harvested: { ...harvested } });
   }
   /** Pull state from GameStore → local (deep clone to prevent shared refs) */
   function syncFromStore() {
@@ -123,6 +130,8 @@ const FarmGame = (() => {
       if (stateData.pet && typeof PetCompanion !== "undefined") {
         PetCompanion.syncFromServer(stateData.pet);
       }
+      // Bug 2 fix: sync server harvested → resources.__harvested
+      syncHarvestedToStore(stateData.harvested);
       if (stateData.offlineReport) {
         showWelcomeBack(stateData.offlineReport);
       }
@@ -168,11 +177,14 @@ const FarmGame = (() => {
       if (data.pet && typeof PetCompanion !== "undefined") {
         PetCompanion.syncFromServer(data.pet);
       }
+      // Bug 2 fix: sync server harvested → resources.__harvested
+      syncHarvestedToStore(data.harvested);
       if (data.offlineReport) {
         showWelcomeBack(data.offlineReport);
       }
       syncToStore();
       render();
+      renderInventory();
     }
   }
 
@@ -421,16 +433,31 @@ const FarmGame = (() => {
     grid.innerHTML = "";
     for (const [cropId, qty] of entries) {
       const cfg = crops[cropId] || {};
+      // Sell price = ceil((seedPrice * 0.5) * (growthTimeSec * 0.25))
+      const growSec = (cfg.growthTime || 15000) / 1000;
+      const sellPrice = Math.ceil(
+        (cfg.seedPrice || 0) * 0.5 * (growSec * 0.25),
+      );
       const item = document.createElement("div");
       item.className = "farm-inv-item";
       item.innerHTML = `
         <span class="farm-inv-emoji">${cfg.emoji || "🌱"}</span>
         <div class="farm-inv-info">
-          <div class="farm-inv-name">${cfg.name || cropId}</div>
-          <div class="farm-inv-sell">Sell: ${cfg.sellPrice || 0}🪙</div>
+          <div class="farm-inv-name">${cfg.name || cropId} <span class="farm-inv-qty">×${qty}</span></div>
         </div>
-        <span class="farm-inv-qty">×${qty}</span>
+        <div class="farm-inv-actions">
+          <button class="farm-inv-btn sell" data-crop="${cropId}" title="Sell for ${sellPrice}🪙">💰 ${sellPrice}</button>
+          <button class="farm-inv-btn feed" data-crop="${cropId}" title="Feed pet (+1⚡)">🍖</button>
+        </div>
       `;
+      // Sell handler
+      item
+        .querySelector(".farm-inv-btn.sell")
+        .addEventListener("click", () => sellCrop(cropId, sellPrice));
+      // Feed handler
+      item
+        .querySelector(".farm-inv-btn.feed")
+        .addEventListener("click", () => feedPet(cropId));
       grid.appendChild(item);
     }
   }
@@ -506,6 +533,12 @@ const FarmGame = (() => {
       showToast("❌ Not enough gold!");
       return;
     }
+    // Bug 1 fix: immediately deduct gold from GameStore for instant UI
+    const prevGold = goldAvail;
+    if (typeof GameStore !== "undefined") {
+      const res = GameStore.getState("resources") || {};
+      GameStore.setState("resources", { ...res, gold: res.gold - totalCost });
+    }
     // Optimistic update (instant UI)
     const prevInventory = { ...state.inventory };
     const savedQty = buyQty;
@@ -536,7 +569,11 @@ const FarmGame = (() => {
           state.inventory = data.inventory;
           syncToStore();
         } else {
-          // Rollback
+          // Rollback gold + inventory
+          if (typeof GameStore !== "undefined") {
+            const res = GameStore.getState("resources") || {};
+            GameStore.setState("resources", { ...res, gold: prevGold });
+          }
           state.inventory = prevInventory;
           syncToStore();
           render();
@@ -621,14 +658,20 @@ const FarmGame = (() => {
     render();
     showToast(`💧 Watered! Growth ~30% faster`);
 
+    // Bug 4.1 fix: timeout fallback to release lock even if server is slow
+    const fallbackTimer = setTimeout(
+      () => wateringInFlight.delete(plotId),
+      3000,
+    );
+
     // Fire-and-forget with version guard
     const myVersion = ++waterVersion;
     api("/api/farm/water", { userId: HUB.userId, plotId })
       .then((data) => {
+        clearTimeout(fallbackTimer);
         wateringInFlight.delete(plotId);
         if (waterVersion !== myVersion) return;
         if (data.success) {
-          // Silently sync server state — NO re-render (optimistic UI is correct)
           state.plots = data.plots;
           syncToStore();
         } else {
@@ -636,6 +679,7 @@ const FarmGame = (() => {
         }
       })
       .catch(() => {
+        clearTimeout(fallbackTimer);
         wateringInFlight.delete(plotId);
         if (waterVersion === myVersion) loadState();
       });
@@ -674,23 +718,102 @@ const FarmGame = (() => {
       .then((data) => {
         if (harvestVersion !== myVersion) return;
         if (data.success) {
-          // Silently sync server state — NO re-render (optimistic UI is correct)
           state.plots = data.plots;
           state.xp = data.xp;
           state.level = data.level;
           if (data.resources && typeof HUD !== "undefined") {
             HUD.syncFromServer(data.resources);
           }
+          // Sync server harvested → resources.__harvested
+          if (data.harvested) syncHarvestedToStore(data.harvested);
           syncToStore();
+          renderInventory();
           if (data.leveledUp) showToast(`🎉 Level Up! Lv${data.level}`);
         } else {
-          // Error: full resync
           loadState();
         }
       })
       .catch(() => {
         if (harvestVersion === myVersion) loadState();
       });
+  }
+
+  /* ─── Sell Crop ─── */
+  function sellCrop(cropId, sellPrice) {
+    if (typeof GameStore === "undefined") return;
+    const res = GameStore.getState("resources") || {};
+    const harvested = { ...(res.__harvested || {}) };
+    if (!harvested[cropId] || harvested[cropId] <= 0) {
+      showToast("❌ No crops to sell!");
+      return;
+    }
+    // Optimistic: deduct crop, add gold
+    harvested[cropId]--;
+    if (harvested[cropId] <= 0) delete harvested[cropId];
+    const newGold = (res.gold || 0) + sellPrice;
+    GameStore.setState("resources", {
+      ...res,
+      gold: newGold,
+      __harvested: harvested,
+    });
+    renderInventory();
+    render();
+    showToast(`💰 Sold! +${sellPrice}🪙`);
+    if (typeof HUD !== "undefined") {
+      HUD.animateGoldChange(sellPrice);
+      HUD.updateDisplay(GameStore.getState("resources"));
+    }
+
+    api("/api/farm/sell-crop", { userId: HUB.userId, cropId })
+      .then((data) => {
+        if (data?.success) {
+          if (data.resources) HUD?.syncFromServer?.(data.resources);
+          if (data.harvested) syncHarvestedToStore(data.harvested);
+          renderInventory();
+        }
+      })
+      .catch(() => {});
+  }
+
+  /* ─── Feed Pet (crop → energy) ─── */
+  function feedPet(cropId) {
+    if (typeof GameStore === "undefined") return;
+    const res = GameStore.getState("resources") || {};
+    const e = res.energy || {};
+    // Bug 2.3: block feeding at max energy
+    if (e.current >= e.max) {
+      showToast("⚡ Energy full! Can't feed yet.");
+      return;
+    }
+    const harvested = { ...(res.__harvested || {}) };
+    if (!harvested[cropId] || harvested[cropId] <= 0) {
+      showToast("❌ No crops to feed!");
+      return;
+    }
+    // Optimistic: deduct crop, add 2 energy (matches server FEED_ENERGY)
+    harvested[cropId]--;
+    if (harvested[cropId] <= 0) delete harvested[cropId];
+    const newEnergy = { ...e, current: Math.min(e.max, e.current + 2) };
+    GameStore.setState("resources", {
+      ...res,
+      energy: newEnergy,
+      __harvested: harvested,
+    });
+    renderInventory();
+    showToast(`🍖 Fed pet! +2⚡`);
+    if (typeof HUD !== "undefined") {
+      HUD.updateDisplay(GameStore.getState("resources"));
+    }
+
+    api("/api/pet/feed", { userId: HUB.userId, cropId })
+      .then((data) => {
+        if (data?.success) {
+          if (data.resources) HUD?.syncFromServer?.(data.resources);
+          if (data.harvested) syncHarvestedToStore(data.harvested);
+          renderInventory();
+        }
+      })
+      .catch(() => {});
   }
 
   /* ─── Local Growth Computation (Issue 5) ─── */
@@ -852,5 +975,7 @@ const FarmGame = (() => {
     selectSeed,
     updateFarmBadge,
     getLocalGrowth,
+    sellCrop,
+    feedPet,
   };
 })();

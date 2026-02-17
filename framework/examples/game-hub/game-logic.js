@@ -11,7 +11,7 @@
 export const ECONOMY = {
   ENERGY_MAX: 20,
   ENERGY_START: 20,
-  ENERGY_REGEN_INTERVAL_MS: 5 * 60 * 1000, // 5 minutes
+  ENERGY_REGEN_INTERVAL_MS: 150 * 1000, // 2.5 minutes (was 5 min)
   GOLD_START: 100,
   COST_MATCH3: 5,
   COST_TRIVIA: 3,

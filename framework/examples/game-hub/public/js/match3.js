@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Match-3 Module (v3.0)
+ *  Game Hub — Match-3 Module (v3.1)
  *  Client-side engine, CSS transitions, state restore
  *  ─ GameStore integration (match3 slice)
  * ═══════════════════════════════════════════════════ */
@@ -34,7 +34,14 @@ const Match3Game = (() => {
   const TIMED_DURATION = 90; // seconds
   const DROP_MOVE_LIMIT = 20;
   const DROP_STAR_COUNT = 3;
-  const STAR_TYPE = "star"; // special gem type
+  // v3.1: 3 unique reward drop types instead of single star
+  const DROP_TYPES = ["drop_gold", "drop_seeds", "drop_energy"];
+  const DROP_ICONS = { drop_gold: "💰", drop_seeds: "🌾", drop_energy: "⚡" };
+  const DROP_LABELS = {
+    drop_gold: "Gold Bag",
+    drop_seeds: "Seed Pack",
+    drop_energy: "Energy",
+  };
 
   /* ─── Progressive gold reward (mirrors game-logic.js calcGoldReward) ─── */
   const REWARD_BASE = 40;
@@ -117,7 +124,7 @@ const Match3Game = (() => {
         // Skip star-type gems (they don't match)
         if (
           b[y][x] &&
-          b[y][x] !== STAR_TYPE &&
+          !DROP_TYPES.includes(b[y][x]) &&
           b[y][x] === b[y][x + 1] &&
           b[y][x] === b[y][x + 2]
         ) {
@@ -133,7 +140,7 @@ const Match3Game = (() => {
       for (let y = 0; y < BOARD_SIZE - 2; y++) {
         if (
           b[y][x] &&
-          b[y][x] !== STAR_TYPE &&
+          !DROP_TYPES.includes(b[y][x]) &&
           b[y][x] === b[y + 1][x] &&
           b[y][x] === b[y + 2][x]
         ) {
@@ -272,6 +279,8 @@ const Match3Game = (() => {
   async function startGame(mode) {
     // If no mode passed, show mode selector
     if (!mode) {
+      // Bug 3.2 fix: close game-over overlay BEFORE showing mode selector
+      $("m3-overlay").classList.remove("show");
       showModeSelector();
       return;
     }
@@ -304,12 +313,16 @@ const Match3Game = (() => {
     if (gameMode === "timed") {
       movesLeft = 9999; // Unlimited moves in timed mode
       timedSecondsLeft = TIMED_DURATION;
+      $("m3-moves-label").textContent = "";
+      $("m3-moves").textContent = `${TIMED_DURATION}s`;
+      $("m3-moves").style.color = "";
       startTimedCountdown();
     } else if (gameMode === "drop") {
       movesLeft = DROP_MOVE_LIMIT;
       placeDropStars();
     } else {
       movesLeft = 30;
+      $("m3-moves-label").textContent = "Moves";
     }
 
     // Notify server of new game (deducts energy)
@@ -439,7 +452,7 @@ const Match3Game = (() => {
   function placeDropStars() {
     dropStars = [];
     starsDropped = 0;
-    // Place stars in top 2 rows at random columns
+    // Place 3 unique reward objects in top 2 rows at random columns
     const usedCols = new Set();
     for (let i = 0; i < DROP_STAR_COUNT; i++) {
       let col;
@@ -448,40 +461,62 @@ const Match3Game = (() => {
       } while (usedCols.has(col));
       usedCols.add(col);
       const row = Math.floor(Math.random() * 2); // row 0 or 1
-      board[row][col] = STAR_TYPE;
-      dropStars.push({ x: col, y: row, dropped: false });
+      const dropType = DROP_TYPES[i];
+      board[row][col] = dropType;
+      dropStars.push({ x: col, y: row, dropped: false, type: dropType });
     }
   }
 
   function checkStarDrops() {
-    // Stars "drop" when they reach the bottom row (row 7)
+    // Reward objects "drop" when they reach the bottom row (row 7)
     for (const star of dropStars) {
       if (star.dropped) continue;
-      // Find the star on the board
+      // Find the drop item on the board
       for (let y = 0; y < BOARD_SIZE; y++) {
         for (let x = 0; x < BOARD_SIZE; x++) {
-          if (board[y][x] === STAR_TYPE) {
+          if (board[y][x] === star.type) {
             star.x = x;
             star.y = y;
           }
         }
       }
       if (star.y === BOARD_SIZE - 1) {
-        // Star reached bottom — mark as dropped
+        // Reached bottom — mark as dropped
         star.dropped = true;
         starsDropped++;
-        board[star.y][star.x] = randomGem(); // Replace star with regular gem
-        showToast(`🌟 Star dropped! (${starsDropped}/${DROP_STAR_COUNT})`);
+        board[star.y][star.x] = randomGem(); // Replace with regular gem
+        const icon = DROP_ICONS[star.type] || "🌟";
+        const label = DROP_LABELS[star.type] || "Reward";
+        showToast(
+          `${icon} ${label} dropped! (${starsDropped}/${DROP_STAR_COUNT})`,
+        );
       }
     }
   }
 
   function calcDropReward() {
-    // Base: 100🪙, +50 per star, +250 bonus for all 3
-    let reward = 100;
-    reward += starsDropped * 50;
-    if (starsDropped >= DROP_STAR_COUNT) reward += 250;
-    return reward;
+    // Returns a reward object describing what the player earned
+    const rewards = { gold: 0, seeds: null, energy: 0 };
+    for (const star of dropStars) {
+      if (!star.dropped) continue;
+      if (star.type === "drop_gold") rewards.gold += 40; // Enough for another game
+      if (star.type === "drop_seeds") rewards.seeds = getRandomSeedPack(); // ≤60🪙 worth
+      if (star.type === "drop_energy") rewards.energy += 7;
+    }
+    // Bonus for all 3 collected
+    if (starsDropped >= DROP_STAR_COUNT) rewards.gold += 20;
+    return rewards;
+  }
+
+  function getRandomSeedPack() {
+    // Pick a random seed type that costs ≤60 gold
+    // Return { cropId, quantity } for server to award
+    const affordable =
+      Object.entries(GEM_ICONS).length > 0
+        ? ["carrot", "tomato", "corn", "wheat"] // fallbacks
+        : ["carrot"];
+    const cropId = affordable[Math.floor(Math.random() * affordable.length)];
+    return { cropId, quantity: 3 };
   }
 
   /* ═══ Render Board (persistent DOM elements) ═══ */
@@ -495,12 +530,14 @@ const Match3Game = (() => {
         const type = board[y][x];
         const cell = document.createElement("div");
         cell.className = "m3-cell";
-        if (type === STAR_TYPE) cell.classList.add("star-gem");
+        const isDrop = DROP_TYPES.includes(type);
+        if (isDrop)
+          cell.classList.add("drop-gem", `drop-${type.replace("drop_", "")}`);
         if (animate) cell.classList.add("entering");
         cell.dataset.type = type;
         cell.dataset.x = x;
         cell.dataset.y = y;
-        const icon = type === STAR_TYPE ? "🌟" : GEM_ICONS[type] || "?";
+        const icon = isDrop ? DROP_ICONS[type] || "🌟" : GEM_ICONS[type] || "?";
         cell.innerHTML = `<span class="gem-icon">${icon}</span>`;
         if (animate) cell.style.animationDelay = `${(x + y) * 25}ms`;
         cell.addEventListener("click", () => onCellClick(x, y));
@@ -620,11 +657,19 @@ const Match3Game = (() => {
         toY,
       }).catch(() => {});
 
-      // Calculate end score based on mode
+      // Calculate end score/rewards based on mode
       let endScore = score;
       if (gameMode === "drop") {
-        // Drop mode uses flat reward, not score-based
-        endScore = calcDropReward();
+        // Drop mode: structured rewards, not score-based gold
+        const dropRewards = calcDropReward();
+        endScore = dropRewards.gold + dropRewards.energy * 5; // normalized for leaderboard
+        // Show reward breakdown
+        const parts = [];
+        if (dropRewards.gold > 0) parts.push(`💰 ${dropRewards.gold}🪙`);
+        if (dropRewards.energy > 0) parts.push(`⚡ +${dropRewards.energy}`);
+        if (dropRewards.seeds)
+          parts.push(`🌾 ${dropRewards.seeds.quantity}× seeds`);
+        showToast(`🎁 Rewards: ${parts.join(" · ")}`);
       }
 
       const endData = await api("/api/game/end", {

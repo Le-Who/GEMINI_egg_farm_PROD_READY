@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — HUD Module (v3.0)
+ *  Game Hub — HUD Module (v3.1)
  *  TopHUD for Energy & Gold display
  *  Registers 'resources' slice in GameStore
  * ═══════════════════════════════════════════════════ */
@@ -90,7 +90,7 @@ const HUD = (function () {
           // Local regen tick
           const e = { ...res.energy };
           const now = Date.now();
-          const interval = 5 * 60 * 1000;
+          const interval = 150 * 1000; // 2.5 min — matches game-logic.js
           if (e.current < e.max) {
             const delta = now - e.lastRegenTimestamp;
             const ticks = Math.floor(delta / interval);

@@ -244,16 +244,43 @@
   font-weight: 600;
   color: rgba(255, 255, 255, 0.85);
 }
-.farm-inv-sell {
-  font-size: 0.6rem;
-  color: var(--gold, #f0d060);
-}
 .farm-inv-qty {
-  font-size: 0.78rem;
+  font-size: 0.65rem;
   font-weight: 700;
   color: #86efac;
-  min-width: 24px;
-  text-align: right;
+  margin-left: 4px;
+}
+.farm-inv-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.farm-inv-btn {
+  padding: 3px 7px;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  line-height: 1.2;
+}
+.farm-inv-btn.sell {
+  background: rgba(240, 208, 96, 0.2);
+  color: #f0d060;
+}
+.farm-inv-btn.sell:hover {
+  background: rgba(240, 208, 96, 0.35);
+  transform: scale(1.05);
+}
+.farm-inv-btn.feed {
+  background: rgba(134, 239, 172, 0.2);
+  color: #86efac;
+  font-size: 0.75rem;
+}
+.farm-inv-btn.feed:hover {
+  background: rgba(134, 239, 172, 0.35);
+  transform: scale(1.05);
 }
 .farm-inv-empty {
   text-align: center;

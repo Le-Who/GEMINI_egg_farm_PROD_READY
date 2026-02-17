@@ -429,6 +429,31 @@ app.get("/api/resources/state", requireAuth, (req, res) => {
   });
 });
 
+/* ─── Sell Crop ─── */
+app.post("/api/farm/sell-crop", requireAuth, (req, res) => {
+  const { userId } = resolveUser(req);
+  const { cropId } = req.body;
+  const p = getPlayer(userId);
+  if (!cropId || !p.farm.harvested[cropId] || p.farm.harvested[cropId] <= 0) {
+    return res.status(400).json({ error: "no harvested crop to sell" });
+  }
+  const cfg = CROPS[cropId];
+  if (!cfg) return res.status(400).json({ error: "unknown crop" });
+  // Sell price = ceil((seedPrice * 0.5) * (growthTimeSec * 0.25))
+  const growSec = (cfg.growthTime || 15000) / 1000;
+  const sellPrice = Math.ceil(cfg.seedPrice * 0.5 * (growSec * 0.25));
+  p.farm.harvested[cropId]--;
+  if (p.farm.harvested[cropId] <= 0) delete p.farm.harvested[cropId];
+  p.resources.gold += sellPrice;
+  debouncedSaveDb();
+  res.json({
+    success: true,
+    resources: p.resources,
+    harvested: p.farm.harvested,
+    soldFor: sellPrice,
+  });
+});
+
 app.post("/api/pet/feed", requireAuth, (req, res) => {
   const { userId } = resolveUser(req);
   const { cropId } = req.body;
