@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Farm Module (v3.1)
+ *  Game Hub — Farm Module (v3.3)
  *  Plots, planting, watering, harvesting, seed shop
  *  ─ Local growth timer, diff-update fix, farm badge
  *  ─ Diff-update plots (no blink), horizontal buy bar, plot dispatcher
@@ -90,6 +90,16 @@ const FarmGame = (() => {
   async function init() {
     showSkeleton();
 
+    // Pre-populate crops from localStorage cache to prevent 🌱 fallback
+    // emojis while the network request is in flight
+    try {
+      const cached = JSON.parse(localStorage.getItem("hub_crops_cache"));
+      if (cached?.data && Object.keys(cached.data).length > 0) {
+        crops = cached.data;
+        window.__cropsCache = cached.data;
+      }
+    } catch (_) {}
+
     // Register farm slice in the store
     if (typeof GameStore !== "undefined") {
       GameStore.registerSlice("farm", null);
@@ -164,6 +174,22 @@ const FarmGame = (() => {
   }
 
   async function loadState() {
+    // Ensure crops cache is populated before rendering (prevents 🌱 fallback)
+    if (Object.keys(crops).length === 0) {
+      try {
+        const cached = JSON.parse(localStorage.getItem("hub_crops_cache"));
+        if (cached?.data) crops = cached.data;
+      } catch (_) {}
+      // If still empty, fetch from API
+      if (Object.keys(crops).length === 0) {
+        const cropsData = await api("/api/content/crops");
+        if (cropsData && !cropsData.error) {
+          crops = cropsData;
+          window.__cropsCache = cropsData;
+        }
+      }
+    }
+
     const data = await api("/api/farm/state", {
       userId: HUB.userId,
       username: HUB.username,

@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Pet Module (v3.0)
+ *  Game Hub — Pet Module (v3.3)
  *  Living Pet Entity with state machine & interactions
  *  v1.8: Weighted behavior, zone roaming, FLIP dock
  * ═══════════════════════════════════════════════════ */
@@ -395,13 +395,6 @@ const PetCompanion = (function () {
 
     const xpPct = ((petData.xp / petData.xpToNextLevel) * 100).toFixed(1);
 
-    // Get available crops for feeding
-    let feedOptions = "";
-    const harvested =
-      typeof GameStore !== "undefined"
-        ? GameStore.getState("resources")?.__harvested || {}
-        : {};
-
     panel.innerHTML = `
       <button class="pet-info-close" id="pet-info-close">✕</button>
       <div class="pet-info-header">
@@ -413,14 +406,19 @@ const PetCompanion = (function () {
       </div>
       <div class="pet-info-xp-text">${petData.xp} / ${petData.xpToNextLevel} XP</div>
       <div class="pet-info-abilities">
-        <span class="pet-ability ${petData.abilities.autoHarvest ? "unlocked" : ""}">
+        <span class="pet-ability ${petData.abilities.autoHarvest ? "unlocked" : ""}"
+              title="Automatically harvests fully grown crops while you're offline (costs 1⚡ each)">
           ${petData.abilities.autoHarvest ? "✅" : "🔒"} Auto-Harvest (Lv 3)
         </span>
-        <span class="pet-ability ${petData.abilities.autoWater ? "unlocked" : ""}">
+        <span class="pet-ability ${petData.abilities.autoWater ? "unlocked" : ""}"
+              title="Automatically waters unwatered crops while you're offline (free)">
           ${petData.abilities.autoWater ? "✅" : "🔒"} Auto-Water (Lv 5)
         </span>
+        <span class="pet-ability ${petData.abilities.autoPlant ? "unlocked" : ""}"
+              title="Automatically plants seeds on empty plots while you're offline (costs 2⚡ each)">
+          ${petData.abilities.autoPlant ? "✅" : "🔒"} Auto-Plant (Lv 7)
+        </span>
       </div>
-      <div class="pet-feed-section" id="pet-feed-section"></div>
     `;
 
     // Setup close button
@@ -428,98 +426,6 @@ const PetCompanion = (function () {
     if (closeBtn) {
       closeBtn.onclick = () => toggleInfoPanel();
     }
-
-    // Render feed buttons
-    renderFeedButtons();
-  }
-
-  function renderFeedButtons() {
-    const section = document.getElementById("pet-feed-section");
-    if (!section) return;
-
-    // Use cached GameStore data — no network request needed
-    let harvested = {};
-    if (typeof GameStore !== "undefined") {
-      harvested = GameStore.getState("resources")?.__harvested || {};
-    }
-    const crops = Object.entries(harvested).filter(([, qty]) => qty > 0);
-
-    if (crops.length === 0) {
-      section.innerHTML = `<div style="text-align:center;color:#666;font-size:0.75rem;">
-        No harvested crops to feed 🌾<br>Visit the farm to harvest!
-      </div>`;
-      return;
-    }
-
-    section.innerHTML = crops
-      .map(
-        ([cropId, qty]) => `
-        <button class="pet-feed-btn" data-crop="${cropId}">
-          🍽️ Feed ${cropId} (${qty}) → +2⚡ +10XP
-        </button>
-      `,
-      )
-      .join("");
-
-    section.querySelectorAll(".pet-feed-btn").forEach((btn) => {
-      btn.onclick = () => feedPet(btn.getAttribute("data-crop"));
-    });
-  }
-
-  /* ─── Feed Pet (fire-and-forget) ─── */
-  function feedPet(cropId) {
-    // Optimistic update: show happy reaction immediately
-    setState(STATES.HAPPY);
-    spawnHeart();
-    spawnHeart();
-
-    // Optimistic food list update: decrement locally and re-render buttons
-    if (typeof GameStore !== "undefined") {
-      const rState = GameStore.getState("resources");
-      if (rState?.__harvested?.[cropId]) {
-        rState.__harvested[cropId]--;
-        if (rState.__harvested[cropId] <= 0) delete rState.__harvested[cropId];
-        if (panelOpen) renderFeedButtons();
-      }
-    }
-
-    // Fire-and-forget
-    api("/api/pet/feed", {
-      cropId,
-      userId: HUB.userId,
-    })
-      .then((data) => {
-        if (data && data.success) {
-          if (data.pet) {
-            petData = data.pet;
-            if (typeof GameStore !== "undefined") {
-              GameStore.setState("pet", data.pet);
-            }
-          }
-          if (data.resources && typeof HUD !== "undefined") {
-            HUD.syncFromServer(data.resources);
-          }
-          if (typeof showToast === "function") {
-            const msg = data.leveledUp
-              ? `🎉 ${petData.name} leveled up to Lv ${petData.level}!`
-              : `🍽️ Fed ${petData.name}! +2⚡ +10XP`;
-            showToast(msg);
-          }
-          if (panelOpen) renderInfoPanel();
-        } else {
-          if (data && data.error && typeof showToast === "function") {
-            showToast("❌ " + data.error);
-          }
-        }
-        setTimeout(() => setState(STATES.IDLE), 1200);
-      })
-      .catch((e) => {
-        console.error("Pet feed error:", e);
-        if (typeof showToast === "function") {
-          showToast("❌ Failed to feed pet");
-        }
-        setTimeout(() => setState(STATES.IDLE), 1200);
-      });
   }
 
   /* ─── Sync from server data ─── */
@@ -558,7 +464,6 @@ const PetCompanion = (function () {
   return {
     init,
     syncFromServer,
-    feedPet,
     toggleInfoPanel,
     setDockMode,
     getDockMode,

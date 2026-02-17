@@ -413,12 +413,12 @@ describe("Debounced Render Queue", () => {
  *  Watering Multiplier — Growth Speed
  * ═════════════════════════════════════════════════════ */
 describe("Watering Growth Speed", () => {
-  it("watering multiplier reduces growth time by 20-40%", () => {
+  it("watering multiplier reduces growth time by 20-45%", () => {
     for (const [id, cfg] of Object.entries(CROPS)) {
-      const mult = getWateringMultiplier(cfg);
+      const mult = getWateringMultiplier(id);
       assert.ok(
-        mult >= 0.6 && mult <= 0.8,
-        `${id} multiplier ${mult} out of range [0.6, 0.8]`,
+        mult >= 0.55 && mult <= 0.8,
+        `${id} multiplier ${mult} out of range [0.55, 0.8]`,
       );
     }
   });

@@ -1,7 +1,13 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Match-3 Module (v3.1)
+ *  Game Hub — Match-3 Module (v3.3)
  *  Client-side engine, CSS transitions, state restore
  *  ─ GameStore integration (match3 slice)
+ *
+ *  NOTE: calcGoldReward, findMatches, generateBoard, randomGem are
+ *  intentionally duplicated from game-logic.js. The client needs its
+ *  own copies for instant UI preview without server round-trips.
+ *  The client findMatches uses Set<string> and excludes DROP_TYPES;
+ *  the server version uses Array<{type, gems}> for different consumers.
  * ═══════════════════════════════════════════════════ */
 
 const Match3Game = (() => {
@@ -225,6 +231,13 @@ const Match3Game = (() => {
     // Try to restore an existing game from the server
     await restoreGame();
     syncToStore();
+
+    // If no active game was restored, show mode selector + preview board
+    if (!gameActive) {
+      board = generateBoard();
+      renderBoard(true);
+      showModeSelector();
+    }
   }
 
   /* ═══ Energy Gate ═══ */
@@ -265,10 +278,15 @@ const Match3Game = (() => {
         } else {
           highScore = data.highScore || 0;
           $("m3-best").textContent = highScore;
+          // Generate a preview board so the screen isn't empty
+          board = generateBoard();
+          renderBoard(true);
         }
       } else if (data) {
         highScore = data.highScore || 0;
         $("m3-best").textContent = highScore;
+        board = generateBoard();
+        renderBoard(true);
       }
     } catch (e) {
       console.warn("Match-3 restore failed:", e);

@@ -1,5 +1,20 @@
 # Changelog
 
+## v3.3 — 2026-02-17
+
+### Bug Fixes
+
+- **Match-3**: Mode selector panel and preview board now shown automatically on first visit (no more empty screen)
+- **Energy HUD**: Fixed tooltip countdown using wrong interval (5min → 2.5min); `syncFromServer` smart-merges timestamps to prevent visual jumps
+- **Pet Profile**: Removed duplicate feed section (feeding lives in farm inventory); added missing Auto-Plant (Lv 7) ability display with tooltips for all 3 abilities
+- **Farm Emojis**: Pre-populate crops from `localStorage` cache before API response to prevent 🌱 fallback on re-login
+
+### Code Quality
+
+- **Intentional duplication**: Documented why `findMatches`, `calcGoldReward`, `generateBoard` are duplicated between `match3.js` (client) and `game-logic.js` (server)
+- **Test fix**: `ux.test.js` `getWateringMultiplier` was called with object instead of string (always returned default 0.7); now tests actual crop-specific multipliers
+- Removed dead code: `feedPet()` and `renderFeedButtons()` from `pet.js`
+
 ## v3.2 — 2026-02-17
 
 ### GCP Resilience Tests (`tests/gcp.test.js`)

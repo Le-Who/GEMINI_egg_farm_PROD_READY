@@ -289,7 +289,7 @@ const SmartLoader = {
     if (this.loading[name]) return this.loading[name];
     this.loading[name] = new Promise((resolve, reject) => {
       const script = document.createElement("script");
-      script.src = `js/${name}.js?v=3.2`;
+      script.src = `js/${name}.js?v=3.3`;
       script.onload = () => {
         this.loaded[name] = true;
         resolve();

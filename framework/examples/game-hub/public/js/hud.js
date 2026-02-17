@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — HUD Module (v3.1)
+ *  Game Hub — HUD Module (v3.3)
  *  TopHUD for Energy & Gold display
  *  Registers 'resources' slice in GameStore
  * ═══════════════════════════════════════════════════ */
@@ -74,7 +74,7 @@ const HUD = (function () {
     }
 
     const elapsed = Date.now() - res.energy.lastRegenTimestamp;
-    const interval = 5 * 60 * 1000;
+    const interval = 150 * 1000; // 2.5 min — matches game-logic.js ENERGY_REGEN_INTERVAL_MS
     const remaining = interval - (elapsed % interval);
     const mins = Math.floor(remaining / 60000);
     const secs = Math.floor((remaining % 60000) / 1000);
@@ -160,10 +160,23 @@ const HUD = (function () {
   function syncFromServer(resources) {
     if (!resources) return;
     if (typeof GameStore !== "undefined") {
-      // Bug 5 fix: always trust server energy — local regen timer will
-      // recalculate from server's lastRegenTimestamp on next tick.
-      // Old "smart merge" kept stale local values, causing phantom energy.
-      GameStore.setState("resources", resources);
+      // Smart merge: trust server for energy.current and gold, but only
+      // update lastRegenTimestamp if server's is newer — prevents the
+      // regen bar from jumping backward when local timer is ahead.
+      const local = GameStore.getState("resources");
+      const merged = { ...resources };
+      if (local?.energy?.lastRegenTimestamp && resources.energy) {
+        const serverTs = resources.energy.lastRegenTimestamp || 0;
+        const localTs = local.energy.lastRegenTimestamp || 0;
+        if (localTs > serverTs) {
+          merged.energy = { ...resources.energy, lastRegenTimestamp: localTs };
+        }
+      }
+      // Preserve local __harvested (farm inventory state)
+      if (local?.__harvested && !merged.__harvested) {
+        merged.__harvested = local.__harvested;
+      }
+      GameStore.setState("resources", merged);
     }
     updateDisplay(resources);
   }
