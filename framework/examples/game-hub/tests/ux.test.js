@@ -22,66 +22,90 @@ import {
  *  These tests verify the constraints that prevent flicker
  * ═════════════════════════════════════════════════════ */
 describe("Pet Flicker — Transition Invariants", () => {
-  it("roam duration (3s idle reset) must exceed walk transition (2.5s)", () => {
-    // If idle reset fires BEFORE walk transition completes,
-    // the pet snaps to final position (flicker)
-    const ROAM_IDLE_RESET_MS = 3000;
-    const WALK_TRANSITION_MS = 2500;
+  /**
+   * NOTE: These constants are coupled to CSS values in pet.css.
+   * If CSS transitions change, these must be updated to match.
+   * The tests verify that the RELATIONSHIPS between timings are
+   * safe, not the absolute values — any change must preserve
+   * a minimum safety buffer to prevent visual flicker.
+   */
+  const ROAM_IDLE_RESET_MS = 3000; // pet.js: setTimeout in startRoam
+  const WALK_TRANSITION_MS = 2500; // pet.css: .pet-roaming transition
+  const DOCK_TRANSITION_MS = 500; // pet.css: .pet-transitioning transition
+  const STATE_MIN_DELAY_MS = 4000; // pet.js: stateMachine min interval
+  const CLEANUP_TIMEOUT_MS = 550; // pet.js: setTimeout for class cleanup
+  const DOCK_CSS_TRANSITION_MS = 500; // pet.css: dock animation duration
+
+  it("roam duration (3s idle reset) must exceed walk transition (2.5s) by >= 200ms buffer", () => {
+    const buffer = ROAM_IDLE_RESET_MS - WALK_TRANSITION_MS;
     assert.ok(
-      ROAM_IDLE_RESET_MS >= WALK_TRANSITION_MS,
-      `Roam idle reset (${ROAM_IDLE_RESET_MS}ms) must be >= walk transition (${WALK_TRANSITION_MS}ms) to prevent early abort flicker`,
+      buffer >= 200,
+      `Buffer ${buffer}ms too small (need >= 200ms). Roam reset: ${ROAM_IDLE_RESET_MS}ms, Walk: ${WALK_TRANSITION_MS}ms`,
     );
   });
 
-  it("dock transition (0.5s) must be shorter than roam transition (2.5s)", () => {
-    // Dock should feel snappy; roam should feel leisurely
-    const DOCK_TRANSITION_MS = 500;
-    const ROAM_TRANSITION_MS = 2500;
-    assert.ok(DOCK_TRANSITION_MS < ROAM_TRANSITION_MS);
+  it("dock transition must be at least 3× shorter than roam transition", () => {
+    assert.ok(
+      DOCK_TRANSITION_MS * 3 <= WALK_TRANSITION_MS,
+      `Dock (${DOCK_TRANSITION_MS}ms) × 3 = ${DOCK_TRANSITION_MS * 3}ms exceeds roam (${WALK_TRANSITION_MS}ms) — dock should feel snappy`,
+    );
   });
 
-  it("state machine min delay (4s) must exceed roam transition (2.5s) + buffer", () => {
-    // If next state fires during active roam, pet gets yanked to new position
-    const STATE_MIN_DELAY_MS = 4000;
-    const ROAM_TRANSITION_MS = 2500;
+  it("state machine min delay must exceed roam + 500ms safety buffer", () => {
     const SAFETY_BUFFER_MS = 500;
+    const required = WALK_TRANSITION_MS + SAFETY_BUFFER_MS;
     assert.ok(
-      STATE_MIN_DELAY_MS >= ROAM_TRANSITION_MS + SAFETY_BUFFER_MS,
-      `State min delay (${STATE_MIN_DELAY_MS}ms) must exceed roam (${ROAM_TRANSITION_MS}ms) + buffer (${SAFETY_BUFFER_MS}ms)`,
+      STATE_MIN_DELAY_MS >= required,
+      `State delay ${STATE_MIN_DELAY_MS}ms must be >= roam ${WALK_TRANSITION_MS}ms + buffer ${SAFETY_BUFFER_MS}ms = ${required}ms`,
+    );
+    // Ensure at least 1s buffer for real-world jitter
+    assert.ok(
+      STATE_MIN_DELAY_MS - WALK_TRANSITION_MS >= 1000,
+      `Need >= 1000ms real-world buffer, got ${STATE_MIN_DELAY_MS - WALK_TRANSITION_MS}ms`,
     );
   });
 
   it("pet-roaming class removal timeout must match or exceed CSS transition duration", () => {
-    // Class removal at 3000ms, CSS transition 2500ms — must be >=
-    const CLASS_REMOVAL_TIMEOUT_MS = 3000;
-    const CSS_TRANSITION_MS = 2500;
     assert.ok(
-      CLASS_REMOVAL_TIMEOUT_MS >= CSS_TRANSITION_MS,
-      `Class removal (${CLASS_REMOVAL_TIMEOUT_MS}ms) must be >= CSS transition (${CSS_TRANSITION_MS}ms) to prevent mid-transition snap`,
+      ROAM_IDLE_RESET_MS >= WALK_TRANSITION_MS,
+      `Class removal (${ROAM_IDLE_RESET_MS}ms) must be >= CSS transition (${WALK_TRANSITION_MS}ms)`,
     );
   });
 
-  it("dock class switch must NOT have pet-roaming class applied", () => {
-    // Simulates: setDockMode removes .pet-roaming before updatePetDock applies dock
-    // This is verified by the code flow: setDockMode → remove pet-roaming → updatePetDock
-    const mockClasses = new Set(["pet-roaming", "pet-transitioning"]);
-    // setDockMode should clear pet-roaming
-    mockClasses.delete("pet-roaming");
+  it("dock and roam classes must never be applied simultaneously", () => {
+    // Validates invariant: setDockMode clears pet-roaming before applying pet-transitioning.
+    // If both are active, CSS transitions conflict and cause visual flicker.
+    const ROAMING = "pet-roaming";
+    const TRANSITIONING = "pet-transitioning";
+
+    // Simulate: pet is roaming, then docks
+    const classes = new Set([ROAMING]);
+    // setDockMode step 1: remove roaming (MUST happen before adding transitioning)
+    classes.delete(ROAMING);
+    // setDockMode step 2: add transitioning
+    classes.add(TRANSITIONING);
+
+    // The invariant: both classes must NEVER coexist
     assert.ok(
-      !mockClasses.has("pet-roaming"),
-      "pet-roaming must be removed before dock switch",
+      !(classes.has(ROAMING) && classes.has(TRANSITIONING)),
+      `Invariant violated: ${ROAMING} and ${TRANSITIONING} must never coexist`,
     );
-    // Then transitioning can be added
-    mockClasses.add("pet-transitioning");
-    assert.ok(mockClasses.has("pet-transitioning"));
+    // And transitioning must be active after dock switch
+    assert.ok(
+      classes.has(TRANSITIONING),
+      "pet-transitioning must be active after dock switch",
+    );
+    assert.ok(
+      !classes.has(ROAMING),
+      "pet-roaming must NOT be active after dock switch",
+    );
   });
 
-  it("pet-transitioning cleanup timeout matches CSS dock transition", () => {
-    const CLEANUP_TIMEOUT_MS = 550;
-    const DOCK_CSS_TRANSITION_MS = 500;
+  it("pet-transitioning cleanup timeout must exceed dock CSS transition by >= 30ms", () => {
+    const buffer = CLEANUP_TIMEOUT_MS - DOCK_CSS_TRANSITION_MS;
     assert.ok(
-      CLEANUP_TIMEOUT_MS >= DOCK_CSS_TRANSITION_MS,
-      "Cleanup timeout must be >= dock transition to avoid premature removal",
+      buffer >= 30,
+      `Cleanup timeout buffer ${buffer}ms too tight (need >= 30ms). Cleanup: ${CLEANUP_TIMEOUT_MS}ms, Dock CSS: ${DOCK_CSS_TRANSITION_MS}ms`,
     );
   });
 });

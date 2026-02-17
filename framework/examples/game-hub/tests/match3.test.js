@@ -246,9 +246,13 @@ describe("resolveBoard", () => {
         b[y][x] = types[(x + y * 3) % types.length];
       }
     }
-    // Verify no initial matches
+    // Verify no initial matches — this pattern is deterministic and must be match-free
     const m = findMatches(b);
-    if (m.size > 0) return; // Skip if random pattern has matches
+    assert.equal(
+      m.size,
+      0,
+      "Deterministic no-match board unexpectedly has matches — pattern broken",
+    );
     const result = resolveBoard(b);
     assert.equal(result.steps.length, 0);
     assert.equal(result.totalPoints, 0);

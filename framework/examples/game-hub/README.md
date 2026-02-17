@@ -2,7 +2,7 @@
 
 > A combined Farm + Trivia + Match-3 game running as a single Discord Embedded App Activity with horizontal screen-swipe navigation.
 
-**v3.1** — Sell & Feed inventory buttons, 3 unique Star Drop rewards, left-side mode selector, aurora energy pill, faster regen (150s), stale-cache fix.
+**v3.2** — GCP resilience test suite (latency, concurrency, payload, idempotency), test audit fixes, v3.1.1 hotfixes.
 
 ## Quick Start
 
@@ -140,22 +140,28 @@ game-hub/
 ├── tests/
 │   ├── unit.test.js     # 49 unit tests (game logic)
 │   ├── api.test.js      # 24 API integration tests
-│   └── perf.test.js     # 7 performance benchmarks
+│   ├── perf.test.js     # 7 performance benchmarks
+│   ├── gcp.test.js      # 20 GCP resilience tests (v3.2)
+│   ├── match3.test.js   # 12 tile clearing tests
+│   └── ux.test.js       # 29 UX diagnostic tests
 └── Dockerfile           # Cloud Run deployment
 ```
 
 ## 🧪 Testing
 
 ```bash
-npm test          # All 80 tests (unit + API + perf)
+npm test          # All 141 tests
 npm run test:perf # Performance benchmarks only
 ```
 
-| Type     | Tests | Coverage                                                                             |
-| -------- | ----: | ------------------------------------------------------------------------------------ |
-| **Unit** |    49 | Player factory, energy regen, offline simulation, farm growth, match-3 board, trivia |
-| **API**  |    24 | All REST endpoints (farm, pet, trivia, match-3, health)                              |
-| **Perf** |     7 | Board generation, match detection, offline processing                                |
+| Type     | Tests | Coverage                                                                                  |
+| -------- | ----: | ----------------------------------------------------------------------------------------- |
+| **Unit** |    49 | Player factory, energy regen, offline simulation, farm growth, match-3 board, trivia      |
+| **API**  |    24 | All REST endpoints (farm, pet, trivia, match-3, health)                                   |
+| **Perf** |     7 | Board generation, match detection, offline processing                                     |
+| **GCP**  |    20 | Latency (<200ms), concurrency, payload (<16KB), save stress, stale reconnect, idempotency |
+| **M3**   |    12 | findMatches, resolveBoard, gravity, cascade, drop-type exclusion                          |
+| **UX**   |    29 | Pet flicker invariants, zone bounds, growth ticks, race conditions, version guards        |
 
 Uses Node.js built-in `node:test` — zero test dependencies.
 

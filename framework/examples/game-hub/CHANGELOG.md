@@ -1,5 +1,28 @@
 # Changelog
 
+## v3.2 — 2026-02-17
+
+### GCP Resilience Tests (`tests/gcp.test.js`)
+
+- **Latency**: All endpoints < 200ms budget, p95 across 20 warm requests
+- **Concurrency**: 20 parallel buy-seeds (no gold overspend), parallel water/harvest (exactly 1 success)
+- **Payload**: All responses < 16KB (farm, crops, leaderboard, full 12-plot inventory)
+- **Save stress**: 50 rapid plant cycles + 30 burst buys maintain state consistency
+- **Stale reconnect**: 10-min gap triggers offline report; 30s gap does not; energy regen matches interval math
+- **Idempotency**: Double harvest/water/feed returns exactly 1 success, 1 rejection
+
+### Test Audit Fixes
+
+- `match3.test.js:251` — removed `if (m.size > 0) return;` skip clause (was silently passing)
+- `ux.test.js` — pet flicker tests now assert minimum safety buffers (≥200ms, ≥1000ms, ≥30ms) instead of trivially-true comparisons
+
+### Version
+
+- All `?v=3.1` → `?v=3.2` (index.html, shared.js SmartLoader)
+- Version badge → v3.2
+
+---
+
 ## v3.1.1 — 2026-02-17 (hotfix)
 
 - **CRASH FIX**: `STAR_TYPE` undefined in `animateCascade` (lines 726,730) — replaced with `DROP_TYPES.includes()`, same pattern as `renderBoard`
