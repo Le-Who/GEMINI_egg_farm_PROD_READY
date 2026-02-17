@@ -524,6 +524,26 @@
     width: min(420px, calc(100vw - 40px));
     margin-top: 12px;
   }
+  /* Mobile: larger touch targets for inventory sell/feed buttons */
+  .farm-inv-btn {
+    padding: 8px 14px;
+    font-size: 0.82rem;
+    border-radius: 8px;
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .farm-inv-btn.feed {
+    font-size: 0.9rem;
+  }
+  .farm-inv-actions {
+    gap: 6px;
+  }
+  .farm-inv-item {
+    padding: 10px 12px;
+    gap: 10px;
+  }
 }
 @media (max-width: 420px) {
   .farm-plots {
@@ -540,3 +560,4 @@
     gap: 6px;
   }
 }
+

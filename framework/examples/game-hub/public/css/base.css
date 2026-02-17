@@ -83,7 +83,9 @@ body {
   /* Top padding accounts for TopHUD (44px) + gap */
   padding: 52px 16px 24px;
 }
-.screen::-webkit-scrollbar { display: none; }
+.screen::-webkit-scrollbar {
+  display: none;
+}
 
 /* ─── Nav Arrows (Desktop: full-height glassmorphic edge strips) ─── */
 .nav-arrow {
@@ -153,14 +155,14 @@ body.pointer-device:hover .nav-arrow:not(.hidden) {
   pointer-events: all;
 }
 
-/* ─── Nav Dots (Top center, safe area) ─── */
+/* ─── Nav Dots (Desktop fallback only) ─── */
 .nav-dots {
   position: fixed;
   top: 10px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 100;
-  display: flex;
+  display: none;
   gap: 12px;
   padding: 6px 18px;
   background: rgba(13, 15, 26, 0.8);
@@ -187,17 +189,94 @@ body.pointer-device:hover .nav-arrow:not(.hidden) {
   transform: scale(1.25);
   box-shadow: 0 0 8px var(--accent-glow);
 }
-/* Desktop: hide dots (arrows are primary) */
-@media (hover: hover) and (pointer: fine) {
-  .nav-dots {
-    display: none;
-  }
+/* Hide dots everywhere — bottom nav-bar is primary on mobile */
+body.touch-device .nav-dots {
+  display: none;
 }
 body.pointer-device .nav-dots {
   display: none;
 }
-body.touch-device .nav-dots {
+
+/* ─── Mobile Bottom Nav Bar ─── */
+.nav-bar {
+  display: none; /* hidden by default (desktop) */
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  z-index: 200;
+  background: rgba(13, 15, 26, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+body.touch-device .nav-bar {
   display: flex;
+  align-items: stretch;
+  justify-content: space-around;
+}
+.nav-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  font-family: "Inter", sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  padding: 6px 0;
+}
+.nav-tab::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 25%;
+  right: 25%;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: transparent;
+  transition: background 0.2s ease;
+}
+.nav-tab.active {
+  color: var(--accent);
+}
+.nav-tab.active::before {
+  background: var(--accent);
+  box-shadow: 0 2px 8px var(--accent-glow);
+}
+.nav-tab-icon {
+  font-size: 1.3rem;
+  line-height: 1;
+  transition: transform 0.2s ease;
+}
+.nav-tab.active .nav-tab-icon {
+  transform: scale(1.15);
+}
+.nav-tab-label {
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+/* Add bottom padding to viewport on touch devices so content doesn't hide behind nav-bar */
+body.touch-device .viewport {
+  padding-bottom: 60px;
+}
+body.touch-device .screen {
+  padding-bottom: 8px;
+}
+/* Move version badge above nav-bar on mobile */
+body.touch-device #version-badge {
+  bottom: 66px !important;
 }
 
 /* ─── Swipe Hint Animation (first visit) ─── */
@@ -631,7 +710,9 @@ body.touch-device .nav-dots {
   background: linear-gradient(135deg, #22c55e, #16a34a);
   color: white;
   font-size: 0.8rem;
-  transition: transform 0.15s ease, opacity 0.2s ease;
+  transition:
+    transform 0.15s ease,
+    opacity 0.2s ease;
 }
 .energy-feed-item .feed-btn:hover {
   transform: scale(1.05);
@@ -654,8 +735,13 @@ body.touch-device .nav-dots {
   animation: pulse 1.5s ease-in-out infinite;
 }
 @keyframes pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.04); }
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.04);
+  }
 }
 
 /* ─── Boot Loading Overlay ─── */
@@ -684,7 +770,9 @@ body.touch-device .nav-dots {
   animation: bootSpin 0.8s linear infinite;
 }
 @keyframes bootSpin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 .boot-text {
   font-size: 0.85rem;

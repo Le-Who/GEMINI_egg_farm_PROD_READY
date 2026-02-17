@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Match-3 Module (v3.3)
+ *  Game Hub — Match-3 Module (v4.1)
  *  Client-side engine, CSS transitions, state restore
  *  ─ GameStore integration (match3 slice)
  *
@@ -38,7 +38,7 @@ const Match3Game = (() => {
   let dropStars = []; // [{x, y, dropped: bool}] for drop mode
   let starsDropped = 0;
   const TIMED_DURATION = 90; // seconds
-  const DROP_MOVE_LIMIT = 20;
+  const DROP_MOVE_LIMIT = 30;
   const DROP_STAR_COUNT = 3;
   // v3.1: 3 unique reward drop types instead of single star
   const DROP_TYPES = ["drop_gold", "drop_seeds", "drop_energy"];
@@ -393,23 +393,34 @@ const Match3Game = (() => {
           <button class="m3-mode-card" data-mode="classic">
             <span class="m3-mode-icon">💎</span>
             <span class="m3-mode-name">Classic</span>
-            <span class="m3-mode-desc">30 moves</span>
+            <span class="m3-mode-desc">30 moves to score big</span>
           </button>
           <button class="m3-mode-card" data-mode="timed">
             <span class="m3-mode-icon">⏱️</span>
             <span class="m3-mode-name">Time Attack</span>
-            <span class="m3-mode-desc">90s · 1.5×</span>
+            <span class="m3-mode-desc">90 seconds · 1.5× gold</span>
           </button>
           <button class="m3-mode-card" data-mode="drop">
             <span class="m3-mode-icon">🎯</span>
             <span class="m3-mode-name">Star Drop</span>
-            <span class="m3-mode-desc">3 💰🌾⚡</span>
+            <span class="m3-mode-desc">Drop tokens to bottom for loot</span>
           </button>
         </div>
       `;
       sel.addEventListener("click", (e) => {
         const card = e.target.closest(".m3-mode-card");
-        if (card) startGame(card.dataset.mode);
+        if (!card) return;
+        const newMode = card.dataset.mode;
+        // If game is active and mode is different, confirm restart
+        if (gameActive && newMode !== gameMode && score > 0) {
+          if (
+            !confirm(
+              `Switch to ${card.querySelector(".m3-mode-name")?.textContent || newMode}? Current game will end.`,
+            )
+          )
+            return;
+        }
+        startGame(newMode);
       });
       // Insert inline inside m3-main, before the board
       const main = $("m3-board-container")?.closest(".m3-main");
@@ -435,6 +446,10 @@ const Match3Game = (() => {
     sel.classList.add("playing");
     sel.querySelectorAll(".m3-mode-card").forEach((c) => {
       c.classList.toggle("active", c.dataset.mode === gameMode);
+    });
+    // Re-enable mode switching during play (clickable but dimmed)
+    sel.querySelectorAll(".m3-mode-card:not(.active)").forEach((c) => {
+      c.style.pointerEvents = "auto";
     });
   }
 

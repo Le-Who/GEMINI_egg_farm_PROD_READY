@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Shared Infrastructure (v4.0)
+ *  Game Hub — Shared Infrastructure (v4.1)
  *  Discord SDK auth, API helper, screen navigation
  *  CSP-compliant: no inline handlers, no external fonts
  * ═══════════════════════════════════════════════════ */
@@ -13,6 +13,7 @@ const HUB = {
   screenNames: ["trivia", "blox", "farm", "match3"],
   initialized: { trivia: false, blox: false, farm: false, match3: false },
   isTouchDevice: false,
+  swipeBlocked: false, // true when Blox game is active to prevent accidental navigation
 };
 
 /* ─── Discord SDK Init ─── */
@@ -228,8 +229,14 @@ function updateNavUI() {
   $left.classList.toggle("hidden", HUB.currentScreen === 0);
   $right.classList.toggle("hidden", HUB.currentScreen === 3);
 
+  // Desktop dots
   document.querySelectorAll(".nav-dot").forEach((dot, i) => {
     dot.classList.toggle("active", i === HUB.currentScreen);
+  });
+  // Mobile bottom nav-bar
+  document.querySelectorAll(".nav-tab").forEach((tab) => {
+    const idx = parseInt(tab.dataset.screen, 10);
+    tab.classList.toggle("active", idx === HUB.currentScreen);
   });
 }
 
@@ -292,7 +299,7 @@ const SmartLoader = {
     if (this.loading[name]) return this.loading[name];
     this.loading[name] = new Promise((resolve, reject) => {
       const script = document.createElement("script");
-      script.src = `js/${name}.js?v=4.0`;
+      script.src = `js/${name}.js?v=4.1`;
       script.onload = () => {
         this.loaded[name] = true;
         resolve();
@@ -339,6 +346,14 @@ function bindNavigation() {
   document
     .getElementById("nav-dot-match3")
     .addEventListener("click", () => goToScreen(3));
+
+  // Mobile bottom nav-bar tabs
+  document.querySelectorAll(".nav-tab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      const idx = parseInt(tab.dataset.screen, 10);
+      if (!isNaN(idx)) goToScreen(idx);
+    });
+  });
 
   // Trivia buttons
   document
@@ -450,6 +465,10 @@ function bindTouchSwipe() {
     "touchend",
     (e) => {
       if (!swiping) return;
+      if (HUB.swipeBlocked) {
+        swiping = false;
+        return;
+      }
       swiping = false;
       const endX = e.changedTouches[0].clientX;
       const endY = e.changedTouches[0].clientY;

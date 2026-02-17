@@ -3,18 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>🎮 Game Hub — Farm + Trivia + Match-3 + Building Blox</title>
+    <title>Game Hub</title>
     <meta
       name="description"
-      content="Unified Game Hub: Farm, Trivia (Solo & Duel), Match-3 with Leaderboard — Discord Activities Framework Demo"
+      content="Unified Game Hub: Farm, Trivia (Solo &amp; Duel), Match-3 with Leaderboard — Discord Activities Framework Demo"
     />
-    <link rel="stylesheet" href="css/base.css?v=4.0" />
-    <link rel="stylesheet" href="css/farm.css?v=4.0" />
-    <link rel="stylesheet" href="css/trivia.css?v=4.0" />
-    <link rel="stylesheet" href="css/match3.css?v=4.0" />
-    <link rel="stylesheet" href="css/blox.css?v=4.0" />
-    <link rel="stylesheet" href="css/hud.css?v=4.0" />
-    <link rel="stylesheet" href="css/pet.css?v=4.0" />
+    <link rel="stylesheet" href="css/base.css?v=4.1" />
+    <link rel="stylesheet" href="css/farm.css?v=4.1" />
+    <link rel="stylesheet" href="css/trivia.css?v=4.1" />
+    <link rel="stylesheet" href="css/match3.css?v=4.1" />
+    <link rel="stylesheet" href="css/blox.css?v=4.1" />
+    <link rel="stylesheet" href="css/hud.css?v=4.1" />
+    <link rel="stylesheet" href="css/pet.css?v=4.1" />
   </head>
   <body>
     <!-- ═══ Boot Loading Overlay ═══ -->
@@ -23,13 +23,32 @@
       <div class="boot-text">Loading Game Hub…</div>
     </div>
 
-    <!-- ═══ Nav Dots (mobile: top center) ═══ -->
+    <!-- ═══ Nav Dots (desktop only fallback) ═══ -->
     <div class="nav-dots">
       <button class="nav-dot" id="nav-dot-trivia" title="Trivia"></button>
       <button class="nav-dot" id="nav-dot-blox" title="Building Blox"></button>
       <button class="nav-dot active" id="nav-dot-farm" title="Farm"></button>
       <button class="nav-dot" id="nav-dot-match3" title="Match-3"></button>
     </div>
+    <!-- ═══ Mobile Bottom Nav Bar ═══ -->
+    <nav class="nav-bar" id="nav-bar">
+      <button class="nav-tab" id="nav-tab-trivia" data-screen="0">
+        <span class="nav-tab-icon">🧠</span>
+        <span class="nav-tab-label">Trivia</span>
+      </button>
+      <button class="nav-tab" id="nav-tab-blox" data-screen="1">
+        <span class="nav-tab-icon">🧱</span>
+        <span class="nav-tab-label">Blox</span>
+      </button>
+      <button class="nav-tab active" id="nav-tab-farm" data-screen="2">
+        <span class="nav-tab-icon">🌱</span>
+        <span class="nav-tab-label">Farm</span>
+      </button>
+      <button class="nav-tab" id="nav-tab-match3" data-screen="3">
+        <span class="nav-tab-icon">💎</span>
+        <span class="nav-tab-label">Match-3</span>
+      </button>
+    </nav>
     <!-- Farm ready badge (Issue 7) -->
     <span class="farm-ready-badge" id="farm-ready-badge"></span>
 
@@ -289,11 +308,32 @@
           <div class="blox-layout">
             <div class="blox-board" id="blox-board"></div>
             <div class="blox-tray" id="blox-tray"></div>
+            <!-- Pause / Welcome overlay -->
+            <div class="blox-pause-overlay show" id="blox-pause-overlay">
+              <div class="blox-pause-card">
+                <div class="blox-pause-title" id="blox-pause-title">
+                  🧱 Building Blox
+                </div>
+                <button class="btn btn-primary" id="blox-btn-new">
+                  🧱 New Game
+                </button>
+                <button
+                  class="btn btn-secondary"
+                  id="blox-btn-resume"
+                  style="display: none"
+                >
+                  ▶ Continue
+                </button>
+                <button
+                  class="btn btn-danger"
+                  id="blox-btn-end"
+                  style="display: none"
+                >
+                  🏁 End Game
+                </button>
+              </div>
+            </div>
           </div>
-
-          <button class="btn btn-primary mt-16" id="blox-btn-start">
-            🧱 New Game
-          </button>
 
           <!-- Game Over Overlay -->
           <div class="overlay" id="blox-overlay">
@@ -581,14 +621,14 @@
         font-family: monospace;
       "
     >
-      v4.0
+      v4.1
     </div>
 
     <!-- ═══ Scripts (shared.js loads game scripts dynamically via SmartLoader) ═══ -->
     <script src="js/discord-sdk.js"></script>
-    <script src="js/store.js?v=4.0"></script>
-    <script src="js/hud.js?v=4.0"></script>
-    <script src="js/pet.js?v=4.0"></script>
-    <script src="js/shared.js?v=4.0"></script>
+    <script src="js/store.js?v=4.1"></script>
+    <script src="js/hud.js?v=4.1"></script>
+    <script src="js/pet.js?v=4.1"></script>
+    <script src="js/shared.js?v=4.1"></script>
   </body>
 </html>

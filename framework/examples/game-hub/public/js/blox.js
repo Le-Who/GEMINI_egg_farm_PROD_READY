@@ -1,14 +1,16 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Building Blox Module (v4.0)
+ *  Game Hub — Building Blox Module (v4.1)
  *  10×10 Block Puzzle: place pieces, clear lines
- *  ─ GameStore integration (blox slice)
+ *  ─ localStorage persistence, pause overlay, touch drag,
+ *    center-of-mass ghost, swipe blocking
  * ═══════════════════════════════════════════════════ */
 
 const BloxGame = (() => {
   "use strict";
 
   const GRID = 10;
-  const PIECE_COUNT = 3; // pieces per tray refill
+  const PIECE_COUNT = 3;
+  const STORAGE_KEY = "blox_state";
 
   /* ── Piece library (duplicated from game-logic.js for client preview) ── */
   const PIECES = [
@@ -119,13 +121,18 @@ const BloxGame = (() => {
   ];
 
   // ── State ──
-  let board = []; // GRID×GRID, null = empty, string = color
-  let tray = []; // Array of { piece, placed }
+  let board = [];
+  let tray = [];
   let score = 0;
   let linesCleared = 0;
   let highScore = 0;
   let gameActive = false;
+  let gamePaused = false;
   let selectedPiece = -1;
+
+  // Drag state (touch)
+  let dragPieceIdx = -1;
+  let dragPreviewEl = null;
 
   const $ = (id) => document.getElementById(id);
 
@@ -162,17 +169,25 @@ const BloxGame = (() => {
     }
   }
 
+  // ── Center-of-mass offset for a piece ──
+  function getCenterOffset(piece) {
+    const rows = piece.cells.map((c) => c[0]);
+    const cols = piece.cells.map((c) => c[1]);
+    return {
+      dr: Math.round(rows.reduce((a, b) => a + b, 0) / rows.length),
+      dc: Math.round(cols.reduce((a, b) => a + b, 0) / cols.length),
+    };
+  }
+
   // ── Line clearing ──
   function clearLines() {
     let cleared = 0;
     const rowsToClear = [];
     const colsToClear = [];
 
-    // Check rows
     for (let r = 0; r < GRID; r++) {
       if (board[r].every((c) => c !== null)) rowsToClear.push(r);
     }
-    // Check columns
     for (let c = 0; c < GRID; c++) {
       let full = true;
       for (let r = 0; r < GRID; r++) {
@@ -184,7 +199,6 @@ const BloxGame = (() => {
       if (full) colsToClear.push(c);
     }
 
-    // Clear with animation
     const cellsToClear = new Set();
     for (const r of rowsToClear) {
       for (let c = 0; c < GRID; c++) cellsToClear.add(`${r},${c}`);
@@ -196,7 +210,6 @@ const BloxGame = (() => {
     cleared = rowsToClear.length + colsToClear.length;
 
     if (cleared > 0) {
-      // Animate clear
       const gridEl = $("blox-board");
       if (gridEl) {
         for (const key of cellsToClear) {
@@ -206,7 +219,6 @@ const BloxGame = (() => {
         }
       }
 
-      // Delay actual clear for animation
       setTimeout(() => {
         for (const key of cellsToClear) {
           const [r, c] = key.split(",").map(Number);
@@ -215,7 +227,6 @@ const BloxGame = (() => {
         renderBoard();
       }, 300);
 
-      // Score: bonus for multi-line clears
       const bonus = cleared > 1 ? cleared * 5 : 0;
       const pts = cleared * 10 + bonus;
       score += pts;
@@ -246,6 +257,56 @@ const BloxGame = (() => {
     return false;
   }
 
+  // ── Persistence ──
+  function saveState() {
+    try {
+      const state = {
+        board,
+        tray: tray.map((t) => ({
+          pieceId: t.piece.id,
+          placed: t.placed,
+        })),
+        score,
+        linesCleared,
+        highScore,
+        gameActive,
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (_) {
+      /* quota exceeded - silent */
+    }
+  }
+
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      const state = JSON.parse(raw);
+      if (!state || !state.board || !state.tray) return null;
+      // Reconstruct tray pieces from IDs
+      const restoredTray = state.tray.map((t) => {
+        const piece = PIECES.find((p) => p.id === t.pieceId);
+        if (!piece) return null;
+        return { piece, placed: t.placed };
+      });
+      if (restoredTray.some((t) => t === null)) return null;
+      return {
+        board: state.board,
+        tray: restoredTray,
+        score: state.score || 0,
+        linesCleared: state.linesCleared || 0,
+        highScore: state.highScore || 0,
+        gameActive: !!state.gameActive,
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function clearSavedState() {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+
   // ── Rendering ──
   function renderBoard() {
     const gridEl = $("blox-board");
@@ -262,8 +323,6 @@ const BloxGame = (() => {
           cell.style.background = board[r][c];
         }
         cell.addEventListener("click", () => onCellClick(r, c));
-        cell.addEventListener("mouseenter", () => showGhost(r, c));
-        cell.addEventListener("mouseleave", clearGhost);
         gridEl.appendChild(cell);
       }
     }
@@ -279,7 +338,11 @@ const BloxGame = (() => {
       if (i === selectedPiece && !t.placed) wrapper.classList.add("selected");
       wrapper.addEventListener("click", () => selectPiece(i));
 
-      // Render mini preview of piece shape
+      // Touch drag
+      wrapper.addEventListener("touchstart", (e) => onTrayTouchStart(e, i), {
+        passive: false,
+      });
+
       const preview = document.createElement("div");
       preview.className = "blox-piece-preview";
       const maxR = Math.max(...t.piece.cells.map((c) => c[0])) + 1;
@@ -320,7 +383,6 @@ const BloxGame = (() => {
     }
   }
 
-  // Client-side reward estimate (mirrors game-logic.js calcBloxReward)
   function calcBloxRewardClient(s) {
     const BASE = 35,
       LOSE = 5;
@@ -335,16 +397,48 @@ const BloxGame = (() => {
     return Math.min(gold, 400);
   }
 
-  // ── Ghost preview ──
-  function showGhost(r, c) {
-    if (selectedPiece < 0 || !gameActive) return;
-    const t = tray[selectedPiece];
-    if (!t || t.placed) return;
-    clearGhost();
+  // ── Ghost preview (board-level mousemove, center-of-mass offset) ──
+  function initBoardMouseTracking() {
     const gridEl = $("blox-board");
     if (!gridEl) return;
-    const valid = canPlace(t.piece, r, c);
-    for (const [dr, dc] of t.piece.cells) {
+
+    gridEl.addEventListener("mousemove", (e) => {
+      if (selectedPiece < 0 || !gameActive || gamePaused) return;
+      const t = tray[selectedPiece];
+      if (!t || t.placed) return;
+
+      const rect = gridEl.getBoundingClientRect();
+      const cellSize = rect.width / GRID;
+      const hoveredR = Math.floor((e.clientY - rect.top) / cellSize);
+      const hoveredC = Math.floor((e.clientX - rect.left) / cellSize);
+
+      if (
+        hoveredR < 0 ||
+        hoveredR >= GRID ||
+        hoveredC < 0 ||
+        hoveredC >= GRID
+      ) {
+        clearGhost();
+        return;
+      }
+
+      // Center-of-mass offset
+      const offset = getCenterOffset(t.piece);
+      const targetR = hoveredR - offset.dr;
+      const targetC = hoveredC - offset.dc;
+
+      clearGhost();
+      showGhostAt(t.piece, targetR, targetC);
+    });
+
+    gridEl.addEventListener("mouseleave", clearGhost);
+  }
+
+  function showGhostAt(piece, r, c) {
+    const gridEl = $("blox-board");
+    if (!gridEl) return;
+    const valid = canPlace(piece, r, c);
+    for (const [dr, dc] of piece.cells) {
       const gr = r + dr,
         gc = c + dc;
       if (gr < 0 || gr >= GRID || gc < 0 || gc >= GRID) continue;
@@ -352,7 +446,7 @@ const BloxGame = (() => {
       if (cell) {
         cell.classList.add("ghost");
         if (!valid) cell.classList.add("ghost-invalid");
-        else cell.style.setProperty("--ghost-color", t.piece.color);
+        else cell.style.setProperty("--ghost-color", piece.color);
       }
     }
   }
@@ -366,20 +460,142 @@ const BloxGame = (() => {
     });
   }
 
+  // ── Touch drag-and-drop ──
+  function onTrayTouchStart(e, idx) {
+    if (!gameActive || gamePaused) return;
+    if (tray[idx]?.placed) return;
+    e.preventDefault(); // Block swipe nav
+    dragPieceIdx = idx;
+    selectedPiece = idx;
+    renderTray();
+
+    // Create floating preview
+    createDragPreview(tray[idx].piece, e.touches[0]);
+
+    // Block swipe navigation while dragging
+    HUB.swipeBlocked = true;
+
+    const onMove = (ev) => {
+      ev.preventDefault();
+      if (dragPieceIdx < 0) return;
+      const touch = ev.touches[0];
+      moveDragPreview(touch);
+
+      // Show ghost on board
+      const gridEl = $("blox-board");
+      if (!gridEl) return;
+      const rect = gridEl.getBoundingClientRect();
+      const cellSize = rect.width / GRID;
+      const hoveredR = Math.floor((touch.clientY - rect.top) / cellSize);
+      const hoveredC = Math.floor((touch.clientX - rect.left) / cellSize);
+      const offset = getCenterOffset(tray[dragPieceIdx].piece);
+      const targetR = hoveredR - offset.dr;
+      const targetC = hoveredC - offset.dc;
+      clearGhost();
+      if (
+        hoveredR >= 0 &&
+        hoveredR < GRID &&
+        hoveredC >= 0 &&
+        hoveredC < GRID
+      ) {
+        showGhostAt(tray[dragPieceIdx].piece, targetR, targetC);
+      }
+    };
+
+    const onEnd = (ev) => {
+      document.removeEventListener("touchmove", onMove);
+      document.removeEventListener("touchend", onEnd);
+      removeDragPreview();
+      clearGhost();
+
+      if (dragPieceIdx < 0) return;
+      const touch = ev.changedTouches[0];
+      const gridEl = $("blox-board");
+      if (gridEl) {
+        const rect = gridEl.getBoundingClientRect();
+        const cellSize = rect.width / GRID;
+        const hoveredR = Math.floor((touch.clientY - rect.top) / cellSize);
+        const hoveredC = Math.floor((touch.clientX - rect.left) / cellSize);
+        const offset = getCenterOffset(tray[dragPieceIdx].piece);
+        const targetR = hoveredR - offset.dr;
+        const targetC = hoveredC - offset.dc;
+
+        if (
+          hoveredR >= 0 &&
+          hoveredR < GRID &&
+          hoveredC >= 0 &&
+          hoveredC < GRID
+        ) {
+          onCellClick(targetR, targetC);
+        }
+      }
+      dragPieceIdx = -1;
+    };
+
+    document.addEventListener("touchmove", onMove, { passive: false });
+    document.addEventListener("touchend", onEnd, { passive: false });
+  }
+
+  function createDragPreview(piece, touch) {
+    removeDragPreview();
+    const el = document.createElement("div");
+    el.className = "blox-drag-preview";
+    const maxR = Math.max(...piece.cells.map((c) => c[0])) + 1;
+    const maxC = Math.max(...piece.cells.map((c) => c[1])) + 1;
+    const cellPx = 28;
+    el.style.width = `${maxC * cellPx}px`;
+    el.style.height = `${maxR * cellPx}px`;
+    el.style.gridTemplateColumns = `repeat(${maxC}, ${cellPx}px)`;
+    el.style.gridTemplateRows = `repeat(${maxR}, ${cellPx}px)`;
+
+    for (let r = 0; r < maxR; r++) {
+      for (let c = 0; c < maxC; c++) {
+        const cell = document.createElement("div");
+        const isActive = piece.cells.some(([pr, pc]) => pr === r && pc === c);
+        if (isActive) {
+          cell.style.background = piece.color;
+          cell.style.borderRadius = "4px";
+        }
+        el.appendChild(cell);
+      }
+    }
+
+    const offset = getCenterOffset(piece);
+    el.style.left = `${touch.clientX - (offset.dc + 0.5) * cellPx}px`;
+    el.style.top = `${touch.clientY - (offset.dr + 0.5) * cellPx - 40}px`; // Lift above finger
+    document.body.appendChild(el);
+    dragPreviewEl = el;
+  }
+
+  function moveDragPreview(touch) {
+    if (!dragPreviewEl || dragPieceIdx < 0) return;
+    const piece = tray[dragPieceIdx].piece;
+    const offset = getCenterOffset(piece);
+    const cellPx = 28;
+    dragPreviewEl.style.left = `${touch.clientX - (offset.dc + 0.5) * cellPx}px`;
+    dragPreviewEl.style.top = `${touch.clientY - (offset.dr + 0.5) * cellPx - 40}px`;
+  }
+
+  function removeDragPreview() {
+    if (dragPreviewEl) {
+      dragPreviewEl.remove();
+      dragPreviewEl = null;
+    }
+  }
+
   // ── Interaction ──
   function selectPiece(i) {
-    if (!gameActive) return;
+    if (!gameActive || gamePaused) return;
     if (tray[i]?.placed) return;
     selectedPiece = selectedPiece === i ? -1 : i;
     renderTray();
   }
 
   function onCellClick(r, c) {
-    if (!gameActive || selectedPiece < 0) return;
+    if (!gameActive || gamePaused || selectedPiece < 0) return;
     const t = tray[selectedPiece];
     if (!t || t.placed) return;
     if (!canPlace(t.piece, r, c)) {
-      // Shake board
       const gridEl = $("blox-board");
       if (gridEl) {
         gridEl.classList.add("shake");
@@ -388,37 +604,105 @@ const BloxGame = (() => {
       return;
     }
 
-    // Place piece
     placePiece(t.piece, r, c);
     t.placed = true;
     selectedPiece = -1;
 
     renderBoard();
     renderTray();
+    initBoardMouseTracking(); // Re-bind after re-render
 
-    // Check line clears (after brief delay for visual feedback)
     setTimeout(() => {
       clearLines();
       updateStats();
+      saveState();
       syncToStore();
 
-      // Check if all pieces placed → refill
       if (tray.every((x) => x.placed)) {
         setTimeout(() => {
           refillTray();
           renderTray();
-          // Check game over with new tray
+          saveState();
           if (!canAnyPieceFit()) {
             gameOver();
           }
         }, 200);
       } else {
-        // Check if remaining pieces can fit
         if (!canAnyPieceFit()) {
           setTimeout(gameOver, 400);
         }
       }
     }, 50);
+  }
+
+  // ── Pause / Resume overlay ──
+  function showPauseOverlay() {
+    gamePaused = true;
+    // Unblock swipe when paused
+    HUB.swipeBlocked = false;
+
+    const overlay = $("blox-pause-overlay");
+    const btnNew = $("blox-btn-new");
+    const btnResume = $("blox-btn-resume");
+    const btnEnd = $("blox-btn-end");
+    const title = $("blox-pause-title");
+
+    if (gameActive) {
+      // Game in progress — show resume + end
+      if (title) title.textContent = "⏸ Paused";
+      if (btnNew) btnNew.style.display = "none";
+      if (btnResume) btnResume.style.display = "";
+      if (btnEnd) btnEnd.style.display = "";
+    } else {
+      // Check if there's a saved game
+      const saved = loadState();
+      if (saved && saved.gameActive) {
+        if (title) title.textContent = "🧱 Building Blox";
+        if (btnNew) btnNew.style.display = "";
+        if (btnResume) btnResume.style.display = "";
+        if (btnEnd) btnEnd.style.display = "none";
+      } else {
+        if (title) title.textContent = "🧱 Building Blox";
+        if (btnNew) btnNew.style.display = "";
+        if (btnResume) btnResume.style.display = "none";
+        if (btnEnd) btnEnd.style.display = "none";
+      }
+    }
+    if (overlay) overlay.classList.add("show");
+  }
+
+  function hidePauseOverlay() {
+    gamePaused = false;
+    const overlay = $("blox-pause-overlay");
+    if (overlay) overlay.classList.remove("show");
+    // Block swipe when playing
+    if (gameActive) HUB.swipeBlocked = true;
+  }
+
+  function resumeGame() {
+    if (gameActive) {
+      // Already active, just hide overlay
+      hidePauseOverlay();
+      return;
+    }
+    // Try to restore from save
+    const saved = loadState();
+    if (saved && saved.gameActive) {
+      board = saved.board;
+      tray = saved.tray;
+      score = saved.score;
+      linesCleared = saved.linesCleared;
+      highScore = saved.highScore;
+      gameActive = true;
+      selectedPiece = -1;
+
+      renderBoard();
+      renderTray();
+      updateStats();
+      initBoardMouseTracking();
+      hidePauseOverlay();
+      syncToStore();
+    }
   }
 
   // ── Game lifecycle ──
@@ -433,18 +717,22 @@ const BloxGame = (() => {
       return;
     }
 
-    // Close game-over overlay
+    // Close overlays
     $("blox-overlay")?.classList.remove("show");
 
     board = createEmptyBoard();
     score = 0;
     linesCleared = 0;
     gameActive = true;
+    gamePaused = false;
     refillTray();
 
     renderBoard();
     renderTray();
     updateStats();
+    initBoardMouseTracking();
+    hidePauseOverlay();
+    saveState();
     syncToStore();
 
     // Notify server
@@ -456,6 +744,7 @@ const BloxGame = (() => {
     if (data?.error === "NOT_ENOUGH_ENERGY") {
       showToast("⚡ Not enough energy!");
       gameActive = false;
+      HUB.swipeBlocked = false;
       return;
     }
     if (data?.highScore !== undefined) highScore = data.highScore;
@@ -463,16 +752,16 @@ const BloxGame = (() => {
       HUD.syncFromServer(data.resources);
     }
     updateStats();
-
-    // Update start button
-    const btn = $("blox-btn-start");
-    if (btn) btn.textContent = "🏁 End Game";
+    saveState();
   }
 
   async function endGame() {
     if (!gameActive) return;
     gameActive = false;
+    gamePaused = false;
     highScore = Math.max(highScore, score);
+    HUB.swipeBlocked = false;
+    clearSavedState();
 
     const data = await api("/api/blox/end", {
       userId: HUB.userId,
@@ -489,9 +778,6 @@ const BloxGame = (() => {
     showGameOver(score);
     syncToStore();
     updateStats();
-
-    const btn = $("blox-btn-start");
-    if (btn) btn.textContent = "🧱 New Game";
   }
 
   function gameOver() {
@@ -531,18 +817,31 @@ const BloxGame = (() => {
       });
     }
 
-    $("blox-btn-start").onclick = () => {
-      if (gameActive) endGame();
-      else startGame();
-    };
+    // Bind pause overlay buttons
+    $("blox-btn-new")?.addEventListener("click", () => startGame());
+    $("blox-btn-resume")?.addEventListener("click", () => resumeGame());
+    $("blox-btn-end")?.addEventListener("click", () => {
+      hidePauseOverlay();
+      endGame();
+    });
 
     board = createEmptyBoard();
     renderBoard();
+    initBoardMouseTracking();
     updateStats();
+
+    // Show initial overlay
+    showPauseOverlay();
   }
 
   function onEnter() {
     updateStats();
+    // Show pause overlay when entering screen (if game is active, pause it)
+    if (gameActive) {
+      showPauseOverlay();
+    } else {
+      showPauseOverlay();
+    }
   }
 
   return { init, onEnter, startGame };

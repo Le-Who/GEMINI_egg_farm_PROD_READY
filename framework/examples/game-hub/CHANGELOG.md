@@ -1,5 +1,23 @@
 # Changelog
 
+## v4.1 — 2026-02-17
+
+### UX Overhaul 🎨
+
+- **Mobile Bottom Nav Bar**: Replaced tiny top nav-dots with a 60px bottom tab bar (emoji + labels, accent underline, safe-area padding). Shown only on touch devices; desktop keeps arrow navigation.
+- **Building Blox — Pause Overlay**: Frosted-glass overlay with Continue/End Game appears when entering Blox screen during active game. New/Resume buttons available from saved state via `localStorage` persistence.
+- **Building Blox — Center Ghost**: Ghost preview now centers on cursor via piece center-of-mass offset instead of top-left snap.
+- **Building Blox — No-Gap Ghost**: Board-level `mousemove` replaces per-cell `mouseenter/leave` — ghost no longer flickers in 2px cell gaps.
+- **Building Blox — Touch Drag**: Full touch drag-and-drop from tray to board with floating preview. Swipe navigation blocked during active play via `HUB.swipeBlocked`.
+- **Building Blox — State Persistence**: Board, tray, score saved to `localStorage` on every placement. Resume game on return to Blox screen.
+- **Match-3 Sidebar**: Mode selector stays visible as vertical sidebar to the left of the board on desktop (>680px). On mobile, inline horizontal cards above board.
+- **Match-3 Mode Switching**: Non-active modes remain clickable during active play (with confirmation if score > 0).
+- **Match-3 Descriptions**: Mode description text increased from 0.52rem to 0.68rem with clearer text ("30 moves to score big", "Drop tokens to bottom for loot").
+- **Star Drop Rework**: Move limit increased 20 → 30 (same as Classic).
+- **Farm Inventory — Mobile Buttons**: Sell / Feed buttons enlarged to 8px×14px padding, 0.82rem font, 36px min-height on screens < 640px.
+
+---
+
 ## v4.0 — 2026-02-17
 
 ### New: Building Blox 🧱
