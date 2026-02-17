@@ -1,8 +1,8 @@
 # 🎮 Game Hub — 3-in-1 Discord Activity
 
-> A combined Farm + Trivia + Match-3 game running as a single Discord Embedded App Activity with horizontal screen-swipe navigation.
+> A combined Farm + Trivia + Match-3 + Building Blox game running as a single Discord Embedded App Activity with horizontal screen-swipe navigation.
 
-**v3.2** — GCP resilience test suite (latency, concurrency, payload, idempotency), test audit fixes, v3.1.1 hotfixes.
+**v4.1** — UX overhaul: mobile bottom nav bar, Building Blox persistence/pause/touch drag, Match-3 sidebar + readable descriptions, farm mobile buttons.
 
 ## Quick Start
 
@@ -82,19 +82,38 @@ npm run dev
 - **Duel Lobby** & **Voice Chat Invite**.
 - **Gold Rewards**: Earn gold for winning quizzes.
 
-### 💎 Match-3 (v1.5 → v3.1)
+### 🧱 Building Blox (v4.0 → v4.1)
 
-- **3 Game Modes** (v3.0 → v3.1):
+- **10×10 grid block puzzle**: Place Tetris-like pieces, clear rows + columns for score.
+- **12 piece shapes** (1-cell dot through 5-cell pentomino) with distinct colors.
+- **Pause Overlay** (v4.1): Frosted-glass overlay with New Game / Continue / End Game buttons.
+- **localStorage Persistence** (v4.1): Board, tray, score, high score saved on every placement.
+- **Ghost Preview**: Board-level `mousemove` with center-of-mass offset. No per-cell gap flicker.
+- **Touch Drag-and-Drop** (v4.1): Drag pieces from tray to board with floating preview.
+- **Swipe Blocking** (v4.1): `HUB.swipeBlocked` prevents accidental navigation during active game.
+- **Energy cost**: 4⚡ per game.
+
+### 💎 Match-3 (v1.5 → v4.1)
+
+- **3 Game Modes**:
   - 💎 **Classic**: 30 moves, standard scoring.
-  - ⏱️ **Time Attack**: 90 seconds, unlimited moves, score ×1.5. Timer-only display (no moves counter).
-  - 🎯 **Star Drop** (v3.1): Drop 3 unique reward objects — 💰 Gold Bag (+40🪙), 🌾 Seed Pack (3× random), ⚡ Energy (+7⚡) — to the bottom in 20 moves. +20🪙 bonus for all 3.
-- **Left-Side Mode Selector** (v3.1): Vertical sidebar with compact mode cards.
+  - ⏱️ **Time Attack**: 90 seconds, unlimited moves, score ×1.5.
+  - 🎯 **Star Drop**: Drop 3 reward tokens (💰🌾⚡) to bottom row in 30 moves. +20🪙 bonus for all 3.
+- **Persistent Sidebar** (v4.1): Vertical mode cards to the left of the board on desktop (>680px). Inline horizontal cards on mobile.
+- **Mode Switch During Play** (v4.1): Non-active modes clickable (with toast feedback).
+- **Readable Descriptions** (v4.1): 0.68rem text (“30 moves to score big”, “Drop tokens to bottom for loot”).
 - **Client-side engine** with server validation.
-- **Swap Slide Animation** (v1.8): Gems visually glide into each other's positions.
-- **Energy Gate**: Requires 5 energy to start → quick-feed modal if insufficient.
-- **Slide-in Leaderboard**: Responsive side-panel (fixed on narrow screens).
-- **Progressive Gold Rewards** (v2.1): `calcGoldReward(score)` — gold scales with score tiers.
-- **Live 🪙 Display** (v2.1): Reward stat in stats bar updates in real-time (mode-aware).
+- **Swap Slide Animation** (v1.8): Gems visually glide into each other’s positions.
+- **Energy Gate**: 5⚡ to start → quick-feed modal if insufficient.
+- **Slide-in Leaderboard**: Responsive side-panel.
+- **Progressive Gold Rewards**: `calcGoldReward(score)` — gold scales with score tiers.
+
+### 📱 Mobile Navigation (v4.1)
+
+- **Bottom Nav Bar**: 60px tab bar with emoji icons + labels (Trivia, Blox, Farm, Match-3).
+- Touch devices only; desktop retains arrow/keyboard navigation.
+- Safe-area padding for notched phones.
+- `HUB.swipeBlocked` integration for Building Blox.
 
 ### 🖥 Responsive Layout
 
@@ -110,9 +129,11 @@ npm run dev
 | `POST` | `/api/pet/state`       | Get pet state                              |
 | `POST` | `/api/pet/feed`        | Feed pet (Cost: Crop, Reward: Energy + XP) |
 | `POST` | `/api/farm/state`      | Get farm state + offline simulation report |
-| `POST` | `/api/farm/sell-crop`  | Sell harvested crop (v3.1)                 |
+| `POST` | `/api/farm/sell-crop`  | Sell harvested crop                        |
 | `POST` | `/api/game/state`      | Get Match-3 state                          |
 | `POST` | `/api/game/start`      | Start Match-3 (-5 Energy)                  |
+| `POST` | `/api/blox/start`      | Start Blox (-4 Energy)                     |
+| `POST` | `/api/blox/end`        | End Blox (gold reward)                     |
 | `POST` | `/api/trivia/start`    | Start Trivia (-3 Energy)                   |
 | `GET`  | `/api/leaderboard`     | Global leaderboard                         |
 
@@ -124,44 +145,48 @@ game-hub/
 ├── game-logic.js        # Extracted pure game logic (testable)
 ├── storage.js           # GCS + local file persistence
 ├── public/
-│   ├── index.html       # 3-screen slider layout + energy modal
+│   ├── index.html       # 4-screen slider layout + energy modal + mobile nav bar
 │   ├── css/
-│   │   ├── base.css     # Design tokens, scrollbar fixes, feed-item styles
+│   │   ├── base.css     # Design tokens, scrollbar fixes, nav-bar styles
+│   │   ├── blox.css     # Building Blox board, tray, pause overlay, drag preview
 │   │   ├── hud.css      # TopHUD resource bar
-│   │   ├── pet.css      # Pet overlay + smart docking (ground/perch)
-│   │   └── ...
+│   │   ├── pet.css      # Pet overlay + smart docking
+│   │   └── …
 │   └── js/
 │       ├── store.js     # GameStore (Zustand-pattern state manager)
-│       ├── shared.js    # Init, Navigation & Pet Dock orchestration
+│       ├── shared.js    # Init, Navigation, bottom nav-bar, swipeBlocked
+│       ├── blox.js      # Building Blox (persistence, pause, touch drag, ghost)
 │       ├── hud.js       # Resources management + Quick-Feed Modal
 │       ├── pet.js       # Pet behaviors, dock mode & interaction
 │       ├── farm.js      # Farm logic + Welcome Back modal
-│       └── ...
+│       └── …
 ├── tests/
 │   ├── unit.test.js     # 49 unit tests (game logic)
 │   ├── api.test.js      # 24 API integration tests
-│   ├── perf.test.js     # 7 performance benchmarks
-│   ├── gcp.test.js      # 20 GCP resilience tests (v3.2)
+│   ├── blox.test.js     # 26 Building Blox tests
 │   ├── match3.test.js   # 12 tile clearing tests
-│   └── ux.test.js       # 29 UX diagnostic tests
+│   ├── ux.test.js       # 29 UX diagnostic tests
+│   ├── gcp.test.js      # 20 GCP resilience tests
+│   └── perf.test.js     # 7 performance benchmarks
 └── Dockerfile           # Cloud Run deployment
 ```
 
 ## 🧪 Testing
 
 ```bash
-npm test          # All 141 tests
+npm test          # All 167 tests
 npm run test:perf # Performance benchmarks only
 ```
 
-| Type     | Tests | Coverage                                                                                  |
-| -------- | ----: | ----------------------------------------------------------------------------------------- |
-| **Unit** |    49 | Player factory, energy regen, offline simulation, farm growth, match-3 board, trivia      |
-| **API**  |    24 | All REST endpoints (farm, pet, trivia, match-3, health)                                   |
-| **Perf** |     7 | Board generation, match detection, offline processing                                     |
-| **GCP**  |    20 | Latency (<200ms), concurrency, payload (<16KB), save stress, stale reconnect, idempotency |
-| **M3**   |    12 | findMatches, resolveBoard, gravity, cascade, drop-type exclusion                          |
-| **UX**   |    29 | Pet flicker invariants, zone bounds, growth ticks, race conditions, version guards        |
+| Type     | Tests | Coverage                                                                             |
+| -------- | ----: | ------------------------------------------------------------------------------------ |
+| **Unit** |    49 | Player factory, energy regen, offline simulation, farm growth, match-3 board, trivia |
+| **API**  |    24 | All REST endpoints (farm, pet, trivia, match-3, blox, health)                        |
+| **Blox** |    26 | Piece shapes, placement, line clearing, scoring, game-over, reward                   |
+| **M3**   |    12 | findMatches, resolveBoard, gravity, cascade, drop-type exclusion                     |
+| **UX**   |    29 | Pet flicker invariants, zone bounds, growth ticks, race conditions, version guards   |
+| **GCP**  |    20 | Latency (<200ms), concurrency, payload (<16KB), save stress, stale reconnect         |
+| **Perf** |     7 | Board generation, match detection, offline processing                                |
 
 Uses Node.js built-in `node:test` — zero test dependencies.
 

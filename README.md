@@ -1,6 +1,8 @@
 # 🎮 Game Hub — Discord Embedded Activity
 
-> A 3-in-1 social game hub built as a **Discord Embedded App Activity**. Cozy Farm, Brain Blitz trivia, and Gem Crush match-3 — all in one app with a unified pet companion, resource economy, and offline simulation.
+> A 4-in-1 social game hub built as a **Discord Embedded App Activity**. Cozy Farm, Brain Blitz trivia, Gem Crush match-3, and Building Blox puzzle — all in one app with a unified pet companion, resource economy, and offline simulation.
+
+**Current version: v4.1**
 
 ---
 
@@ -10,12 +12,14 @@
 | ------------------------- | ------------------------------------------------------------------------ |
 | 🌱 **Cozy Farm**          | Plant, water, harvest crops · Buy plots · Seed shop with 8 crop types    |
 | 🧠 **Brain Blitz**        | Solo trivia + async duels via invite codes · 3 difficulty tiers          |
-| 💎 **Gem Crush**          | 8×8 match-3 with cascades, combos, and leaderboard                       |
+| 💎 **Gem Crush**          | 8×8 match-3 with cascades, combos, and leaderboard · 3 game modes        |
+| 🧱 **Building Blox**      | 10×10 block puzzle · 12 pieces · localStorage persistence · touch drag   |
 | 🐾 **Pet Companion**      | Free-roaming pet with smart docking · Auto-water/harvest/plant abilities |
 | ⚡ **Energy System**      | Quick-feed modal · 3-min regen · Gates match-3 and trivia plays          |
 | 💾 **Offline Simulation** | Auto-harvest, auto-plant, auto-water while away · Welcome-back report    |
 | 🏠 **GameStore**          | Zustand-inspired slice pattern for state isolation between games         |
 | 🔐 **Discord OAuth2**     | Dual-mode auth (token + userId fallback)                                 |
+| 📱 **Mobile Nav**         | Bottom tab bar with emoji icons on touch devices                         |
 
 ---
 
@@ -32,13 +36,17 @@ framework/examples/game-hub/
 │   │   ├── farm.js        # Farm module (plots, shop, buy-plot, optimistic updates)
 │   │   ├── trivia.js      # Trivia (solo + duels, lobby, history)
 │   │   ├── match3.js      # Match-3 engine (swap animation, cascades, leaderboard)
+│   │   ├── blox.js        # Building Blox (persistence, pause, touch drag, ghost)
 │   │   ├── pet.js         # Pet companion (roam, sleep, auto-water, abilities)
 │   │   └── game-store.js  # GameStore (Zustand-like slice manager)
-│   └── css/               # Modular CSS (base, farm, trivia, match3, hud, pet)
+│   └── css/               # Modular CSS (base, farm, trivia, match3, blox, hud, pet)
 └── tests/
     ├── unit.test.js       # 49 unit tests (pure functions)
     ├── api.test.js        # 24 API integration tests
-    ├── ux.test.js         # 29 UX diagnostic tests (flicker, lag, race conditions)
+    ├── blox.test.js       # 26 Building Blox tests
+    ├── match3.test.js     # 12 tile clearing tests
+    ├── ux.test.js         # 29 UX diagnostic tests
+    ├── gcp.test.js        # 20 GCP resilience tests
     └── perf.test.js       # 7 performance benchmarks
 ```
 
@@ -82,15 +90,19 @@ npm run dev
 ## 🧪 Testing
 
 ```bash
-npm test          # All 80 tests (unit + API + perf)
+npm test          # All 167 tests (unit + API + blox + match3 + UX + GCP + perf)
 npm run test:perf # Performance benchmarks only
 ```
 
-| Type     | File                 | Tests |
-| -------- | -------------------- | ----: |
-| **Unit** | `tests/unit.test.js` |    49 |
-| **API**  | `tests/api.test.js`  |    24 |
-| **Perf** | `tests/perf.test.js` |     7 |
+| Type     | File                   | Tests |
+| -------- | ---------------------- | ----: |
+| **Unit** | `tests/unit.test.js`   |    49 |
+| **API**  | `tests/api.test.js`    |    24 |
+| **Blox** | `tests/blox.test.js`   |    26 |
+| **M3**   | `tests/match3.test.js` |    12 |
+| **UX**   | `tests/ux.test.js`     |    29 |
+| **GCP**  | `tests/gcp.test.js`    |    20 |
+| **Perf** | `tests/perf.test.js`   |     7 |
 
 ---
 

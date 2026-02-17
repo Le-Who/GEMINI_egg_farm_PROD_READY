@@ -2,19 +2,22 @@
 
 ## v4.1 — 2026-02-17
 
-### UX Overhaul 🎨
+### UX Overhaul
 
-- **Mobile Bottom Nav Bar**: Replaced tiny top nav-dots with a 60px bottom tab bar (emoji + labels, accent underline, safe-area padding). Shown only on touch devices; desktop keeps arrow navigation.
-- **Building Blox — Pause Overlay**: Frosted-glass overlay with Continue/End Game appears when entering Blox screen during active game. New/Resume buttons available from saved state via `localStorage` persistence.
-- **Building Blox — Center Ghost**: Ghost preview now centers on cursor via piece center-of-mass offset instead of top-left snap.
-- **Building Blox — No-Gap Ghost**: Board-level `mousemove` replaces per-cell `mouseenter/leave` — ghost no longer flickers in 2px cell gaps.
-- **Building Blox — Touch Drag**: Full touch drag-and-drop from tray to board with floating preview. Swipe navigation blocked during active play via `HUB.swipeBlocked`.
-- **Building Blox — State Persistence**: Board, tray, score saved to `localStorage` on every placement. Resume game on return to Blox screen.
-- **Match-3 Sidebar**: Mode selector stays visible as vertical sidebar to the left of the board on desktop (>680px). On mobile, inline horizontal cards above board.
-- **Match-3 Mode Switching**: Non-active modes remain clickable during active play (with confirmation if score > 0).
-- **Match-3 Descriptions**: Mode description text increased from 0.52rem to 0.68rem with clearer text ("30 moves to score big", "Drop tokens to bottom for loot").
-- **Star Drop Rework**: Move limit increased 20 → 30 (same as Classic).
-- **Farm Inventory — Mobile Buttons**: Sell / Feed buttons enlarged to 8px×14px padding, 0.82rem font, 36px min-height on screens < 640px.
+- **Mobile Bottom Nav Bar**: 60px tab bar (emoji+labels), touch devices only. `base.css`, `shared.js`, `index.html`.
+- **Blox Persistence**: `localStorage` save/restore board+tray+score. `blox.js`.
+- **Blox Pause Overlay**: Frosted-glass overlay (New/Continue/End). Replaces old start button. `blox.css`, `index.html`.
+- **Blox Ghost Fix**: Board-level `mousemove` + `click` with center-of-mass offset. No per-cell gap flicker, placement matches ghost exactly. `blox.js`.
+- **Blox Touch Drag**: Tray→board drag with floating preview + `HUB.swipeBlocked`. `blox.js`, `blox.css`.
+- **Match-3 Sidebar**: Vertical mode selector left of board on desktop >680px. `match3.css`.
+- **Match-3 Mode Switch**: Non-active modes clickable during play (toast, no `confirm()`). `match3.js`.
+- **Match-3 Descriptions**: 0.68rem, readable text. Star Drop moves 20→30. `match3.js`, `match3.css`.
+- **Farm Mobile Buttons**: Sell/Feed enlarged (8px×14px, 0.82rem, 36px min-height) at <640px. `farm.css`.
+
+### Bugfixes (same day)
+
+- `confirm()` blocked by Discord sandbox — replaced with toast+direct switch.
+- Ghost/placement offset mismatch — unified `getTargetFromEvent()` for both.
 
 ---
 
@@ -22,121 +25,49 @@
 
 ### New: Building Blox 🧱
 
-- **10×10 grid block puzzle**: place Tetris-like pieces, clear rows and columns for points
-- 12 piece shapes (1-cell dot through 5-cell pentomino) with distinct colors
-- Piece tray shows 3 upcoming pieces with mini-preview grids
-- Ghost preview on hover shows valid/invalid placement
-- Progressive scoring: bonus for multi-line clears, `calcBloxReward` reward curve
-- Energy cost: 4⚡ per game (via `/api/blox/start` + `/api/blox/end` server endpoints)
-- Game-over detection: ends when no remaining piece fits on the board
-- `blox.test.js`: piece shapes, placement, line clearing, scoring, game-over, reward
+- 10×10 grid block puzzle, 12 piece shapes, ghost preview, progressive scoring.
+- Energy cost 4⚡. Server endpoints: `/api/blox/start`, `/api/blox/end`.
+- `blox.test.js`: 26 tests (shapes, placement, clearing, scoring, game-over, reward).
 
-### Fix: Match-3 Mode Selector
+### Match-3 Mode Selector Fix
 
-- Removed absolute-positioned sidebar layout (was clipped by `overflow-x: hidden`)
-- Mode selector is now an inline horizontal card row above the board
-- Active mode highlighted during gameplay with dimmed non-active modes
+- Removed absolute sidebar (clipped by `overflow-x: hidden`). Inline horizontal cards.
 
-### Navigation Expansion (3 → 4 screens)
+### Navigation: 3→4 screens
 
-- Screen order: Trivia → Building Blox → Farm → Match-3
-- Farm remains the default/center screen (index 2)
-- Updated: `screenNames`, `SmartLoader`, `updatePetDock`, nav dots, bounds, cell sizing
-
-### Version
-
-- All `?v=3.x` → `?v=4.0` (index.html, shared.js SmartLoader)
-- Version badge → v4.0
-- package.json → 4.0.0
+- Screen order: Trivia → Blox → Farm → Match-3. Farm remains default (index 2).
 
 ---
 
 ## v3.3 — 2026-02-17
 
-### Bug Fixes
-
-- **Match-3**: Mode selector panel and preview board now shown automatically on first visit (no more empty screen)
-- **Energy HUD**: Fixed tooltip countdown using wrong interval (5min → 2.5min); `syncFromServer` smart-merges timestamps to prevent visual jumps
-- **Pet Profile**: Removed duplicate feed section (feeding lives in farm inventory); added missing Auto-Plant (Lv 7) ability display with tooltips for all 3 abilities
-- **Farm Emojis**: Pre-populate crops from `localStorage` cache before API response to prevent 🌱 fallback on re-login
-
-### Code Quality
-
-- **Intentional duplication**: Documented why `findMatches`, `calcGoldReward`, `generateBoard` are duplicated between `match3.js` (client) and `game-logic.js` (server)
-- **Test fix**: `ux.test.js` `getWateringMultiplier` was called with object instead of string (always returned default 0.7); now tests actual crop-specific multipliers
-- Removed dead code: `feedPet()` and `renderFeedButtons()` from `pet.js`
+- Match-3 mode selector auto-shown on first visit (was blank screen).
+- Energy HUD tooltip: fixed 5min→2.5min interval; `syncFromServer` smart-merge.
+- Pet profile: removed duplicate feed section, added Auto-Plant ability display.
+- Farm emojis: pre-populate from `localStorage` cache before API.
+- Test fix: `ux.test.js` `getWateringMultiplier` was testing default, not crop-specific.
+- Removed dead `feedPet()`/`renderFeedButtons()` from `pet.js`.
 
 ## v3.2 — 2026-02-17
 
-### GCP Resilience Tests (`tests/gcp.test.js`)
-
-- **Latency**: All endpoints < 200ms budget, p95 across 20 warm requests
-- **Concurrency**: 20 parallel buy-seeds (no gold overspend), parallel water/harvest (exactly 1 success)
-- **Payload**: All responses < 16KB (farm, crops, leaderboard, full 12-plot inventory)
-- **Save stress**: 50 rapid plant cycles + 30 burst buys maintain state consistency
-- **Stale reconnect**: 10-min gap triggers offline report; 30s gap does not; energy regen matches interval math
-- **Idempotency**: Double harvest/water/feed returns exactly 1 success, 1 rejection
-
-### Test Audit Fixes
-
-- `match3.test.js:251` — removed `if (m.size > 0) return;` skip clause (was silently passing)
-- `ux.test.js` — pet flicker tests now assert minimum safety buffers (≥200ms, ≥1000ms, ≥30ms) instead of trivially-true comparisons
-
-### Version
-
-- All `?v=3.1` → `?v=3.2` (index.html, shared.js SmartLoader)
-- Version badge → v3.2
-
----
+- `gcp.test.js`: 20 resilience tests (latency, concurrency, payload, save stress, stale reconnect, idempotency).
+- Test audit: removed `match3.test.js` skip clause, pet flicker tests assert real buffers.
 
 ## v3.1.1 — 2026-02-17 (hotfix)
 
-- **CRASH FIX**: `STAR_TYPE` undefined in `animateCascade` (lines 726,730) — replaced with `DROP_TYPES.includes()`, same pattern as `renderBoard`
-- **[object Object] reward**: `calcDropReward()` returns `{gold,seeds,energy}` object — `updateStatsUI` now builds compact text preview (`+40g+7⚡`)
-- **Mode selector → left sidebar**: Absolute-positioned vertical bar left of board (`left:-110px`). Cards stacked vertically. `m3-layout` gets `position:relative`
-- **Stale cache**: All `?v=3.0` → `?v=3.1` in index.html (6 CSS + 4 JS). SmartLoader `?v=1.5` → `?v=3.1` in shared.js
+- `STAR_TYPE` undefined crash → `DROP_TYPES.includes()`.
+- `[object Object]` reward display → compact text preview.
+- Mode selector sidebar: absolute left of board (reverted in v4.0).
+- Cache bust all `?v=3.0` → `?v=3.1`.
 
 ## v3.1 — 2026-02-17
 
-### Farm
-
-- Gold sync — instant `GameStore.resources.gold` deduct in `buySeeds`
-- Harvest persist — `syncHarvestedToStore()` on load/harvest
-- Sell button — formula `ceil((seedPrice*0.5)*(growSec*0.25))`
-- Feed pet — 🍖 button, +2⚡, max-energy guard
-- Water timeout — 3s `setTimeout` fallback
-- Server `/api/farm/sell-crop` endpoint
-
-### Match-3
-
-- Star Drop — 3 types: `drop_gold`💰, `drop_seeds`🌾, `drop_energy`⚡
-- Play Again — close overlay before mode selector
-- Time Attack — timer-only display, no "9999" moves
-
-### Energy/HUD
-
-- Regen 150s (was 300s) in `game-logic.js` + `hud.js`
-- Aurora pill — `@keyframes auroraShift` gradient
-
-### CSS
-
-- `farm.css` — `.farm-inv-btn.sell`, `.farm-inv-btn.feed`
-- `match3.css` — `.drop-gold`, `.drop-seeds`, `.drop-energy` (was `.star-gem`)
-
-### Tests
-
-- 12 tile clearing tests (findMatches, resolveBoard, gravity, cascade, drop exclusion)
-
----
+- **Farm**: Gold sync instant, harvest persist, sell button, feed pet, water timeout, `/api/farm/sell-crop`.
+- **Match-3**: Star Drop 3 types, Time Attack timer-only, play-again flow.
+- **Energy**: Regen 150s (was 300s), aurora pill gradient.
+- **CSS**: `.farm-inv-btn.sell/.feed`, `.drop-gold/.drop-seeds/.drop-energy`.
+- **Tests**: 12 tile clearing tests.
 
 ## v3.0 — 2026-02-17
 
-### Hotfix (7 bugs)
-
-1. Farm panel → absolute overlay
-2. Harvest → `resources.__harvested` sync
-3. Toast → +XP only
-4. Fast plant → per-plot version
-5. Energy → always trust server
-6. Mode selector → arrow function wrapper
-7. Regen bar → energy pill fill
+- 7 hotfixes: farm panel overlay, harvest sync, toast XP-only, per-plot version, energy trust server, mode selector fix, regen bar fill.
