@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Farm Module (v3.3)
+ *  Game Hub — Farm Module (v4.5)
  *  Plots, planting, watering, harvesting, seed shop
  *  ─ Local growth timer, diff-update fix, farm badge
  *  ─ Diff-update plots (no blink), horizontal buy bar, plot dispatcher
@@ -293,9 +293,12 @@ const FarmGame = (() => {
     if (isReady) {
       // Always harvest ready plots, regardless of seed selection
       harvest(i);
+    } else if (plot.crop && !plot.watered && !isReady) {
+      // v4.5: growing + unwaterd = water it (click-to-water UX)
+      water(i);
     } else if (plot.crop) {
-      // Growing plot — no-op, show tooltip
-      showToast("🌱 Still growing...");
+      // Already watered and still growing
+      showToast("💧 Already watered! Growing...");
     } else {
       // Empty plot — plant if seed selected
       plant(i);
@@ -890,23 +893,25 @@ const FarmGame = (() => {
     const readyCount = state.plots.filter(
       (p) => p.crop && getLocalGrowth(p) >= 1,
     ).length;
-    const dot = document.querySelectorAll(".nav-dot")[1]; // farm is center dot
+    // Farm is screen index 2 (trivia=0, blox=1, farm=2, match3=3)
+    const FARM_SCREEN = 2;
+    const dot = document.querySelectorAll(".nav-dot")[FARM_SCREEN];
     const badge = document.getElementById("farm-ready-badge");
     if (dot) {
       dot.classList.toggle(
         "has-notification",
-        readyCount > 0 && HUB.currentScreen !== 1,
+        readyCount > 0 && HUB.currentScreen !== FARM_SCREEN,
       );
     }
     if (badge) {
-      if (readyCount > 0 && HUB.currentScreen !== 1) {
+      if (readyCount > 0 && HUB.currentScreen !== FARM_SCREEN) {
         badge.textContent = `🌾 ×${readyCount}`;
         badge.classList.add("show");
-        // Direction: Trivia is screen 0 (farm is right), Match-3 is screen 2 (farm is left)
-        badge.classList.toggle("point-right", HUB.currentScreen === 0);
-        badge.classList.toggle("point-left", HUB.currentScreen === 2);
+        // Direction: screens 0,1 are LEFT of farm → point right; screen 3 is RIGHT → point left
+        badge.classList.toggle("point-right", HUB.currentScreen < FARM_SCREEN);
+        badge.classList.toggle("point-left", HUB.currentScreen > FARM_SCREEN);
         badge.onclick = () => {
-          if (typeof goToScreen === "function") goToScreen(1);
+          if (typeof goToScreen === "function") goToScreen(FARM_SCREEN);
         };
       } else {
         badge.classList.remove("show", "point-left", "point-right");

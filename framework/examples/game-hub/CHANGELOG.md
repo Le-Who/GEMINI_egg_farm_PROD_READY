@@ -1,5 +1,34 @@
 # Changelog
 
+## v4.5 — 2026-02-18
+
+### Match-3 Mode Selector UX
+
+- **Mode selector always accessible**: Shown directly on init and onEnter — no more invisible "New Game" gate required to browse modes
+- **Energy denial → mode selector**: When energy check fails, user returns to mode selector instead of being trapped with stale `gameMode`
+- Header bumped to v4.5
+
+### Farm UX
+
+- **Click-to-water**: Tapping a growing, unwatered plant now triggers watering instead of showing "Still growing" toast — eliminates frustration with small water button
+- Updated toast: "💧 Already watered! Growing…" for already-watered plants
+
+### Notification Badge Fix (Critical)
+
+- **Wrong screen index**: `updateFarmBadge()` used hardcoded screen `1` (Blox) instead of `2` (Farm) — clicking the badge navigated to Blox instead of Farm
+- **Direction arrows**: Fixed `point-left`/`point-right` logic for 4-screen layout
+- Farm module bumped from v3.3 → v4.5
+
+### Toast System
+
+- **Deduplication**: Same message within 1.5s is suppressed (prevents toast stacking from rapid actions)
+- **Color variants**: `showToast(msg, "success"|"error"|"info")` for context-appropriate left-border colors
+- Duration extended 2.1s → 2.5s
+
+### Stale Cache Fix
+
+- **In-game version badge**: Fixed stale `v4.1` → `v4.5` in `index.html`
+
 ## v4.4 — 2026-02-17
 
 ### Match-3 Critical Fixes

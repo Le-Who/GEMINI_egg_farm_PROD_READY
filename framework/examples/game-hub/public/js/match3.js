@@ -1,10 +1,10 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Match-3 Module (v4.4)
+ *  Game Hub — Match-3 Module (v4.5)
  *  Client-side engine, CSS transitions, state restore
  *  ─ GameStore integration (match3 slice)
  *  ─ Pause/Continue overlay, touch swipe, default mode
  *  ─ Star Drop fixes: no deadlocks, mode persistence
- *  ─ v4.4: savedModes localStorage persistence, energy-guard fix
+ *  ─ v4.5: mode selector always accessible, energy-denial UX
  *
  *  NOTE: calcGoldReward, findMatches, generateBoard, randomGem are
  *  intentionally duplicated from game-logic.js. The client needs its
@@ -326,12 +326,11 @@ const Match3Game = (() => {
     await restoreGame();
     syncToStore();
 
-    // If no active game was restored, show mode selector + preview board
+    // If no active game was restored, show mode selector directly (v4.5)
     if (!gameActive) {
-      // Check if any savedModes exist — show continue-ready overlay
-      const hasSaved = Object.keys(savedModes).length > 0;
       board = generateBoard();
       renderBoard(true);
+      showModeSelector();
       showM3PauseOverlay();
     }
   }
@@ -351,10 +350,11 @@ const Match3Game = (() => {
 
   function onEnter() {
     /* board persists in JS across screen switches */
-    // Show pause overlay when entering screen (mirror Blox behavior)
     if (gameActive) {
       showM3PauseOverlay();
     } else {
+      // v4.5: show mode selector directly when no active game
+      showModeSelector();
       showM3PauseOverlay();
     }
   }
@@ -511,6 +511,8 @@ const Match3Game = (() => {
       } else {
         showToast("⚡ Need 5 energy to play Match-3!");
       }
+      // v4.5: return to mode selector so user isn't trapped
+      showModeSelector();
       return;
     }
 

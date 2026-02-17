@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Shared Infrastructure (v4.4)
+ *  Game Hub — Shared Infrastructure (v4.5)
  *  Discord SDK auth, API helper, screen navigation
  *  CSP-compliant: no inline handlers, no external fonts
  * ═══════════════════════════════════════════════════ */
@@ -275,13 +275,21 @@ async function triggerScreenCallbacks() {
   if (name === "blox" && typeof BloxGame !== "undefined") BloxGame.onEnter();
 }
 
-/* ─── Toast ─── */
-function showToast(msg) {
+/* ─── Toast (v4.5: dedup + type variants) ─── */
+let _lastToastMsg = "";
+let _lastToastTime = 0;
+function showToast(msg, type) {
+  // Dedup: skip if same message within 1.5s
+  const now = Date.now();
+  if (msg === _lastToastMsg && now - _lastToastTime < 1500) return;
+  _lastToastMsg = msg;
+  _lastToastTime = now;
+
   const el = document.createElement("div");
-  el.className = "toast";
+  el.className = "toast" + (type ? ` toast-${type}` : "");
   el.textContent = msg;
   document.body.appendChild(el);
-  setTimeout(() => el.remove(), 2100);
+  setTimeout(() => el.remove(), 2500);
 }
 
 /* ─── Sleep ─── */

@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Building Blox Screen Styles (v4.4)
+ *  Game Hub — Building Blox Screen Styles (v4.5)
  * ═══════════════════════════════════════════════════ */
 
 /* Scope overlays to this screen only */
@@ -67,9 +67,19 @@
 
 /* Clear animation */
 @keyframes bloxClear {
-  0% { transform: scale(1); opacity: 1; filter: brightness(1); }
-  40% { transform: scale(1.15); filter: brightness(1.6); }
-  100% { transform: scale(0); opacity: 0; }
+  0% {
+    transform: scale(1);
+    opacity: 1;
+    filter: brightness(1);
+  }
+  40% {
+    transform: scale(1.15);
+    filter: brightness(1.6);
+  }
+  100% {
+    transform: scale(0);
+    opacity: 0;
+  }
 }
 .blox-cell.clearing {
   animation: bloxClear 0.3s ease-out forwards;
@@ -77,11 +87,22 @@
 
 /* Board shake */
 @keyframes bloxShake {
-  0%, 100% { transform: translateX(0); }
-  20% { transform: translateX(-3px); }
-  40% { transform: translateX(3px); }
-  60% { transform: translateX(-2px); }
-  80% { transform: translateX(2px); }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-3px);
+  }
+  40% {
+    transform: translateX(3px);
+  }
+  60% {
+    transform: translateX(-2px);
+  }
+  80% {
+    transform: translateX(2px);
+  }
 }
 .blox-board.shake {
   animation: bloxShake 0.35s ease;
@@ -270,4 +291,3 @@
     height: 11px;
   }
 }
-
