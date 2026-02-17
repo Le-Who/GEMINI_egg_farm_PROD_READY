@@ -3,6 +3,7 @@ import fetch from "node-fetch";
 import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
+import crypto from "node:crypto";
 import { fileURLToPath } from "url";
 import { UserStateSchema } from "./schemas.js";
 import {
@@ -489,7 +490,16 @@ async function startServer(port = PORT) {
 
   app.get("/api/state", requireAuth, (req, res) => {
     const data = db.get(req.discordUser.id);
-    res.json(data || null);
+    const json = JSON.stringify(data || null);
+    const hash = crypto.createHash("md5").update(json).digest("hex");
+    const etag = `"${hash}"`;
+
+    res.set("ETag", etag);
+    if (req.headers["if-none-match"] === etag) {
+      return res.status(304).end();
+    }
+    res.set("Content-Type", "application/json");
+    res.send(json);
   });
 
   app.post("/api/state", requireAuth, (req, res) => {
