@@ -2,7 +2,7 @@
 
 > A combined Farm + Trivia + Match-3 + Building Blox game running as a single Discord Embedded App Activity with horizontal screen-swipe navigation.
 
-**v4.5** — UX & navigation: Match-3 mode selector always accessible, farm click-to-water, notification badge fix, toast dedup.
+**v4.5.1** — Match-3 session persistence: savedModes survive reload, auto-classic, zero-move boards preserved, persist after swap.
 
 ## Quick Start
 

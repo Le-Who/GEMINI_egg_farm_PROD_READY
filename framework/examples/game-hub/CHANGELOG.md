@@ -1,5 +1,15 @@
 # Changelog
 
+## v4.5.1 — 2026-02-18
+
+### Match-3 Session Persistence (Critical)
+
+- **Save on creation**: New games stashed into `savedModes` immediately after board generation — game state now survives page reload even without making any moves.
+- **Persist after every swap**: `savedModes` updated and written to `localStorage` after each successful gem swap — mid-game progress never lost.
+- **Zero-move boards saved**: Removed `score > 0` gate — boards with no moves made are preserved when switching modes (no energy re-charge).
+- **Resume overlay**: When saved sessions exist after reload, pause overlay shows "▶ Continue" + "🛑 End All Sessions" + "🎮 New Game" instead of just "New Game".
+- **Auto-classic start**: If no saved sessions exist on first launch, classic mode starts automatically (no manual mode selection needed).
+
 ## v4.5 — 2026-02-18
 
 ### Match-3 Mode Selector UX

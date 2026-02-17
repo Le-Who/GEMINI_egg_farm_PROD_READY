@@ -1,10 +1,10 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Match-3 Module (v4.5)
+ *  Game Hub — Match-3 Module (v4.5.1)
  *  Client-side engine, CSS transitions, state restore
  *  ─ GameStore integration (match3 slice)
  *  ─ Pause/Continue overlay, touch swipe, default mode
  *  ─ Star Drop fixes: no deadlocks, mode persistence
- *  ─ v4.5: mode selector always accessible, energy-denial UX
+ *  ─ v4.5.1: session persistence, auto-classic, zero-move save
  *
  *  NOTE: calcGoldReward, findMatches, generateBoard, randomGem are
  *  intentionally duplicated from game-logic.js. The client needs its
@@ -326,12 +326,18 @@ const Match3Game = (() => {
     await restoreGame();
     syncToStore();
 
-    // If no active game was restored, show mode selector directly (v4.5)
+    // If no active game was restored:
     if (!gameActive) {
-      board = generateBoard();
-      renderBoard(true);
-      showModeSelector();
-      showM3PauseOverlay();
+      const hasSaved = Object.keys(savedModes).length > 0;
+      if (hasSaved) {
+        // v4.5.1: saved sessions exist — show Resume/End overlay
+        board = generateBoard();
+        renderBoard(true);
+        showM3PauseOverlay();
+      } else {
+        // v4.5.1: no saved sessions — auto-start classic
+        await startGame("classic");
+      }
     }
   }
 
@@ -353,8 +359,6 @@ const Match3Game = (() => {
     if (gameActive) {
       showM3PauseOverlay();
     } else {
-      // v4.5: show mode selector directly when no active game
-      showModeSelector();
       showM3PauseOverlay();
     }
   }
@@ -372,16 +376,62 @@ const Match3Game = (() => {
     const btnEnd = $("m3-pause-end");
     const title = $("m3-pause-title");
 
+    const hasSaved = Object.keys(savedModes).length > 0;
+
     if (gameActive) {
       // Game in progress — show resume + end
       if (title) title.textContent = "⏸ Paused";
       if (btnNew) btnNew.style.display = "none";
       if (btnResume) btnResume.style.display = "";
       if (btnEnd) btnEnd.style.display = "";
+    } else if (hasSaved) {
+      // v4.5.1: Saved sessions exist — show Continue + New Game
+      const lastMode =
+        localStorage.getItem(LAST_MODE_KEY) || Object.keys(savedModes)[0];
+      const modeLabel =
+        lastMode === "timed"
+          ? "Time Attack"
+          : lastMode === "drop"
+            ? "Star Drop"
+            : "Classic";
+      if (title) title.textContent = `💎 Continue ${modeLabel}?`;
+      if (btnResume) {
+        btnResume.style.display = "";
+        btnResume.textContent = `▶ Continue`;
+        btnResume.onclick = () => {
+          hideM3PauseOverlay();
+          startGame(lastMode);
+        };
+      }
+      if (btnNew) {
+        btnNew.style.display = "";
+        btnNew.textContent = "🎮 New Game";
+        btnNew.onclick = () => {
+          hideM3PauseOverlay();
+          showModeSelector();
+        };
+      }
+      if (btnEnd) {
+        btnEnd.style.display = "";
+        btnEnd.textContent = "🛑 End All Sessions";
+        btnEnd.onclick = () => {
+          savedModes = {};
+          persistSavedModes();
+          hideM3PauseOverlay();
+          showModeSelector();
+        };
+      }
     } else {
-      // No active game — show New Game (+ Continue if restored)
+      // No saved sessions — show New Game only
       if (title) title.textContent = "💎 Gem Crush";
-      if (btnNew) btnNew.style.display = "";
+      if (btnNew) {
+        btnNew.style.display = "";
+        btnNew.textContent = "🎮 New Game";
+        btnNew.onclick = () => {
+          hideM3PauseOverlay();
+          showModeSelector();
+        };
+      }
       if (btnResume) btnResume.style.display = "none";
       if (btnEnd) btnEnd.style.display = "none";
     }
@@ -456,7 +506,7 @@ const Match3Game = (() => {
     // Check if we have a saved state for this mode — resume it (no energy cost)
     if (savedModes[mode]) {
       // Save current mode FIRST (if active) before restoring the target mode
-      if (gameActive && score > 0 && gameMode !== mode) {
+      if (gameActive && gameMode !== mode) {
         savedModes[gameMode] = {
           board: JSON.parse(JSON.stringify(board)),
           score,
@@ -517,7 +567,7 @@ const Match3Game = (() => {
     }
 
     // Energy OK → save current mode state before switching
-    if (gameActive && score > 0 && gameMode !== mode) {
+    if (gameActive && gameMode !== mode) {
       savedModes[gameMode] = {
         board: JSON.parse(JSON.stringify(board)),
         score,
@@ -617,6 +667,18 @@ const Match3Game = (() => {
         placeDropStars();
       }
     }
+
+    // v4.5.1: stash new game into savedModes immediately so it survives reload
+    savedModes[mode] = {
+      board: JSON.parse(JSON.stringify(board)),
+      score,
+      movesLeft,
+      combo,
+      dropStars: JSON.parse(JSON.stringify(dropStars)),
+      starsDropped,
+      timedSecondsLeft,
+    };
+    persistSavedModes();
 
     updateStatsUI();
     renderBoard(true);
@@ -1007,9 +1069,20 @@ const Match3Game = (() => {
     // 4. Animate the cascade steps
     await animateCascade(result.steps);
 
-    // 5. Update UI
+    // 5. Update UI + persist state (v4.5.1)
     updateStatsUI();
     syncToStore();
+    // Persist current game state after every swap so progress survives reload
+    savedModes[gameMode] = {
+      board: JSON.parse(JSON.stringify(board)),
+      score,
+      movesLeft,
+      combo,
+      dropStars: JSON.parse(JSON.stringify(dropStars)),
+      starsDropped,
+      timedSecondsLeft,
+    };
+    persistSavedModes();
 
     if (combo > 1) showComboBanner(combo);
     if (result.totalPoints > 0)
