@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Shared Module (Production-Ready)
+ *  Game Hub — Shared Infrastructure (v3.1)
  *  Discord SDK auth, API helper, screen navigation
  *  CSP-compliant: no inline handlers, no external fonts
  * ═══════════════════════════════════════════════════ */
@@ -289,7 +289,7 @@ const SmartLoader = {
     if (this.loading[name]) return this.loading[name];
     this.loading[name] = new Promise((resolve, reject) => {
       const script = document.createElement("script");
-      script.src = `js/${name}.js?v=1.5`;
+      script.src = `js/${name}.js?v=3.1`;
       script.onload = () => {
         this.loaded[name] = true;
         resolve();

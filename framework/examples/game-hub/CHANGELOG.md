@@ -1,30 +1,42 @@
 # Changelog
 
+## v3.1.1 — 2026-02-17 (hotfix)
+
+- **CRASH FIX**: `STAR_TYPE` undefined in `animateCascade` (lines 726,730) — replaced with `DROP_TYPES.includes()`, same pattern as `renderBoard`
+- **[object Object] reward**: `calcDropReward()` returns `{gold,seeds,energy}` object — `updateStatsUI` now builds compact text preview (`+40g+7⚡`)
+- **Mode selector → left sidebar**: Absolute-positioned vertical bar left of board (`left:-110px`). Cards stacked vertically. `m3-layout` gets `position:relative`
+- **Stale cache**: All `?v=3.0` → `?v=3.1` in index.html (6 CSS + 4 JS). SmartLoader `?v=1.5` → `?v=3.1` in shared.js
+
 ## v3.1 — 2026-02-17
 
-### Farm & Inventory
+### Farm
 
-- **Gold sync** — Buying seeds now instantly updates gold display (optimistic deduct + rollback on error)
-- **Harvest persist** — Harvested items no longer disappear on reload (server `farm.harvested` → `resources.__harvested`)
-- **Sell button** — Each inventory item has 💰 sell button using formula `ceil((seedPrice × 0.5) × (growthSec × 0.25))`
-- **Feed pet** — 🍖 button in inventory feeds crop to pet (+2⚡), blocked at max energy
-- **Water timeout** — Water button now has 3s fallback to release click lock on slow server
+- Gold sync — instant `GameStore.resources.gold` deduct in `buySeeds`
+- Harvest persist — `syncHarvestedToStore()` on load/harvest
+- Sell button — formula `ceil((seedPrice*0.5)*(growSec*0.25))`
+- Feed pet — 🍖 button, +2⚡, max-energy guard
+- Water timeout — 3s `setTimeout` fallback
+- Server `/api/farm/sell-crop` endpoint
 
 ### Match-3
 
-- **Play Again fixed** — Game-over overlay now dismissed before showing mode selector
-- **Star Drop redesign** — 3 unique reward objects: 💰 Gold Bag, 🌾 Seed Pack, ⚡ Energy (distinct colors/animations)
-- **Time Attack display** — Shows countdown timer instead of "9999 moves"
-- **Tile clearing tests** — Unit tests for `findMatches()`, `resolveBoard()`, gravity, and cascade
+- Star Drop — 3 types: `drop_gold`💰, `drop_seeds`🌾, `drop_energy`⚡
+- Play Again — close overlay before mode selector
+- Time Attack — timer-only display, no "9999" moves
 
-### Energy & HUD
+### Energy/HUD
 
-- **Faster regen** — Energy regenerates every 150s (was 300s)
-- **Aurora energy pill** — Animated aurora borealis gradient fill (teal → purple → green)
+- Regen 150s (was 300s) in `game-logic.js` + `hud.js`
+- Aurora pill — `@keyframes auroraShift` gradient
 
-### Server
+### CSS
 
-- **`/api/farm/sell-crop`** — New endpoint for selling harvested crops
+- `farm.css` — `.farm-inv-btn.sell`, `.farm-inv-btn.feed`
+- `match3.css` — `.drop-gold`, `.drop-seeds`, `.drop-energy` (was `.star-gem`)
+
+### Tests
+
+- 12 tile clearing tests (findMatches, resolveBoard, gravity, cascade, drop exclusion)
 
 ---
 
@@ -32,16 +44,10 @@
 
 ### Hotfix (7 bugs)
 
-1. Farm panel shifted left — Fixed to `position: absolute` overlay
-2. Harvested items lost — `harvest()` now writes to `resources.__harvested`
-3. Harvest toast showed +gold — Changed to +XP only
-4. Fast planting drops clicks — Per-plot version tracking (`Map<plotId, version>`)
-5. Stale energy display — Removed "smart merge", always trust server energy
-6. Mode selector skipped — Arrow function wrapper prevents `MouseEvent` arg leak
-7. Energy regen bar misplaced — Regen fill now covers full energy pill
-
----
-
-## v1.0 – v2.x
-
-Initial release through iterative development. Core systems: Farm, Match-3 (Gem Crush), Brain Blitz (Trivia), Pet Companion, HUD with energy/gold, Discord Activity SDK integration.
+1. Farm panel → absolute overlay
+2. Harvest → `resources.__harvested` sync
+3. Toast → +XP only
+4. Fast plant → per-plot version
+5. Energy → always trust server
+6. Mode selector → arrow function wrapper
+7. Regen bar → energy pill fill

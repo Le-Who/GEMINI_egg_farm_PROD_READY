@@ -368,9 +368,9 @@ const Match3Game = (() => {
     if (!sel) {
       sel = document.createElement("div");
       sel.id = "m3-mode-selector";
-      sel.className = "m3-mode-selector show";
+      sel.className = "m3-mode-selector m3-mode-sidebar show";
       sel.innerHTML = `
-        <div class="m3-mode-title">Choose Mode</div>
+        <div class="m3-mode-title">Mode</div>
         <div class="m3-mode-cards">
           <button class="m3-mode-card" data-mode="classic">
             <span class="m3-mode-icon">💎</span>
@@ -380,12 +380,12 @@ const Match3Game = (() => {
           <button class="m3-mode-card" data-mode="timed">
             <span class="m3-mode-icon">⏱️</span>
             <span class="m3-mode-name">Time Attack</span>
-            <span class="m3-mode-desc">90s · 1.5× score</span>
+            <span class="m3-mode-desc">90s · 1.5×</span>
           </button>
           <button class="m3-mode-card" data-mode="drop">
             <span class="m3-mode-icon">🎯</span>
             <span class="m3-mode-name">Star Drop</span>
-            <span class="m3-mode-desc">Drop 3 🌟 in 20 moves</span>
+            <span class="m3-mode-desc">3 💰🌾⚡</span>
           </button>
         </div>
       `;
@@ -393,10 +393,17 @@ const Match3Game = (() => {
         const card = e.target.closest(".m3-mode-card");
         if (card) startGame(card.dataset.mode);
       });
-      $("m3-board-container")?.parentElement?.insertBefore(
-        sel,
-        $("m3-board-container"),
-      );
+      // Insert as left sidebar: inside m3-layout, before m3-main
+      const layout = $("m3-board-container")?.closest(".m3-layout");
+      const main = layout?.querySelector(".m3-main");
+      if (layout && main) {
+        layout.insertBefore(sel, main);
+      } else {
+        $("m3-board-container")?.parentElement?.insertBefore(
+          sel,
+          $("m3-board-container"),
+        );
+      }
     } else {
       sel.classList.add("show");
     }
@@ -723,11 +730,15 @@ const Match3Game = (() => {
           const type = board[y][x];
           const cell = document.createElement("div");
           cell.className = "m3-cell";
-          if (type === STAR_TYPE) cell.classList.add("star-gem");
+          const isDrop = DROP_TYPES.includes(type);
+          if (isDrop)
+            cell.classList.add("drop-gem", `drop-${type.replace("drop_", "")}`);
           cell.dataset.type = type;
           cell.dataset.x = x;
           cell.dataset.y = y;
-          const icon = type === STAR_TYPE ? "🌟" : GEM_ICONS[type] || "?";
+          const icon = isDrop
+            ? DROP_ICONS[type] || "🌟"
+            : GEM_ICONS[type] || "?";
           cell.innerHTML = `<span class="gem-icon">${icon}</span>`;
           if (changedSet.has(`${x},${y}`)) {
             cell.classList.add("falling");
@@ -774,14 +785,28 @@ const Match3Game = (() => {
       if (!gameActive) {
         reward = 0;
       } else if (gameMode === "drop") {
-        reward = calcDropReward();
+        const dr = calcDropReward();
+        // Build compact preview: gold + energy
+        const parts = [];
+        if (dr.gold > 0) parts.push(`${dr.gold}g`);
+        if (dr.energy > 0) parts.push(`${dr.energy}⚡`);
+        if (dr.seeds) parts.push(`🌾`);
+        $g.textContent = gameActive
+          ? parts.length
+            ? `+${parts.join("+")}`
+            : "+0"
+          : "—";
+        $g.style.color = dr.gold > 0 ? "#fbbf24" : "";
+        reward = null; // skip generic display below
       } else if (gameMode === "timed") {
         reward = calcGoldReward(Math.floor(score * 1.5));
       } else {
         reward = calcGoldReward(score);
       }
-      $g.textContent = gameActive ? `+${reward}` : "—";
-      $g.style.color = reward > REWARD_BASE ? "#fbbf24" : "";
+      if (reward !== null) {
+        $g.textContent = gameActive ? `+${reward}` : "—";
+        $g.style.color = reward > REWARD_BASE ? "#fbbf24" : "";
+      }
     }
   }
 

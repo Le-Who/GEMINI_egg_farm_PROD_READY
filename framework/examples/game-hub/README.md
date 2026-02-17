@@ -2,7 +2,7 @@
 
 > A combined Farm + Trivia + Match-3 game running as a single Discord Embedded App Activity with horizontal screen-swipe navigation.
 
-**v3.0** — Game Modes, Farm Panel, Pet Polish. Hotfix: overlay panel (no layout shift), per-plot planting, server-truth energy sync, mode selector fix, regen fill inside energy pill.
+**v3.1** — Sell & Feed inventory buttons, 3 unique Star Drop rewards, left-side mode selector, aurora energy pill, faster regen (150s), stale-cache fix.
 
 ## Quick Start
 
@@ -16,11 +16,11 @@ npm run dev
 
 ### ⚡ Energy Core (v1.6)
 
-- **Universal Energy**: 20 max energy, regenerates +1 every 5 minutes (passive).
+- **Universal Energy**: 20 max energy, regenerates +1 every 2.5 minutes (passive).
 - **Game Costs**: Match-3 (-5⚡), Trivia (-3⚡).
 - **Quick-Feed Modal** (v1.7): When energy is too low to play, an inline modal lets players feed harvested crops to their pet — restoring +2⚡ each — then jump straight into the game.
 - **TopHUD**: Global bar showing Energy/Gold, syncs across all screens.
-- **Regen Progress Bar** (v3.0): Thin micro-fill bar inside the energy indicator showing progress toward the next +1⚡ tick (fills 0→100% over 5 minutes). Hidden at full energy.
+- **Aurora Energy Pill** (v3.1): Animated aurora borealis gradient fill (teal→purple→green) showing regen progress. Hidden at full energy.
 
 ### 🐾 Living Pet (v1.6 → v3.0)
 
@@ -56,16 +56,20 @@ npm run dev
 - **CropsCache TTL** (v2.2): `localStorage('hub_crops_cache')` wrapped with 24h TTL.
 - **CropsCache Hash** (v3.0): Server returns `__hash` field — instant cache invalidation on config changes.
 
-### 🌱 Farm (v1.8 → v3.0)
+### 🌱 Farm (v1.8 → v3.1)
 
 - **8 crops**: Tomato, Corn, Sunflower, Golden Rose, Blueberry, Watermelon, Pumpkin, Wheat.
 - **6–12 plots**: Start with 6, buy up to 12 (doubling cost: 200→6400🪙).
 - **Glassmorphism Side Panel** (v3.0): Right-side panel with 📦 Inventory / 🌾 Shop tabs.
-  - **Inventory tab**: Harvested crops grouped by type with emoji, name, sell price, and quantity.
-  - **Shop tab**: Seed cards with buy bar (replaces old inline shop).
-  - Frosted glass UI (`backdrop-filter: blur(16px)`), responsive stacking on narrow screens.
+  - **Inventory tab**: Harvested crops with 💰 Sell and 🍖 Feed buttons.
+    - **Sell** (v3.1): `ceil((seedPrice × 0.5) × (growthSec × 0.25))` formula.
+    - **Feed Pet** (v3.1): Deducts 1 crop → +2⚡ energy. Blocked at max energy.
+  - **Shop tab**: Seed cards with buy bar.
+  - Frosted glass UI (`backdrop-filter: blur(16px)`), responsive stacking.
+- **Instant Gold Sync** (v3.1): Gold deducted from GameStore immediately on purchase.
+- **Harvest Persistence** (v3.1): `syncHarvestedToStore()` ensures items survive reload.
+- **Water Timeout** (v3.1): 3s fallback releases watering lock on slow server.
 - **All Actions Fire-and-Forget** (v2.0): Plant, harvest, water, buy seeds, buy plot — all instant with version guards.
-  - **Harvest Toast** (v3.0): Now uses 🪙 currency symbol.
 - **Event Delegation** (v1.9): Single click handler on `#farm-plots` grid.
 - **Smart Growth Tick** (v1.9): 500ms interval skips render when no plots growing.
 - **Unified Economy**: Uses global Gold (syncs with TopHUD).
@@ -78,13 +82,13 @@ npm run dev
 - **Duel Lobby** & **Voice Chat Invite**.
 - **Gold Rewards**: Earn gold for winning quizzes.
 
-### 💎 Match-3 (v1.5 → v3.0)
+### 💎 Match-3 (v1.5 → v3.1)
 
-- **3 Game Modes** (v3.0):
+- **3 Game Modes** (v3.0 → v3.1):
   - 💎 **Classic**: 30 moves, standard scoring.
-  - ⏱️ **Time Attack**: 90 seconds, unlimited moves, score ×1.5 for reward calculation.
-  - 🎯 **Star Drop**: Drop 3 🌟 objects to the bottom in 20 moves. Rewards: 100🪙 base + 50🪙/star + 250🪙 bonus for all 3.
-- **Mode Selector**: Glassmorphism card UI before game start.
+  - ⏱️ **Time Attack**: 90 seconds, unlimited moves, score ×1.5. Timer-only display (no moves counter).
+  - 🎯 **Star Drop** (v3.1): Drop 3 unique reward objects — 💰 Gold Bag (+40🪙), 🌾 Seed Pack (3× random), ⚡ Energy (+7⚡) — to the bottom in 20 moves. +20🪙 bonus for all 3.
+- **Left-Side Mode Selector** (v3.1): Vertical sidebar with compact mode cards.
 - **Client-side engine** with server validation.
 - **Swap Slide Animation** (v1.8): Gems visually glide into each other's positions.
 - **Energy Gate**: Requires 5 energy to start → quick-feed modal if insufficient.
@@ -106,6 +110,7 @@ npm run dev
 | `POST` | `/api/pet/state`       | Get pet state                              |
 | `POST` | `/api/pet/feed`        | Feed pet (Cost: Crop, Reward: Energy + XP) |
 | `POST` | `/api/farm/state`      | Get farm state + offline simulation report |
+| `POST` | `/api/farm/sell-crop`  | Sell harvested crop (v3.1)                 |
 | `POST` | `/api/game/state`      | Get Match-3 state                          |
 | `POST` | `/api/game/start`      | Start Match-3 (-5 Energy)                  |
 | `POST` | `/api/trivia/start`    | Start Trivia (-3 Energy)                   |
