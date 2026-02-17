@@ -14,6 +14,7 @@
   grid-template-columns: repeat(3, 1fr);
   gap: 10px;
   width: min(420px, calc(100vw - 80px));
+  position: relative;
 }
 
 .farm-plot {
@@ -139,15 +140,15 @@
 
 /* ─── Farm Layout (plots + side panel) ─── */
 .farm-layout {
-  display: flex;
-  gap: 16px;
-  width: min(780px, calc(100vw - 40px));
-  align-items: flex-start;
+  position: relative;
 }
 
-/* ─── Glassmorphism Side Panel ─── */
+/* ─── Glassmorphism Side Panel (overlay, no layout shift) ─── */
 .farm-panel {
-  flex: 0 0 240px;
+  position: absolute;
+  top: 0;
+  left: calc(100% + 16px);
+  width: 240px;
   background: rgba(255, 255, 255, 0.04);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -156,6 +157,7 @@
   padding: 0;
   overflow: hidden;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+  z-index: 50;
 }
 
 /* ─── Panel Tabs ─── */
@@ -490,13 +492,10 @@
 }
 /* Panel stacks below plots on narrow screens */
 @media (max-width: 640px) {
-  .farm-layout {
-    flex-direction: column;
-    align-items: center;
-  }
   .farm-panel {
-    flex: none;
+    position: static;
     width: min(420px, calc(100vw - 40px));
+    margin-top: 12px;
   }
 }
 @media (max-width: 420px) {

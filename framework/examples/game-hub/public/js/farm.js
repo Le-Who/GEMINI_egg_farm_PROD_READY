@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Farm Module  (v1.5)
+ *  Game Hub — Farm Module  (v3.0)
  *  Plots, planting, watering, harvesting, seed shop
  *  ─ Local growth timer, diff-update fix, farm badge
  *  ─ Diff-update plots (no blink), horizontal buy bar, plot dispatcher
@@ -14,7 +14,7 @@ const FarmGame = (() => {
   let firstRenderDone = false;
   let buyQty = 1;
   let justPlantedPlot = -1; // Track freshly-planted plot for animation
-  let plantVersion = 0; // Track rapid planting for stale response rejection
+  const plotPlantVersions = new Map(); // Per-plot version tracking (Bug 4 fix)
   let harvestVersion = 0; // Track rapid harvesting for stale response rejection
   let waterVersion = 0; // Track rapid watering for stale response rejection
   const wateringInFlight = new Set(); // Prevent duplicate auto-water requests
@@ -577,16 +577,17 @@ const FarmGame = (() => {
     renderShop();
     updateBuyBar();
 
-    // Fire-and-forget with version guard (prevents stale server responses)
-    const myVersion = ++plantVersion;
+    // Fire-and-forget with PER-PLOT version guard (Bug 4 fix)
+    const ver = (plotPlantVersions.get(plotId) || 0) + 1;
+    plotPlantVersions.set(plotId, ver);
     api("/api/farm/plant", {
       userId: HUB.userId,
       plotId,
       cropId,
     })
       .then((data) => {
-        // Ignore stale response if more plants happened while this was in-flight
-        if (plantVersion !== myVersion) return;
+        // Only process if this plot hasn't been re-planted since
+        if (plotPlantVersions.get(plotId) !== ver) return;
         if (data.success) {
           // Silently sync server state — NO re-render (optimistic UI is correct)
           state.plots = data.plots;
@@ -605,7 +606,7 @@ const FarmGame = (() => {
         }
       })
       .catch(() => {
-        if (plantVersion === myVersion) loadState();
+        if (plotPlantVersions.get(plotId) === ver) loadState();
       });
   }
 
@@ -649,17 +650,23 @@ const FarmGame = (() => {
 
     state.plots[plotId] = { crop: null, plantedAt: null, watered: false };
     state.xp += estimatedXP;
+
+    // Bug 2 fix: write harvested crop to resources.__harvested in GameStore
+    if (typeof GameStore !== "undefined") {
+      const res = GameStore.getState("resources") || {};
+      const harvested = { ...(res.__harvested || {}) };
+      harvested[plotSnapshot.crop] = (harvested[plotSnapshot.crop] || 0) + 1;
+      GameStore.setState("resources", { ...res, __harvested: harvested });
+    }
+
     syncToStore();
     render();
     renderShop();
     updateBuyBar();
     renderInventory();
 
-    // Instant optimistic feedback (< 16ms)
-    showToast(
-      `${cfg?.emoji || "🌱"} Harvested! +${estimatedCoins}🪙 +${estimatedXP}XP`,
-    );
-    if (typeof HUD !== "undefined") HUD.animateGoldChange(estimatedCoins);
+    // Bug 3 fix: toast shows only XP, no gold (harvest doesn't award gold)
+    showToast(`${cfg?.emoji || "🌱"} Harvested! +${estimatedXP}XP`);
 
     // Fire-and-forget with version guard
     const myVersion = ++harvestVersion;

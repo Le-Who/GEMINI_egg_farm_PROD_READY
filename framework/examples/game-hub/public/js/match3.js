@@ -207,7 +207,7 @@ const Match3Game = (() => {
         gameActive,
       });
     }
-    $("m3-btn-start").onclick = startGame;
+    $("m3-btn-start").onclick = () => startGame(); // Bug 6 fix: prevent MouseEvent arg leak
     $("m3-btn-lb").onclick = toggleLeaderboard;
     // Leaderboard close handlers
     $("m3-lb-close").onclick = closeLeaderboard;

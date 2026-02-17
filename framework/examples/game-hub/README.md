@@ -2,7 +2,7 @@
 
 > A combined Farm + Trivia + Match-3 game running as a single Discord Embedded App Activity with horizontal screen-swipe navigation.
 
-**v3.0** — Game Modes, Farm Panel, Pet Polish: Match-3 Mode Selector (Classic/Timed/Drop), Glassmorphism Farm Inventory+Shop Panel, Pet PC Flicker Fix, Energy Regen Progress Bar, CropsCache Hash Invalidation.
+**v3.0** — Game Modes, Farm Panel, Pet Polish. Hotfix: overlay panel (no layout shift), per-plot planting, server-truth energy sync, mode selector fix, regen fill inside energy pill.
 
 ## Quick Start
 

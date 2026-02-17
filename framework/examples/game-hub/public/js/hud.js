@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — HUD Module (v1.6)
+ *  Game Hub — HUD Module (v3.0)
  *  TopHUD for Energy & Gold display
  *  Registers 'resources' slice in GameStore
  * ═══════════════════════════════════════════════════ */
@@ -41,17 +41,12 @@ const HUD = (function () {
     const energyText = document.getElementById("hud-energy-text");
     const goldText = document.getElementById("hud-gold-text");
     const energyEl = document.querySelector(".hud-energy");
-    const barFill = document.getElementById("hud-energy-bar-fill");
 
     if (energyText) {
       energyText.textContent = `${res.energy.current}/${res.energy.max}`;
     }
     if (goldText) {
       goldText.textContent = formatGold(res.gold);
-    }
-    if (barFill) {
-      const pct = (res.energy.current / res.energy.max) * 100;
-      barFill.style.width = `${pct}%`;
     }
 
     // Low energy warning
@@ -161,23 +156,13 @@ const HUD = (function () {
     return 0;
   }
 
-  /* ─── Update from server response (smart merge) ─── */
+  /* ─── Update from server response ─── */
   function syncFromServer(resources) {
     if (!resources) return;
     if (typeof GameStore !== "undefined") {
-      const prev = GameStore.getState("resources");
-      // Smart merge: preserve local energy if regen tick advanced it
-      // beyond what the server snapshot shows (prevents energy rollback)
-      if (prev && prev.energy && resources.energy) {
-        const localE = prev.energy.current;
-        const serverE = resources.energy.current;
-        if (localE > serverE) {
-          resources = {
-            ...resources,
-            energy: { ...resources.energy, current: localE },
-          };
-        }
-      }
+      // Bug 5 fix: always trust server energy — local regen timer will
+      // recalculate from server's lastRegenTimestamp on next tick.
+      // Old "smart merge" kept stale local values, causing phantom energy.
       GameStore.setState("resources", resources);
     }
     updateDisplay(resources);

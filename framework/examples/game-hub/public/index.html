@@ -34,20 +34,14 @@
     <!-- ═══ TopHUD — Energy & Gold ═══ -->
     <div class="top-hud" id="top-hud">
       <div class="hud-energy" id="hud-energy">
+        <!-- Bug 7: regen fill behind content, fills entire energy pill -->
+        <div
+          class="hud-energy-regen-fill"
+          id="hud-energy-regen-fill"
+          style="width: 0%"
+        ></div>
         <span class="hud-icon">⚡</span>
         <span id="hud-energy-text">--/--</span>
-        <div class="hud-energy-bar">
-          <div
-            class="hud-energy-bar-fill"
-            id="hud-energy-bar-fill"
-            style="width: 100%"
-          ></div>
-          <div
-            class="hud-energy-regen-fill"
-            id="hud-energy-regen-fill"
-            style="width: 0%"
-          ></div>
-        </div>
         <div class="hud-energy-tooltip" id="hud-energy-tooltip">Loading...</div>
       </div>
       <div class="hud-gold" id="hud-gold">

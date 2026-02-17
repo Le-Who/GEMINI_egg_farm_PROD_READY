@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Modular State Store (v1.5)
+ *  Game Hub — Modular State Store (v3.0)
  *  Zustand-inspired slice pattern for vanilla JS.
  *  Each game registers its own slice; listeners are
  *  scoped per-slice so Match-3 updates never trigger
