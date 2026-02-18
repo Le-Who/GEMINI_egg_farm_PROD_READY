@@ -839,11 +839,11 @@ npm test
 
 #### Game Hub (`examples/game-hub`)
 
-Game Hub имеет собственный набор тестов (167 штук) на `node:test` — см. `examples/game-hub/README.md`:
+Game Hub имеет собственный набор тестов (180 штук) на `node:test` — см. `examples/game-hub/README.md`:
 
 ```bash
 cd examples/game-hub
-npm test          # Unit (49) + API (24) + Blox (26) + M3 (12) + UX (29) + GCP (20) + Perf (7)
+npm test          # Unit (49) + API (24) + Blox (26) + M3 (12) + UX (36) + GCP (20) + Perf (7) + Version (2) + Star Drop (4)
 ```
 
 ### CI

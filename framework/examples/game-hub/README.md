@@ -2,7 +2,7 @@
 
 > A combined Farm + Trivia + Match-3 + Building Blox game running as a single Discord Embedded App Activity with horizontal screen-swipe navigation.
 
-**v4.6.0** — Global version constant (auto-synced from `package.json`); Star Drop gems have unique colors and animated glow borders for instant identification.
+**v4.6.0** — Global version constant (auto-synced from `package.json`); Star Drop gems have unique colors and animated glow borders; Play Again button fix.
 
 ## Quick Start
 
@@ -165,7 +165,7 @@ game-hub/
 │   ├── api.test.js      # 24 API integration tests
 │   ├── blox.test.js     # 26 Building Blox tests
 │   ├── match3.test.js   # 12 tile clearing tests
-│   ├── ux.test.js       # 29 UX diagnostic tests
+│   ├── ux.test.js       # 36 UX diagnostic tests (incl. Star Drop + version)
 │   ├── gcp.test.js      # 20 GCP resilience tests
 │   └── perf.test.js     # 7 performance benchmarks
 └── Dockerfile           # Cloud Run deployment
@@ -174,7 +174,7 @@ game-hub/
 ## 🧪 Testing
 
 ```bash
-npm test          # All 167 tests
+npm test          # All 180 tests
 npm run test:perf # Performance benchmarks only
 ```
 
@@ -184,7 +184,7 @@ npm run test:perf # Performance benchmarks only
 | **API**  |    24 | All REST endpoints (farm, pet, trivia, match-3, blox, health)                        |
 | **Blox** |    26 | Piece shapes, placement, line clearing, scoring, game-over, reward                   |
 | **M3**   |    12 | findMatches, resolveBoard, gravity, cascade, drop-type exclusion                     |
-| **UX**   |    29 | Pet flicker invariants, zone bounds, growth ticks, race conditions, version guards   |
+| **UX**   |    36 | Pet flicker, zone bounds, growth ticks, mode selector, Star Drop colors, version     |
 | **GCP**  |    20 | Latency (<200ms), concurrency, payload (<16KB), save stress, stale reconnect         |
 | **Perf** |     7 | Board generation, match detection, offline processing                                |
 

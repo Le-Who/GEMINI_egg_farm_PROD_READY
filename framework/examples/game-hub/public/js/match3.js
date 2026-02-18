@@ -722,6 +722,14 @@ const Match3Game = (() => {
 
   /* ─── Mode Selector UI ─── */
   function showModeSelector() {
+    // v4.6: Dismiss any active overlays so mode selector is visible
+    hideGameOver();
+    hideM3PauseOverlay();
+    // Ensure clean state — no stale game blocking input
+    gameActive = false;
+    gamePaused = false;
+    HUB.swipeBlocked = false;
+
     let sel = $("m3-mode-selector");
     if (!sel) {
       sel = document.createElement("div");
@@ -1346,6 +1354,11 @@ const Match3Game = (() => {
     $("m3-final-score").textContent = finalScore;
     $("m3-final-best").textContent = highScore;
     $("m3-overlay").classList.add("show");
+  }
+
+  function hideGameOver() {
+    const ov = $("m3-overlay");
+    if (ov) ov.classList.remove("show");
   }
 
   /* ═══ Leaderboard ═══ */
