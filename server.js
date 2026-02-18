@@ -647,7 +647,10 @@ async function startServer(port = PORT) {
       fromId: req.discordUser.id,
       fromName: req.discordUser.username || "Visitor",
       sticker,
-      message: message ? message.substring(0, 256) : undefined,
+      // Security: Sanitize message to prevent XSS/injection
+      message: message
+        ? message.replace(/[^a-zA-Z0-9\s.,!?'"-]/g, "").substring(0, 256)
+        : undefined,
       timestamp: Date.now(),
     });
     if (targetState.billboard.length > 20) {
@@ -747,9 +750,9 @@ async function startServer(port = PORT) {
     res.sendFile(indexPath);
   });
 
-  return app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-    console.log(`Admin panel: http://localhost:${PORT}/admin`);
+  return app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
+    console.log(`Admin panel: http://localhost:${port}/admin`);
     console.log(
       `Storage: ${getBucket() ? "GCS (" + GCS_BUCKET + ")" : "LOCAL (ephemeral)"}`,
     );
