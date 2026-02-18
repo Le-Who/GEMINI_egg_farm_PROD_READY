@@ -5,3 +5,7 @@
 ## 2024-05-23 - [Test Artifact Isolation]
 **Learning:** Integration tests running against the real `server.js` logic can generate local artifacts (like `data/db.json`). Always ensure tests use a temporary directory or mocked persistence layer, and verify `git status` before committing to avoid polluting the repo with test data.
 **Action:** Add `data/db.json` to `.gitignore` or ensure test cleanup in `afterAll`.
+
+## 2024-05-24 - [Express.listen default parameter pitfall]
+**Learning:** `app.listen(port || PORT)` fails if `port` is passed as `0` (for random port), because `0` is falsy and it falls back to `PORT` (8080). This causes parallel tests to fail with `EADDRINUSE`.
+**Action:** Use `port !== undefined ? port : PORT` or ensure correct handling of `0` when allowing dynamic port assignment.

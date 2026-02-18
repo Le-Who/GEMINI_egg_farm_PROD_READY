@@ -31,7 +31,7 @@ interface HUDProps {
   isNeighborsOpen: boolean;
 }
 
-export const HUD: React.FC<HUDProps> = ({
+export const HUD: React.FC<HUDProps> = React.memo(({
   user,
   displayUser,
   avatarUrl,
@@ -229,4 +229,4 @@ export const HUD: React.FC<HUDProps> = ({
       </div>
     </>
   );
-};
+});

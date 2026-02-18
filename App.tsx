@@ -198,13 +198,13 @@ const GameContent: React.FC = () => {
     gameBus.emit("floatingText", x, y, text, color);
   };
 
-  const handleOpenShop = async () => {
+  const handleOpenShop = useCallback(async () => {
     setIsShopOpen(true);
     if (currentUser && !currentUser.completedTutorial) {
       const updatedUser = await GameEngine.triggerTutorial("OPEN_SHOP");
       setCurrentUser(updatedUser);
     }
-  };
+  }, [currentUser]);
 
   const handleBuy = async (itemId: string) => {
     if (!currentUser) return;
@@ -300,27 +300,30 @@ const GameContent: React.FC = () => {
     }
   };
 
-  const handleSwitchRoom = async (type: RoomType) => {
-    // When visiting, switch the displayed neighbor's room locally (no server call)
-    if (isVisiting && displayUser) {
-      if (!displayUser.rooms[type]?.unlocked) {
-        showNotification("This room is locked", "error");
+  const handleSwitchRoom = useCallback(
+    async (type: RoomType) => {
+      // When visiting, switch the displayed neighbor's room locally (no server call)
+      if (isVisiting && displayUser) {
+        if (!displayUser.rooms[type]?.unlocked) {
+          showNotification("This room is locked", "error");
+          return;
+        }
+        setDisplayUser({ ...displayUser, currentRoom: type });
+        showNotification(`Viewing ${type}`, "success");
         return;
       }
-      setDisplayUser({ ...displayUser, currentRoom: type });
-      showNotification(`Viewing ${type}`, "success");
-      return;
-    }
 
-    const result = await GameEngine.switchRoom(type);
-    if (result.success && result.newState) {
-      setCurrentUser(result.newState);
-      setDisplayUser(result.newState);
-      showNotification(`Entered ${type}`, "success");
-    } else {
-      showNotification(result.message || "Locked", "error");
-    }
-  };
+      const result = await GameEngine.switchRoom(type);
+      if (result.success && result.newState) {
+        setCurrentUser(result.newState);
+        setDisplayUser(result.newState);
+        showNotification(`Entered ${type}`, "success");
+      } else {
+        showNotification(result.message || "Locked", "error");
+      }
+    },
+    [isVisiting, displayUser, showNotification],
+  );
 
   // Pet interaction — owner and visitors can pet
   const handlePetPet = useCallback(
@@ -572,16 +575,25 @@ const GameContent: React.FC = () => {
     ],
   );
 
-  const toggleEditMode = () => {
+  const toggleEditMode = useCallback(() => {
     if (isVisiting) {
       showNotification("Cannot edit neighbor's farm!", "error");
       return;
     }
-    setIsEditMode(!isEditMode);
+    setIsEditMode((prev) => !prev);
     setSelectedItemId(null);
     setRotation(0);
     setIsSeedBagOpen(false);
-  };
+  }, [isVisiting, showNotification]);
+
+  // Stable handlers for UI components to prevent re-renders
+  const handleOpenPets = useCallback(() => setIsPetsModalOpen(true), []);
+  const handleOpenQuests = useCallback(() => setIsQuestsOpen(true), []);
+  const handleToggleNeighbors = useCallback(
+    () => setIsNeighborsOpen((prev) => !prev),
+    [],
+  );
+  const handleRotate = useCallback(() => setRotation((r) => (r + 1) % 4), []);
 
   if (!currentUser || !displayUser) {
     return (
@@ -649,10 +661,10 @@ const GameContent: React.FC = () => {
         displayUser={displayUser || undefined}
         avatarUrl={discordService.user?.avatar}
         onOpenShop={handleOpenShop}
-        onOpenPets={() => setIsPetsModalOpen(true)}
-        onOpenQuests={() => setIsQuestsOpen(true)}
+        onOpenPets={handleOpenPets}
+        onOpenQuests={handleOpenQuests}
         onToggleEdit={toggleEditMode}
-        onToggleNeighbors={() => setIsNeighborsOpen(!isNeighborsOpen)}
+        onToggleNeighbors={handleToggleNeighbors}
         onSwitchRoom={handleSwitchRoom}
         isEditMode={isEditMode}
         isNeighborsOpen={isNeighborsOpen}
@@ -662,7 +674,7 @@ const GameContent: React.FC = () => {
 
       <NeighborsPanel
         isOpen={isNeighborsOpen}
-        onToggle={() => setIsNeighborsOpen(!isNeighborsOpen)}
+        onToggle={handleToggleNeighbors}
         onVisit={handleVisit}
       />
 
@@ -672,7 +684,7 @@ const GameContent: React.FC = () => {
           selectedItemId={selectedItemId}
           rotation={rotation}
           onSelect={setSelectedItemId}
-          onRotate={() => setRotation((r) => (r + 1) % 4)}
+          onRotate={handleRotate}
           onClose={toggleEditMode}
           isEditMode={isEditMode}
           onToggleEditMode={toggleEditMode}
