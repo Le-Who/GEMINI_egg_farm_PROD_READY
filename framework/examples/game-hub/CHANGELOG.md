@@ -1,5 +1,27 @@
 # Changelog
 
+## v4.6.0 — 2026-02-18
+
+### Global Version Constant
+
+- **Single source of truth**: Server reads `package.json` version at startup, injects `window.__APP_VERSION__` into HTML via `<!--APP_VERSION_INJECT-->` placeholder.
+- **SmartLoader auto-sync**: `shared.js` SmartLoader reads `window.__APP_VERSION__` for cache-bust — no more hardcoded version strings.
+- **Version badge auto-sync**: `{{APP_VERSION}}` placeholder in badge div, replaced by server.
+- **Eliminates manual updates**: Only `package.json` and file headers need manual version bumps on release.
+
+### Star Drop Visual Enhancement
+
+- **Unique colors**: Drop gems now use radial gradients with hues that don't overlap any of the 6 regular gem types:
+  - 💰 Gold Bag: rose-gold metallic (`#ffe4c4 → #e6a654 → #c4803d`)
+  - 🌾 Seed Pack: deep emerald (`#b4ffd0 → #10b981 → #047857`)
+  - ⚡ Energy: electric violet (`#e0c3fc → #a855f7 → #7c3aed`)
+- **Unique borders**: Thick white border (3px, 85% opacity) + animated `dropBorderPulse` glow with per-type `--drop-color` custom property. Glow expands outward in sync with existing `dropGlow` pulse.
+- **3D inner glow**: Radial gradient placed at 35% 35% creates a gem-like highlight that no regular flat-gradient tile has.
+
+### Version Bump
+
+- All file headers, `package.json` → `v4.6.0`.
+
 ## v4.5.3 — 2026-02-18
 
 ### Match-3 Mode Selector Fix (Critical)

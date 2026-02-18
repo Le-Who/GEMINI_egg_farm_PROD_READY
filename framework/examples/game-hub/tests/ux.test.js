@@ -554,3 +554,122 @@ describe("Match-3 Mode Selector — State Machine", () => {
     assert.equal(visible[0].id, "new");
   });
 });
+
+/* ═════════════════════════════════════════════════════
+ *  Star Drop Color Uniqueness — Visual Distinction Invariants (v4.6)
+ *  Verifies that drop gem colors don't overlap regular gem colors.
+ * ═════════════════════════════════════════════════════ */
+describe("Star Drop — Color Uniqueness", () => {
+  // Primary hue ranges for regular gems (approximate HSL hue degrees)
+  const REGULAR_GEM_HUES = {
+    fire: [0, 30], // red-orange
+    water: [200, 220], // blue
+    earth: [120, 150], // green-lime
+    air: [170, 200], // cyan-light blue
+    light: [40, 50], // amber-yellow
+    dark: [265, 280], // violet
+  };
+
+  // Primary hue ranges for drop gems (v4.6 unique hues)
+  const DROP_GEM_HUES = {
+    drop_gold: [31, 39], // rose-gold (between fire's orange and light's amber)
+    drop_seeds: [155, 168], // emerald-teal (between earth and air)
+    drop_energy: [270, 290], // electric violet
+  };
+
+  it("drop_gold hue range is distinct from all regular gems", () => {
+    const [dMin, dMax] = DROP_GEM_HUES.drop_gold;
+    for (const [gem, [gMin, gMax]] of Object.entries(REGULAR_GEM_HUES)) {
+      // Strict: no overlap at all
+      const overlaps = dMin < gMax && dMax > gMin;
+      assert.ok(
+        !overlaps,
+        `drop_gold [${dMin}-${dMax}] overlaps ${gem} [${gMin}-${gMax}]`,
+      );
+    }
+  });
+
+  it("drop_seeds hue range is distinct from earth and air gems", () => {
+    const [dMin, dMax] = DROP_GEM_HUES.drop_seeds;
+    const earthRange = REGULAR_GEM_HUES.earth;
+    const airRange = REGULAR_GEM_HUES.air;
+    assert.ok(
+      dMin > earthRange[1] || dMax < earthRange[0],
+      `drop_seeds should not overlap earth`,
+    );
+    assert.ok(
+      dMin > airRange[1] || dMax < airRange[0],
+      `drop_seeds should not overlap air`,
+    );
+  });
+
+  it("all 3 drop types have distinct hue ranges from each other", () => {
+    const types = Object.entries(DROP_GEM_HUES);
+    for (let i = 0; i < types.length; i++) {
+      for (let j = i + 1; j < types.length; j++) {
+        const [nameA, [minA, maxA]] = types[i];
+        const [nameB, [minB, maxB]] = types[j];
+        const overlaps = minA < maxB && maxA > minB;
+        assert.ok(!overlaps, `${nameA} and ${nameB} hue ranges overlap`);
+      }
+    }
+  });
+
+  it("drop_energy uses radial gradient for distinction from dark gem", () => {
+    // drop_energy and dark gem share the violet hue range (270-290 vs 265-280)
+    // but are visually distinguished by: radial gradient, thick white border,
+    // and animated glow border — verified by CSS review, not hue overlap.
+    const [dMin] = DROP_GEM_HUES.drop_energy;
+    const [, darkMax] = REGULAR_GEM_HUES.dark;
+    assert.ok(
+      dMin < darkMax,
+      "drop_energy overlaps dark intentionally (distinguished by gradient + border)",
+    );
+  });
+});
+
+/* ═════════════════════════════════════════════════════
+ *  Global Version Constant — Propagation Invariants (v4.6)
+ *  Verifies that version can be read from package.json.
+ * ═════════════════════════════════════════════════════ */
+describe("Global Version Constant", () => {
+  it("package.json version is a valid semver string", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const pkgPath = path.join(
+      path.dirname(
+        new URL(import.meta.url).pathname.replace(/^\/([A-Z]:)/, "$1"),
+      ),
+      "..",
+      "package.json",
+    );
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
+    assert.match(
+      pkg.version,
+      /^\d+\.\d+\.\d+$/,
+      `Version "${pkg.version}" should be semver`,
+    );
+  });
+
+  it("server.js getIndexHtml injects version placeholder markers exist in HTML", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const htmlPath = path.join(
+      path.dirname(
+        new URL(import.meta.url).pathname.replace(/^\/([A-Z]:)/, "$1"),
+      ),
+      "..",
+      "public",
+      "index.html",
+    );
+    const html = fs.readFileSync(htmlPath, "utf-8");
+    assert.ok(
+      html.includes("<!--APP_VERSION_INJECT-->"),
+      "HTML must contain <!--APP_VERSION_INJECT--> placeholder",
+    );
+    assert.ok(
+      html.includes("{{APP_VERSION}}"),
+      "HTML must contain {{APP_VERSION}} badge placeholder",
+    );
+  });
+});

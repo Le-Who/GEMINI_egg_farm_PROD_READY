@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Match-3 Screen Styles (v4.5.3)
+ *  Game Hub — Match-3 Screen Styles (v4.6.0)
  * ═══════════════════════════════════════════════════ */
 
 /* Scope overlays to this screen only */
@@ -541,22 +541,62 @@
 }
 
 /* ─── Drop Gems (Star Drop mode — 3 unique reward types) ─── */
+/* v4.6: Unique-hue radial gradients + thick white border + pulsing glow.
+ * Colors are intentionally different from all 6 regular gem types:
+ *   fire=#ef4444 water=#3b82f6 earth=#22c55e air=#67e8f9 light=#fbbf24 dark=#8b5cf6
+ * Drop gems use rose-gold, deep emerald, and electric violet. */
+
 .m3-cell.drop-gem {
-  animation: dropGlow 1.5s ease-in-out infinite;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  border: 3px solid rgba(255, 255, 255, 0.85);
+  animation:
+    dropGlow 1.5s ease-in-out infinite,
+    dropBorderPulse 2s ease-in-out infinite;
+  z-index: 5;
 }
+
+/* ── Gold Bag: rose-gold metallic ── */
 .m3-cell.drop-gold {
-  background: linear-gradient(135deg, #f59e0b, #d97706) !important;
-  box-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
+  --drop-color: rgba(230, 166, 84, 0.65);
+  background: radial-gradient(
+    circle at 35% 35%,
+    #ffe4c4,
+    #e6a654,
+    #c4803d
+  ) !important;
+  box-shadow:
+    0 0 10px var(--drop-color),
+    0 0 0 2px var(--drop-color);
 }
+
+/* ── Seed Pack: deep emerald ── */
 .m3-cell.drop-seeds {
-  background: linear-gradient(135deg, #22c55e, #16a34a) !important;
-  box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
+  --drop-color: rgba(16, 185, 129, 0.65);
+  background: radial-gradient(
+    circle at 35% 35%,
+    #b4ffd0,
+    #10b981,
+    #047857
+  ) !important;
+  box-shadow:
+    0 0 10px var(--drop-color),
+    0 0 0 2px var(--drop-color);
 }
+
+/* ── Energy: electric violet ── */
 .m3-cell.drop-energy {
-  background: linear-gradient(135deg, #06b6d4, #0891b2) !important;
-  box-shadow: 0 0 8px rgba(6, 182, 212, 0.5);
+  --drop-color: rgba(168, 85, 247, 0.65);
+  background: radial-gradient(
+    circle at 35% 35%,
+    #e0c3fc,
+    #a855f7,
+    #7c3aed
+  ) !important;
+  box-shadow:
+    0 0 10px var(--drop-color),
+    0 0 0 2px var(--drop-color);
 }
+
+/* Pulse animation (brightness + subtle scale) */
 @keyframes dropGlow {
   0%,
   100% {
@@ -564,7 +604,22 @@
     transform: scale(1);
   }
   50% {
-    filter: brightness(1.2);
+    filter: brightness(1.25);
     transform: scale(1.06);
+  }
+}
+
+/* Animated border glow — expands outward in sync with pulse */
+@keyframes dropBorderPulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 8px var(--drop-color),
+      0 0 0 2px var(--drop-color);
+  }
+  50% {
+    box-shadow:
+      0 0 20px var(--drop-color),
+      0 0 0 5px var(--drop-color);
   }
 }

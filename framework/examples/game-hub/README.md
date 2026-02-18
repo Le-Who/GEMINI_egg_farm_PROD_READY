@@ -2,7 +2,7 @@
 
 > A combined Farm + Trivia + Match-3 + Building Blox game running as a single Discord Embedded App Activity with horizontal screen-swipe navigation.
 
-**v4.5.3** — Match-3 mode selector always accessible after re-entry; button hierarchy fixed (Continue > New Game > End); all `?v=` cache-busts synced.
+**v4.6.0** — Global version constant (auto-synced from `package.json`); Star Drop gems have unique colors and animated glow borders for instant identification.
 
 ## Quick Start
 

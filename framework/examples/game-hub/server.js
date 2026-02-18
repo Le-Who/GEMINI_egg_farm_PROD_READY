@@ -36,6 +36,13 @@ import {
 } from "./game-logic.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// ─── Global Version Constant (single source: package.json) ───
+const pkg = JSON.parse(
+  fs.readFileSync(path.join(__dirname, "package.json"), "utf-8"),
+);
+const APP_VERSION = pkg.version;
+
 const app = express();
 app.use(compression());
 app.use(express.json());
@@ -1382,7 +1389,7 @@ function computeAssetHashes() {
   );
 }
 
-// Serve index.html with injected content hashes
+// Serve index.html with injected content hashes + version constant
 let indexHtmlTemplate = null;
 function getIndexHtml() {
   if (!indexHtmlTemplate) {
@@ -1391,8 +1398,18 @@ function getIndexHtml() {
       "utf-8",
     );
   }
-  // Replace all ?v=1.x with ?v=<content-hash>
   let html = indexHtmlTemplate;
+
+  // v4.6: Inject global version constant so client JS can read it
+  html = html.replace(
+    "<!--APP_VERSION_INJECT-->",
+    `<script>window.__APP_VERSION__="${APP_VERSION}"</script>`,
+  );
+
+  // v4.6: Replace version badge placeholder
+  html = html.replace("{{APP_VERSION}}", `v${APP_VERSION}`);
+
+  // Replace all ?v=X.Y.Z with ?v=<content-hash>
   for (const [asset, hash] of Object.entries(assetHashes)) {
     // Match href="css/file.css?v=..." or src="js/file.js?v=..."
     const escaped = asset.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -1435,7 +1452,7 @@ async function start() {
   await loadDb();
   computeAssetHashes();
   app.listen(PORT, () => {
-    console.log(`\n  🎮 Game Hub — http://localhost:${PORT}`);
+    console.log(`\n  🎮 Game Hub v${APP_VERSION} — http://localhost:${PORT}`);
     console.log(`     Farm 🌱 | Trivia 🧠 | Match-3 💎`);
     console.log(
       `     Discord: ${DISCORD_ENABLED ? "✅ enabled" : "⚠️  demo mode (no creds)"}`,

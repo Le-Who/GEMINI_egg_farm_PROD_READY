@@ -643,8 +643,11 @@
         font-family: monospace;
       "
     >
-      v4.5.3
+      {{APP_VERSION}}
     </div>
+
+    <!-- v4.6: Server injects window.__APP_VERSION__ here -->
+    <!--APP_VERSION_INJECT-->
 
     <!-- ═══ Scripts (shared.js loads game scripts dynamically via SmartLoader) ═══ -->
     <script src="js/discord-sdk.js"></script>

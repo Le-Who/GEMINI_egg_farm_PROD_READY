@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════
- *  Game Hub — Building Blox Tests (v4.5.3)
+ *  Game Hub — Building Blox Tests (v4.6.0)
  *  Tests for piece validation, placement, line clearing,
  *  scoring, game-over detection, and reward calculation.
  * ═══════════════════════════════════════════════════════
