@@ -545,42 +545,38 @@
                 <button class="btn btn-primary" id="m3-btn-start">
                   🎮 New Game
                 </button>
-                <button class="btn btn-secondary" id="m3-btn-lb">
+                <button class="btn btn-secondary m3-lb-toggle" id="m3-btn-lb">
                   🏆 Leaderboard
                 </button>
               </div>
-            </div>
 
-            <!-- Leaderboard Backdrop (narrow screens) -->
-            <div class="m3-lb-backdrop" id="m3-lb-backdrop"></div>
-
-            <!-- Leaderboard Panel (slide-in on narrow, side-by-side on wide) -->
-            <div class="m3-lb-panel" id="m3-lb-panel">
-              <button class="m3-lb-close" id="m3-lb-close" title="Close">
-                ✕
-              </button>
-              <div class="m3-lb-tabs">
-                <button class="m3-lb-tab active" id="btn-lb-tab-all">
-                  🌍 All Players
-                </button>
-                <button class="m3-lb-tab" id="btn-lb-tab-room">
-                  🎙️ Voice Channel
-                </button>
+              <!-- Leaderboard Panel (v4.12.2: always-visible right side, mirrors Blox left) -->
+              <div class="m3-lb-panel" id="m3-lb-panel">
+                <div class="m3-lb-title">🏆 Leaderboard</div>
+                <div class="m3-lb-tabs">
+                  <button
+                    class="m3-lb-tab active"
+                    data-scope="global"
+                    id="btn-lb-tab-all"
+                  >
+                    All
+                  </button>
+                  <button
+                    class="m3-lb-tab"
+                    data-scope="room"
+                    id="btn-lb-tab-room"
+                  >
+                    Voice
+                  </button>
+                </div>
+                <table class="m3-lb-table">
+                  <tbody id="m3-lb-body">
+                    <tr>
+                      <td colspan="3" class="m3-lb-empty">No scores yet 🏆</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
-              <table class="m3-lb-table">
-                <thead>
-                  <tr>
-                    <th>Rank</th>
-                    <th>Player</th>
-                    <th style="text-align: right">Score</th>
-                  </tr>
-                </thead>
-                <tbody id="m3-lb-body">
-                  <tr>
-                    <td colspan="3" class="m3-lb-empty">No scores yet 🏆</td>
-                  </tr>
-                </tbody>
-              </table>
             </div>
           </div>
 

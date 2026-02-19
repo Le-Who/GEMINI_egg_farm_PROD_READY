@@ -1,5 +1,13 @@
 # Changelog
 
+## v4.12.2 — 2026-02-19
+
+### Match-3 Inline Leaderboard
+
+- **Always-visible leaderboard**: Panel docked right of the board on desktop (≥680px), mirroring Blox left-side pattern. No more toggling.
+- **Mobile toggle**: On narrow screens (<640px), leaderboard is hidden by default with a toggle button. Removed old fixed slide-in panel, backdrop, and close button.
+- **Simplified JS**: Removed `openLeaderboard()`/`closeLeaderboard()`/`lbVisible` — replaced with single `toggleLeaderboard()` using `.show-mobile` class.
+
 ## v4.12.1 — 2026-02-19
 
 ### Match-3 Star Drop Persistence Fix

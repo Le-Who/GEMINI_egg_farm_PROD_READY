@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Match-3 Module (v4.12.1)
+ *  Game Hub — Match-3 Module (v4.12.2)
  *  Client-side engine, CSS transitions, state restore
  *  ─ GameStore integration (match3 slice)
  *  ─ Pause/Continue overlay, touch swipe, default mode
@@ -1559,21 +1559,12 @@ const Match3Game = (() => {
     if (ov) ov.classList.remove("show");
   }
 
-  /* ═══ Leaderboard ═══ */
-  let lbVisible = false;
+  /* ═══ Leaderboard (v4.12.2: always-visible on desktop, toggle on mobile) ═══ */
   function toggleLeaderboard() {
-    lbVisible ? closeLeaderboard() : openLeaderboard();
-  }
-  function openLeaderboard() {
-    lbVisible = true;
-    $("m3-lb-panel").classList.add("open");
-    $("m3-lb-backdrop").classList.add("show");
-    fetchLeaderboard();
-  }
-  function closeLeaderboard() {
-    lbVisible = false;
-    $("m3-lb-panel").classList.remove("open");
-    $("m3-lb-backdrop").classList.remove("show");
+    const panel = $("m3-lb-panel");
+    if (!panel) return;
+    panel.classList.toggle("show-mobile");
+    if (panel.classList.contains("show-mobile")) fetchLeaderboard();
   }
 
   async function fetchLeaderboard(scope) {

@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Match-3 Screen Styles (v4.12.1)
+ *  Game Hub — Match-3 Screen Styles (v4.12.2)
  * ═══════════════════════════════════════════════════ */
 
 /* Scope overlays to this screen only */
@@ -250,123 +250,71 @@
   align-items: center;
 }
 
-/* ─── Leaderboard Panel ─── */
+/* ─── Leaderboard Panel (v4.12.2: always-visible, docked right — mirrors Blox left) ─── */
 .m3-lb-panel {
-  /* Default: fixed slide-in from right (narrow screens) */
-  position: fixed;
-  top: 0;
-  right: 0;
-  height: 100dvh;
-  height: 100vh;
-  width: min(300px, 80vw);
-  z-index: 250;
-  margin: 0;
-  border-radius: 20px 0 0 20px;
-  background: rgba(13, 15, 26, 0.95);
-  backdrop-filter: blur(18px);
-  border: 1px solid var(--border);
-  border-right: none;
-  padding: 20px 16px;
-  transform: translateX(100%);
-  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-  overflow-y: auto;
-  scrollbar-width: none;
-}
-.m3-lb-panel::-webkit-scrollbar {
-  display: none;
-}
-.m3-lb-panel.open {
-  transform: translateX(0);
-}
-
-/* Close button inside panel */
-.m3-lb-close {
   position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 32px;
-  height: 32px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface);
-  color: var(--text-dim);
-  font-size: 1rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
+  left: calc(50% + 220px); /* board half-width ≈ 200px + 20px gap */
+  top: 0;
+  width: 200px;
+  min-width: 180px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 12px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
 }
-.m3-lb-close:hover {
-  background: var(--surface-hover);
-  color: var(--text);
+.m3-lb-title {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.9);
+  text-align: center;
+  margin-bottom: 8px;
 }
-
-/* Backdrop behind panel */
-.m3-lb-backdrop {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  z-index: 249;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-.m3-lb-backdrop.show {
-  display: block;
-  opacity: 1;
-}
-
 .m3-lb-tabs {
   display: flex;
   gap: 4px;
   margin-bottom: 10px;
-  margin-top: 36px;
 }
 .m3-lb-tab {
   flex: 1;
-  padding: 8px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  text-align: center;
-  font-size: 0.75rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  padding: 5px 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: transparent;
   color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.2s;
   font-family: "Inter", sans-serif;
 }
 .m3-lb-tab.active {
-  background: rgba(167, 139, 250, 0.12);
+  background: rgba(167, 139, 250, 0.15);
   border-color: var(--accent);
   color: var(--accent);
+}
+.m3-lb-tab:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.05);
 }
 .m3-lb-table {
   width: 100%;
   border-collapse: collapse;
 }
-.m3-lb-table th {
-  font-size: 0.6rem;
-  text-transform: uppercase;
-  color: var(--text-dim);
-  letter-spacing: 0.05em;
-  padding: 6px 10px;
-  text-align: left;
-  border-bottom: 1px solid var(--border);
-}
 .m3-lb-table td {
-  padding: 8px 10px;
-  font-size: 0.8rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  padding: 4px 6px;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.7);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
-.m3-lb-table tr:hover td {
-  background: rgba(255, 255, 255, 0.02);
+.m3-lb-table tr:last-child td {
+  border-bottom: none;
 }
 .m3-lb-rank {
-  font-weight: 900;
-  color: var(--accent);
-  width: 32px;
+  width: 24px;
+  font-weight: 800;
+  text-align: center;
 }
 .m3-lb-rank.gold {
   color: #fbbf24;
@@ -378,22 +326,39 @@
   color: #d97706;
 }
 .m3-lb-score {
+  text-align: right !important;
   font-weight: 700;
   color: var(--gold);
-  text-align: right !important;
 }
 .m3-lb-empty {
   text-align: center;
   color: var(--text-dim);
-  padding: 20px;
-  font-size: 0.8rem;
+  font-style: italic;
+  padding: 16px 0 !important;
+}
+/* LB toggle button — hidden on desktop */
+.m3-lb-toggle {
+  display: inline-flex;
 }
 
-/* ─── Wide screens: keep leaderboard as fixed overlay (prevents game shift) ─── */
+/* ─── Wide screens: mode selector left, leaderboard right ─── */
 @media (min-width: 680px) {
+  .m3-lb-toggle {
+    display: none; /* always visible, no toggle needed */
+  }
+}
+
+/* ─── Narrow screens: leaderboard hidden by default ─── */
+@media (max-width: 679px) {
   .m3-lb-panel {
-    /* Wider panel on larger screens, still fixed overlay */
-    width: min(340px, 40vw);
+    position: static;
+    width: 100%;
+    max-width: calc(var(--m3-cell, 48px) * 8 + 3px * 7 + 20px);
+    display: none;
+    margin-top: 12px;
+  }
+  .m3-lb-panel.show-mobile {
+    display: block;
   }
 }
 
