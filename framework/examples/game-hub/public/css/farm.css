@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Farm Screen Styles
+ *  Game Hub — Farm Screen Styles (v4.9)
  * ═══════════════════════════════════════════════════ */
 
 #screen-farm .screen-header h1 {
@@ -80,7 +80,7 @@
 }
 
 .farm-plot .crop-emoji {
-  font-size: 2rem;
+  font-size: 2.3rem;
   line-height: 1;
 }
 .farm-plot .crop-name {
@@ -199,7 +199,8 @@
 .farm-tab.active {
   color: #86efac;
   border-bottom-color: #22c55e;
-  background: rgba(34, 197, 94, 0.06);
+  background: rgba(34, 197, 94, 0.1);
+  font-size: 0.78rem;
 }
 
 /* ─── Tab Content ─── */
@@ -340,8 +341,8 @@
   overflow: hidden;
 }
 .buy-bar-stepper button {
-  width: 26px;
-  height: 26px;
+  width: 38px;
+  height: 38px;
   background: rgba(255, 255, 255, 0.04);
   border: none;
   color: var(--text);
@@ -355,7 +356,7 @@
   background: rgba(34, 197, 94, 0.15);
 }
 .buy-bar-stepper button.step-lg {
-  width: 34px;
+  width: 42px;
   font-size: 0.72rem;
   background: rgba(255, 255, 255, 0.06);
   letter-spacing: -0.5px;
@@ -364,14 +365,14 @@
   background: rgba(34, 197, 94, 0.2);
 }
 .buy-bar-stepper .qty-display {
-  width: 28px;
+  width: 32px;
   text-align: center;
   font-size: 0.8rem;
   font-weight: 700;
   color: var(--text);
   border-left: 1px solid var(--border);
   border-right: 1px solid var(--border);
-  line-height: 26px;
+  line-height: 38px;
 }
 .buy-bar-total {
   font-size: 0.7rem;
@@ -418,6 +419,7 @@
   text-align: center;
   cursor: pointer;
   transition: all 0.2s ease;
+  min-height: 88px;
 }
 .farm-seed-card:hover {
   border-color: rgba(34, 197, 94, 0.4);
@@ -566,7 +568,7 @@
     padding: 8px 14px;
     font-size: 0.82rem;
     border-radius: 8px;
-    min-height: 36px;
+    min-height: 44px;
     display: inline-flex;
     align-items: center;
     justify-content: center;

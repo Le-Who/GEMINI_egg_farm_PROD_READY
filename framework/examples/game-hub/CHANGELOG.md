@@ -1,5 +1,50 @@
 # Changelog
 
+## v4.9.0 — 2026-02-19
+
+### UX/UI Audit — Phase 1 (Navigation, Visual Polish, Feedback)
+
+#### Navigation Overhaul
+
+- **Universal bottom nav bar**: Now visible on ALL devices (was mobile-only). Desktop nav dots removed — single navigation paradigm everywhere.
+- **Auto-hide during gameplay**: Nav bar slides away during active Blox/Match-3 sessions via `.nav-hidden` class, recoverable on game-over/pause. `navBarAutoHide(hide)` helper in `shared.js`.
+- **Periodic arrow flash** (desktop): Nav arrows flash subtly every 90 seconds to remind pointer users of swipe navigation.
+- **Swipe hint re-show**: Swipe hint now re-shows after 3 days (was fire-once). Uses timestamp (`hub_swipe_hint_ts`) instead of boolean flag.
+
+#### Visual Polish
+
+- **Warm pastel overlay accents**: Game-over (gold `#f5cf50`), energy confirm (green `#a8d8a8`), pause (lavender `#c4b5e0`) overlays now have colored top borders for visual typing.
+- **Toast tinted backgrounds**: Success/error/info toasts get subtle background tints matching their border color + leading emoji icons (✅/❌/ℹ️).
+- **Stats bar labels**: Bumped from `0.6rem` → `0.72rem` with emoji icon prefixes (🏆, 🪙, ⭐, 🔥, 📊, 🏅) for scan-ability.
+- **Blox ghost cell**: Dashed border + lower opacity (`0.45`) for better valid/occupied distinction.
+- **Match-3 mode card lift**: Active mode card lifts `translateY(-2px)` with deeper shadow for clear selection state.
+- **Crop emoji enlarged**: `2rem` → `2.3rem` for better readability on farm plots.
+
+#### Touch & Interaction
+
+- **Buy-bar stepper buttons**: `26×26px` → `38×38px` for reliable mobile tapping (item 3.3).
+- **Seed card min-height**: 88px floor prevents cramped touch targets on small seed cards.
+- **Farm inventory buttons**: Mobile min-height `36px` → `44px` for Apple HIG compliance.
+- **Base button padding**: `11px` → `13px` for all `.btn` elements.
+
+#### Consistency & Layout
+
+- **Card/stats-bar widths**: Standardized from `min(520px, calc(100vw-80px))` → `min(480px, calc(100vw-60px))` across all game screens.
+- **Overlay z-index**: Bumped from `200` → `250` to layer above nav bar correctly.
+- **Inline styles → utility classes**: Game-over overlays replaced inline font/color with `.overlay-score` and `.overlay-detail` classes.
+- **Farm tab warm fill**: Active farm panel tab background bumped to `0.1` opacity with `0.78rem` font.
+- **Text contrast**: `--text-dim` brightened from `#94a3b8` → `#a3b1c6` for fine-print readability.
+
+#### Feedback & Animations
+
+- **Plant bounce** (`plantBounce`): Subtle scale pulse on harvest (wired via `.plant-bounce` class).
+- **Screen shake** (`screenShake`): Dramatic shake for Blox game-over (wired via `.screen-shake` class).
+- **Farm tab gold pulse**: Nav tab gets `navTabFarmPulse` animation + badge pulse when crops are ready (`.farm-ready` class on nav tab).
+
+### Version Bump
+
+- All CSS/JS/HTML version query strings → `v4.9`. File headers bumped in `base.css`, `farm.css`, `match3.css`, `blox.css`, `shared.js`.
+
 ## v4.8.1 — 2026-02-19
 
 ### Bug Fixes

@@ -8,13 +8,13 @@
       name="description"
       content="Unified Game Hub: Farm, Trivia (Solo &amp; Duel), Match-3 with Leaderboard — Discord Activities Framework Demo"
     />
-    <link rel="stylesheet" href="css/base.css?v=4.5.3" />
-    <link rel="stylesheet" href="css/farm.css?v=4.5.3" />
-    <link rel="stylesheet" href="css/trivia.css?v=4.5.3" />
-    <link rel="stylesheet" href="css/match3.css?v=4.5.3" />
-    <link rel="stylesheet" href="css/blox.css?v=4.5.3" />
-    <link rel="stylesheet" href="css/hud.css?v=4.5.3" />
-    <link rel="stylesheet" href="css/pet.css?v=4.5.3" />
+    <link rel="stylesheet" href="css/base.css?v=4.9" />
+    <link rel="stylesheet" href="css/farm.css?v=4.9" />
+    <link rel="stylesheet" href="css/trivia.css?v=4.9" />
+    <link rel="stylesheet" href="css/match3.css?v=4.9" />
+    <link rel="stylesheet" href="css/blox.css?v=4.9" />
+    <link rel="stylesheet" href="css/hud.css?v=4.9" />
+    <link rel="stylesheet" href="css/pet.css?v=4.9" />
   </head>
   <body>
     <!-- ═══ Boot Loading Overlay ═══ -->
@@ -285,23 +285,23 @@
           <div class="stats-bar">
             <div class="stat">
               <div class="stat-value text-gold" id="blox-score">0</div>
-              <div class="stat-label">Score</div>
+              <div class="stat-label">🏆 Score</div>
             </div>
             <div class="stat">
               <div class="stat-value" style="color: #06b6d4" id="blox-lines">
                 0
               </div>
-              <div class="stat-label">Lines</div>
+              <div class="stat-label">📊 Lines</div>
             </div>
             <div class="stat">
               <div class="stat-value" style="color: #a78bfa" id="blox-best">
                 0
               </div>
-              <div class="stat-label">Best</div>
+              <div class="stat-label">🏆 Best</div>
             </div>
             <div class="stat">
               <div class="stat-value text-gold" id="blox-reward">—</div>
-              <div class="stat-label">Gold</div>
+              <div class="stat-label">🪙 Gold</div>
             </div>
           </div>
 
@@ -367,36 +367,14 @@
 
           <!-- Game Over Overlay -->
           <div class="overlay" id="blox-overlay">
-            <div class="overlay-card">
+            <div class="overlay-card overlay-gameover">
               <h2>🏆 Game Over</h2>
-              <div
-                style="
-                  font-size: 2.5rem;
-                  font-weight: 900;
-                  color: var(--gold);
-                  margin: 10px 0;
-                "
-                id="blox-final-score"
-              >
-                0
-              </div>
-              <div
-                style="
-                  font-size: 0.85rem;
-                  color: var(--text-dim);
-                  margin-bottom: 6px;
-                "
-              >
+              <div class="overlay-score" id="blox-final-score">0</div>
+              <div class="overlay-detail">
                 Lines:
                 <strong class="text-accent" id="blox-final-lines">0</strong>
               </div>
-              <div
-                style="
-                  font-size: 0.85rem;
-                  color: var(--text-dim);
-                  margin-bottom: 20px;
-                "
-              >
+              <div class="overlay-detail" style="margin-bottom: 20px">
                 Best:
                 <strong class="text-accent" id="blox-final-best">0</strong>
               </div>
@@ -417,15 +395,15 @@
           <div class="stats-bar">
             <div class="stat">
               <div class="stat-value text-gold" id="farm-coins">200</div>
-              <div class="stat-label">Coins</div>
+              <div class="stat-label">🪙 Coins</div>
             </div>
             <div class="stat">
               <div class="stat-value text-accent" id="farm-xp">0</div>
-              <div class="stat-label">XP</div>
+              <div class="stat-label">⭐ XP</div>
             </div>
             <div class="stat">
               <div class="stat-value text-success" id="farm-level">Lv1</div>
-              <div class="stat-label">Level</div>
+              <div class="stat-label">🏅 Level</div>
             </div>
           </div>
 
@@ -477,7 +455,7 @@
           <div class="stats-bar">
             <div class="stat">
               <div class="stat-value text-gold" id="m3-score">0</div>
-              <div class="stat-label">Score</div>
+              <div class="stat-label">🏆 Score</div>
             </div>
             <div class="stat">
               <div class="stat-value" style="color: #60a5fa" id="m3-moves">
@@ -489,11 +467,11 @@
               <div class="stat-value" style="color: #f472b6" id="m3-combo">
                 —
               </div>
-              <div class="stat-label">Combo</div>
+              <div class="stat-label">🔥 Combo</div>
             </div>
             <div class="stat">
               <div class="stat-value text-accent" id="m3-best">0</div>
-              <div class="stat-label">Best</div>
+              <div class="stat-label">🏆 Best</div>
             </div>
             <div class="stat">
               <div class="stat-value text-gold" id="m3-gold">—</div>
@@ -553,7 +531,7 @@
 
           <!-- Pause / Continue Overlay (mirrors Blox pattern) -->
           <div class="overlay" id="m3-pause-overlay">
-            <div class="overlay-card">
+            <div class="overlay-card overlay-pause">
               <h2 id="m3-pause-title">💎 Gem Crush</h2>
               <div class="overlay-actions">
                 <button class="btn btn-primary" id="m3-pause-resume">
@@ -575,26 +553,10 @@
 
           <!-- Game Over Overlay -->
           <div class="overlay" id="m3-overlay">
-            <div class="overlay-card">
+            <div class="overlay-card overlay-gameover">
               <h2>🏆 Game Over</h2>
-              <div
-                style="
-                  font-size: 2.5rem;
-                  font-weight: 900;
-                  color: var(--gold);
-                  margin: 10px 0;
-                "
-                id="m3-final-score"
-              >
-                0
-              </div>
-              <div
-                style="
-                  font-size: 0.85rem;
-                  color: var(--text-dim);
-                  margin-bottom: 20px;
-                "
-              >
+              <div class="overlay-score" id="m3-final-score">0</div>
+              <div class="overlay-detail" style="margin-bottom: 20px">
                 Best: <strong class="text-accent" id="m3-final-best">0</strong>
               </div>
               <div
@@ -631,7 +593,10 @@
 
     <!-- ═══ Quick-Feed Energy Modal ═══ -->
     <div class="overlay" id="energy-modal">
-      <div class="overlay-card" style="text-align: center; max-width: 340px">
+      <div
+        class="overlay-card overlay-energy"
+        style="text-align: center; max-width: 340px"
+      >
         <h2 style="margin: 0 0 6px">⚡ Not Enough Energy</h2>
         <p
           class="text-dim"
@@ -692,9 +657,9 @@
 
     <!-- ═══ Scripts (shared.js loads game scripts dynamically via SmartLoader) ═══ -->
     <script src="js/discord-sdk.js"></script>
-    <script src="js/store.js?v=4.5.3"></script>
-    <script src="js/hud.js?v=4.5.3"></script>
-    <script src="js/pet.js?v=4.5.3"></script>
-    <script src="js/shared.js?v=4.5.3"></script>
+    <script src="js/store.js?v=4.9"></script>
+    <script src="js/hud.js?v=4.9"></script>
+    <script src="js/pet.js?v=4.9"></script>
+    <script src="js/shared.js?v=4.9"></script>
   </body>
 </html>

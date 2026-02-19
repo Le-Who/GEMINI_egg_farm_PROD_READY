@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Building Blox Screen Styles (v4.8.1)
+ *  Game Hub — Building Blox Screen Styles (v4.9.0)
  * ═══════════════════════════════════════════════════ */
 
 /* Scope overlays to this screen only */
@@ -54,11 +54,11 @@
   background: rgba(167, 139, 250, 0.08);
 }
 
-/* Ghost preview */
+/* Ghost preview (v4.9: improved visibility 5.5) */
 .blox-cell.ghost {
   background: var(--ghost-color, rgba(167, 139, 250, 0.25)) !important;
-  border-color: rgba(255, 255, 255, 0.2);
-  opacity: 0.7;
+  border: 1px dashed rgba(255, 255, 255, 0.35);
+  opacity: 0.45;
 }
 .blox-cell.ghost-invalid {
   background: rgba(239, 68, 68, 0.2) !important;

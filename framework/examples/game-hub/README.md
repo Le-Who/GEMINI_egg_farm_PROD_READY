@@ -2,7 +2,7 @@
 
 > A combined Farm + Trivia + Match-3 + Building Blox game running as a single Discord Embedded App Activity with horizontal screen-swipe navigation.
 
-**v4.8.1** — Blox leaderboard alignment fix (board always centered, leaderboard docked left out of flow); Match-3 UX overhaul (mode persistence, auto-start, energy confirmation, simplified game-over).
+**v4.9.0** — UX/UI Audit Phase 1: universal bottom nav bar (all devices), warm pastel overlay accents, tinted toasts with leading icons, stats bar icon labels, enlarged touch targets, plant bounce + screen shake animations, swipe hint re-show (3-day cycle).
 
 ## Quick Start
 
@@ -209,3 +209,19 @@ gcloud run deploy game-hub \
   --port 8080 \
   --set-env-vars "DISCORD_CLIENT_ID=...,DISCORD_CLIENT_SECRET=...,DISCORD_REDIRECT_URI=...,GCS_BUCKET=..."
 ```
+
+## 🔮 Future Plans
+
+- **Dark/Light mode toggle**: For standalone (non-Discord) deployment where system theme preferences apply.
+- **Haptic feedback**: `navigator.vibrate()` for mobile actions — place pieces, harvest crops, clear lines.
+- **Full warm pastel palette**: Extend the overlay accent colors (gold/green/lavender) into a cohesive warm redesign across all surfaces.
+- **Energy cost badges**: Show `⚡5` / `⚡3` cost directly on game cards and mode selectors.
+
+## 📝 Persistence Strategy
+
+> Each game uses the persistence approach best suited to its gameplay pattern:
+
+- **Farm & Pet**: Server-authoritative — all state on server, client polls and pushes via REST API.
+- **Match-3**: Client-side `localStorage` for session state (board, score, moves), server for leaderboard scores.
+- **Blox**: Client-side `localStorage` for in-progress game, server for leaderboard.
+- **Trivia**: Ephemeral — no persistence between sessions (each game is fresh).

@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Match-3 Screen Styles (v4.8.0)
+ *  Game Hub — Match-3 Screen Styles (v4.9.0)
  * ═══════════════════════════════════════════════════ */
 
 /* Scope overlays to this screen only */
@@ -475,7 +475,8 @@
 .m3-mode-card.active {
   border-color: var(--accent);
   background: rgba(167, 139, 250, 0.18);
-  box-shadow: 0 0 12px var(--accent-glow);
+  box-shadow: 0 4px 16px var(--accent-glow);
+  transform: translateY(-2px);
 }
 .m3-mode-selector.playing .m3-mode-card:not(.active) {
   opacity: 0.55;

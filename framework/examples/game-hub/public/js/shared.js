@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Shared Module (v4.8.0)
+ *  Game Hub — Shared Module (v4.9.0)
  *  Discord SDK auth, API helper, screen navigation
  *  CSP-compliant: no inline handlers, no external fonts
  * ═══════════════════════════════════════════════════ */
@@ -275,9 +275,10 @@ async function triggerScreenCallbacks() {
   if (name === "blox" && typeof BloxGame !== "undefined") BloxGame.onEnter();
 }
 
-/* ─── Toast (v4.5: dedup + type variants) ─── */
+/* ─── Toast (v4.9: dedup + type variants + leading icons 2.4) ─── */
 let _lastToastMsg = "";
 let _lastToastTime = 0;
+const _toastIcons = { success: "✅ ", error: "❌ ", info: "ℹ️ " };
 function showToast(msg, type) {
   // Dedup: skip if same message within 1.5s
   const now = Date.now();
@@ -287,7 +288,9 @@ function showToast(msg, type) {
 
   const el = document.createElement("div");
   el.className = "toast" + (type ? ` toast-${type}` : "");
-  el.textContent = msg;
+  // Prepend leading icon if type-specific icon defined and not already present (2.4)
+  const icon = type && _toastIcons[type] ? _toastIcons[type] : "";
+  el.textContent = icon + msg;
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 2500);
 }
@@ -498,11 +501,13 @@ function bindTouchSwipe() {
   );
 }
 
-/* ─── Bounce Hint (first visit) ─── */
+/* ─── Bounce Hint (v4.9: re-show after 3 days, item 1.4) ─── */
 function triggerSwipeHint() {
-  const HINT_KEY = "hub_swipe_hint_shown";
-  if (localStorage.getItem(HINT_KEY)) return;
-  localStorage.setItem(HINT_KEY, "1");
+  const HINT_KEY = "hub_swipe_hint_ts";
+  const THREE_DAYS = 3 * 24 * 60 * 60 * 1000;
+  const last = parseInt(localStorage.getItem(HINT_KEY) || "0", 10);
+  if (last && Date.now() - last < THREE_DAYS) return;
+  localStorage.setItem(HINT_KEY, String(Date.now()));
 
   const track = document.getElementById("track");
   if (!track) return;
@@ -519,6 +524,35 @@ function triggerSwipeHint() {
       { once: true },
     );
   }, 800);
+}
+
+/* ─── Nav Bar Auto-Hide (1.1 / 1.5: hide during active gameplay) ─── */
+function navBarAutoHide(hide) {
+  const bar = document.getElementById("nav-bar");
+  if (bar) bar.classList.toggle("nav-hidden", !!hide);
+}
+
+/* ─── Arrow Hint Flash (1.2: subtle periodic flash every ~90s for 2s) ─── */
+let _arrowFlashInterval = null;
+function flashNavArrows() {
+  const $left = document.getElementById("nav-left");
+  const $right = document.getElementById("nav-right");
+  if (!$left || !$right) return;
+
+  // Only flash arrows that aren't .hidden
+  [$left, $right].forEach((arrow) => {
+    if (arrow.classList.contains("hidden")) return;
+    arrow.classList.add("arrow-hint-flash");
+    arrow.addEventListener(
+      "animationend",
+      () => arrow.classList.remove("arrow-hint-flash"),
+      { once: true },
+    );
+  });
+}
+function startArrowFlash() {
+  if (_arrowFlashInterval) return;
+  _arrowFlashInterval = setInterval(flashNavArrows, 90000); // every 90s
 }
 
 /* ─── Init on load ─── */
@@ -554,8 +588,11 @@ window.addEventListener("DOMContentLoaded", async () => {
   // Prefetch neighbor screens after 2s idle
   SmartLoader.prefetchNeighbors(HUB.currentScreen);
 
-  // Bounce hint for first-time visitors
+  // Bounce hint for first-time / returning visitors (1.4)
   triggerSwipeHint();
+
+  // Start periodic arrow flash on desktop (1.2)
+  if (!HUB.isTouchDevice) startArrowFlash();
 
   // Dismiss boot-loader overlay
   const bootLoader = document.getElementById("boot-loader");
