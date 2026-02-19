@@ -254,6 +254,109 @@
   will-change: transform, left, top;
 }
 
+/* ─── Main Layout (board + leaderboard side-by-side) ─── */
+.blox-main {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: center;
+  width: 100%;
+}
+
+/* ─── Leaderboard Panel (v4.9: glassmorphism, always visible) ─── */
+.blox-lb-panel {
+  width: 200px;
+  min-width: 180px;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 12px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+}
+.blox-lb-title {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.9);
+  text-align: center;
+  margin-bottom: 8px;
+}
+.blox-lb-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.blox-lb-tab {
+  flex: 1;
+  padding: 5px 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: "Inter", sans-serif;
+}
+.blox-lb-tab.active {
+  background: rgba(167, 139, 250, 0.15);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.blox-lb-tab:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.05);
+}
+.blox-lb-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.blox-lb-table td {
+  padding: 4px 6px;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.7);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.blox-lb-table tr:last-child td {
+  border-bottom: none;
+}
+.blox-lb-rank {
+  width: 24px;
+  font-weight: 800;
+  text-align: center;
+}
+.blox-lb-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 90px;
+}
+.blox-lb-score {
+  text-align: right;
+  font-weight: 700;
+  color: var(--gold);
+}
+.blox-lb-empty {
+  text-align: center;
+  color: var(--text-dim);
+  font-style: italic;
+  padding: 16px 0 !important;
+}
+.blox-lb-me {
+  background: rgba(167, 139, 250, 0.08);
+}
+
+/* ─── Click-to-Attach cursor mode (v4.9) ─── */
+.blox-piece-wrapper.attached {
+  border-color: var(--accent);
+  background: rgba(167, 139, 250, 0.2);
+  box-shadow: 0 0 16px var(--accent-glow);
+  transform: scale(1.1);
+  cursor: pointer;
+}
+
 /* ─── Responsive ─── */
 @media (max-height: 600px) {
   .blox-board {
@@ -269,6 +372,20 @@
   .blox-mini-cell {
     width: 11px;
     height: 11px;
+  }
+}
+@media (max-width: 640px) {
+  .blox-main {
+    flex-direction: column;
+    align-items: center;
+  }
+  .blox-lb-panel {
+    width: 100%;
+    max-width: calc(var(--blox-cell, 36px) * 10 + 2px * 9 + 16px);
+    display: none; /* hidden on mobile by default */
+  }
+  .blox-lb-panel.show-mobile {
+    display: block;
   }
 }
 @media (max-width: 400px) {

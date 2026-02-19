@@ -305,32 +305,62 @@
             </div>
           </div>
 
-          <div class="blox-layout">
-            <div class="blox-board" id="blox-board"></div>
-            <div class="blox-tray" id="blox-tray"></div>
-            <!-- Pause / Welcome overlay -->
-            <div class="blox-pause-overlay show" id="blox-pause-overlay">
-              <div class="blox-pause-card">
-                <div class="blox-pause-title" id="blox-pause-title">
-                  🧱 Building Blox
+          <div class="blox-main">
+            <!-- Leaderboard Panel (v4.9: always visible, glassmorphism) -->
+            <div class="blox-lb-panel" id="blox-lb-panel">
+              <div class="blox-lb-title">🏆 Leaderboard</div>
+              <div class="blox-lb-tabs">
+                <button
+                  class="blox-lb-tab active"
+                  data-scope="global"
+                  id="blox-lb-tab-all"
+                >
+                  All
+                </button>
+                <button
+                  class="blox-lb-tab"
+                  data-scope="room"
+                  id="blox-lb-tab-room"
+                >
+                  Voice
+                </button>
+              </div>
+              <table class="blox-lb-table">
+                <tbody id="blox-lb-body">
+                  <tr>
+                    <td colspan="3" class="blox-lb-empty">No scores yet</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="blox-layout">
+              <div class="blox-board" id="blox-board"></div>
+              <div class="blox-tray" id="blox-tray"></div>
+              <!-- Pause / Welcome overlay -->
+              <div class="blox-pause-overlay show" id="blox-pause-overlay">
+                <div class="blox-pause-card">
+                  <div class="blox-pause-title" id="blox-pause-title">
+                    🧱 Building Blox
+                  </div>
+                  <button class="btn btn-primary" id="blox-btn-new">
+                    🧱 New Game
+                  </button>
+                  <button
+                    class="btn btn-secondary"
+                    id="blox-btn-resume"
+                    style="display: none"
+                  >
+                    ▶ Continue
+                  </button>
+                  <button
+                    class="btn btn-danger"
+                    id="blox-btn-end"
+                    style="display: none"
+                  >
+                    🏁 End Game
+                  </button>
                 </div>
-                <button class="btn btn-primary" id="blox-btn-new">
-                  🧱 New Game
-                </button>
-                <button
-                  class="btn btn-secondary"
-                  id="blox-btn-resume"
-                  style="display: none"
-                >
-                  ▶ Continue
-                </button>
-                <button
-                  class="btn btn-danger"
-                  id="blox-btn-end"
-                  style="display: none"
-                >
-                  🏁 End Game
-                </button>
               </div>
             </div>
           </div>

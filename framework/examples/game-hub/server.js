@@ -294,6 +294,7 @@ app.post("/api/farm/state", requireAuth, (req, res) => {
     resources: p.resources,
     pet: p.pet,
     offlineReport,
+    serverTime: Date.now(),
   });
 });
 
@@ -319,6 +320,7 @@ app.post("/api/farm/plant", requireAuth, (req, res) => {
     plots: farmPlotsWithGrowth(p.farm),
     inventory: p.farm.inventory,
     coins: p.farm.coins,
+    serverTime: Date.now(),
   });
 });
 
@@ -331,7 +333,11 @@ app.post("/api/farm/water", requireAuth, (req, res) => {
     return res.status(400).json({ error: "cannot water" });
   plot.watered = true;
   debouncedSaveDb();
-  res.json({ success: true, plots: farmPlotsWithGrowth(p.farm) });
+  res.json({
+    success: true,
+    plots: farmPlotsWithGrowth(p.farm),
+    serverTime: Date.now(),
+  });
 });
 
 app.post("/api/farm/harvest", requireAuth, (req, res) => {
@@ -364,6 +370,7 @@ app.post("/api/farm/harvest", requireAuth, (req, res) => {
     xp: p.farm.xp,
     level: p.farm.level,
     leveledUp,
+    serverTime: Date.now(),
   });
 });
 
@@ -1336,6 +1343,30 @@ app.get("/api/leaderboard", (req, res) => {
       username: p.username,
       highScore: p.match3.highScore,
       totalGames: p.match3.totalGames,
+    }));
+
+  res.json(leaders);
+});
+
+// v4.9: Building Blox leaderboard
+app.get("/api/blox/leaderboard", (req, res) => {
+  const { scope, roomId } = req.query;
+  let entries = [...players.values()];
+
+  if (scope === "room" && roomId) {
+    entries = entries.filter(
+      (p) => p.id.startsWith(roomId) || entries.length <= 5,
+    );
+  }
+
+  const leaders = entries
+    .filter((p) => p.blox.highScore > 0)
+    .sort((a, b) => b.blox.highScore - a.blox.highScore)
+    .slice(0, 15)
+    .map((p, i) => ({
+      rank: i + 1,
+      username: p.username,
+      highScore: p.blox.highScore,
     }));
 
   res.json(leaders);

@@ -19,6 +19,18 @@ const FarmGame = (() => {
   let waterVersion = 0; // Track rapid watering for stale response rejection
   const wateringInFlight = new Set(); // Prevent duplicate auto-water requests
 
+  // ── Clock Desync Fix (v4.9) ──
+  // Delta between server clock and client clock (ms). Positive = client is ahead.
+  let clockDelta = 0;
+  function getServerNow() {
+    return Date.now() + clockDelta;
+  }
+  function updateClockDelta(serverTime) {
+    if (typeof serverTime === "number" && serverTime > 0) {
+      clockDelta = serverTime - Date.now();
+    }
+  }
+
   /** Push local state to GameStore (farm slice) */
   function syncToStore() {
     if (state && typeof GameStore !== "undefined") {
@@ -133,6 +145,7 @@ const FarmGame = (() => {
 
     if (stateData && !stateData.error) {
       state = stateData;
+      updateClockDelta(stateData.serverTime); // v4.9: sync clock
       // Sync resources and pet to HUD/Pet modules
       if (stateData.resources && typeof HUD !== "undefined") {
         HUD.syncFromServer(stateData.resources);
@@ -196,6 +209,7 @@ const FarmGame = (() => {
     });
     if (data && !data.error) {
       state = data;
+      updateClockDelta(data.serverTime); // v4.9: sync clock
       // Sync resources and pet
       if (data.resources && typeof HUD !== "undefined") {
         HUD.syncFromServer(data.resources);
@@ -288,13 +302,19 @@ const FarmGame = (() => {
     const plot = state?.plots?.[i];
     if (!plot) return;
     const pct = getLocalGrowth(plot);
-    const isReady = plot.crop && pct >= 1;
+    // v4.9 Harvest Guard: use server-provided growth if available, fall back to local
+    const serverGrowth = typeof plot.growth === "number" ? plot.growth : pct;
+    const isLocallyReady = plot.crop && pct >= 1;
+    const isServerReady = plot.crop && serverGrowth >= 1;
 
-    if (isReady) {
-      // Always harvest ready plots, regardless of seed selection
+    if (isLocallyReady && isServerReady) {
+      // Both agree → safe to harvest
       harvest(i);
-    } else if (plot.crop && !plot.watered && !isReady) {
-      // v4.5: growing + unwaterd = water it (click-to-water UX)
+    } else if (isLocallyReady && !isServerReady) {
+      // v4.9: Client thinks ready, server disagrees → "almost ready" toast
+      showToast("⏳ Almost ready! Just a few more seconds...");
+    } else if (plot.crop && !plot.watered && !isLocallyReady) {
+      // v4.5: growing + unwatered = water it (click-to-water UX)
       water(i);
     } else if (plot.crop) {
       // Already watered and still growing
@@ -324,6 +344,10 @@ const FarmGame = (() => {
         const div = existing[i];
         const pct = getLocalGrowth(plot);
         const isReady = plot.crop && pct >= 1;
+        // v4.9: "almost ready" = local shows 100% but server says < 1
+        const serverGrowth =
+          typeof plot.growth === "number" ? plot.growth : pct;
+        const isAlmostReady = plot.crop && pct >= 0.95 && serverGrowth < 1;
         const currentCrop = div.dataset.crop || "";
         const currentWatered = div.dataset.watered === "true";
         const structureChanged = currentCrop !== (plot.crop || "");
@@ -342,7 +366,7 @@ const FarmGame = (() => {
           if (waterBtn && isReady) waterBtn.remove();
         }
         // Always update classes (no onclick — delegation handles it)
-        div.className = `farm-plot${plot.crop ? "" : " empty"}${isReady ? " ready" : ""}`;
+        div.className = `farm-plot${plot.crop ? "" : " empty"}${isReady ? " ready" : ""}${isAlmostReady ? " almost-ready" : ""}`;
         div.dataset.index = i;
       });
     } else {
@@ -423,8 +447,23 @@ const FarmGame = (() => {
         <div class="seed-name">${cfg.name}</div>
         <div class="seed-price">🪙 ${cfg.seedPrice}</div>
         <div class="seed-count">×${count}</div>
+        <button class="seed-quick-buy" data-crop="${id}" title="Buy 1 ${cfg.name}">🛒 Buy</button>
       `;
-      card.onclick = () => selectSeed(id);
+      card.onclick = (e) => {
+        if (e.target.closest(".seed-quick-buy")) return; // let quick-buy handle itself
+        selectSeed(id);
+      };
+      // v4.9: Quick-buy button handler (buy 1 seed instantly)
+      const quickBuyBtn = card.querySelector(".seed-quick-buy");
+      if (quickBuyBtn) {
+        quickBuyBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          // Select this seed + buy 1
+          selectedSeed = id;
+          buyQty = 1;
+          buySeeds();
+        });
+      }
       grid.appendChild(card);
     }
   }
@@ -475,8 +514,8 @@ const FarmGame = (() => {
           <div class="farm-inv-name">${cfg.name || cropId} <span class="farm-inv-qty">×${qty}</span></div>
         </div>
         <div class="farm-inv-actions">
-          <button class="farm-inv-btn sell" data-crop="${cropId}" title="Sell for ${sellPrice}🪙">💰 ${sellPrice}</button>
-          <button class="farm-inv-btn feed" data-crop="${cropId}" title="Feed pet (+1⚡)">🍖</button>
+          <button class="farm-inv-btn sell" data-crop="${cropId}" title="Sell for ${sellPrice}🪙">💰 Sell</button>
+          <button class="farm-inv-btn feed" data-crop="${cropId}" title="Feed pet (+2⚡)">🍖 Feed</button>
         </div>
       `;
       // Sell handler
@@ -632,7 +671,7 @@ const FarmGame = (() => {
     state.plots[plotId] = {
       ...state.plots[plotId],
       crop: cropId,
-      plantedAt: Date.now(),
+      plantedAt: getServerNow(), // v4.9: use server-corrected time for optimistic plant
       watered: false,
       growthTime: crops[cropId]?.growthTime || 15000,
     };
@@ -845,10 +884,10 @@ const FarmGame = (() => {
       .catch(() => {});
   }
 
-  /* ─── Local Growth Computation (Issue 5) ─── */
+  /* ─── Local Growth Computation (Issue 5, v4.9: clock-corrected) ─── */
   function getLocalGrowth(plot) {
     if (!plot.crop || !plot.plantedAt) return 0;
-    const elapsed = Date.now() - plot.plantedAt;
+    const elapsed = getServerNow() - plot.plantedAt; // v4.9: use server-corrected time
     const mult = plot.watered ? plot.wateringMultiplier || 0.7 : 1;
     const gt = plot.growthTime || 15000;
     return Math.min(1, elapsed / (gt * mult));

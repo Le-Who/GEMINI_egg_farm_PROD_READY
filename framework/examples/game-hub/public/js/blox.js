@@ -138,6 +138,49 @@ const BloxGame = (() => {
 
   const $ = (id) => document.getElementById(id);
 
+  // ── Leaderboard (v4.9) ──
+  let bloxLbScope = "global";
+  async function fetchBloxLeaderboard(scope) {
+    scope = scope || bloxLbScope;
+    const qs =
+      scope === "room" && HUB.roomId ? `?scope=room&roomId=${HUB.roomId}` : "";
+    try {
+      const data = await api(`/api/blox/leaderboard${qs}`);
+      if (Array.isArray(data)) renderBloxLeaderboard(data);
+    } catch (_) {}
+  }
+  function renderBloxLeaderboard(entries) {
+    const body = $("blox-lb-body");
+    if (!body) return;
+    if (!entries.length) {
+      body.innerHTML =
+        '<tr><td colspan="3" class="blox-lb-empty">No scores yet</td></tr>';
+      return;
+    }
+    const medals = ["🥇", "🥈", "🥉"];
+    body.innerHTML = entries
+      .map((e) => {
+        const isMe = e.username === HUB.username;
+        const rank = e.rank <= 3 ? medals[e.rank - 1] : e.rank;
+        return `<tr class="${isMe ? "blox-lb-me" : ""}">
+        <td class="blox-lb-rank">${rank}</td>
+        <td class="blox-lb-name">${e.username || "???"}</td>
+        <td class="blox-lb-score">${e.highScore.toLocaleString()}</td>
+      </tr>`;
+      })
+      .join("");
+  }
+  function setBloxLbTab(scope) {
+    bloxLbScope = scope;
+    $("blox-lb-tab-all")?.classList.toggle("active", scope === "global");
+    $("blox-lb-tab-room")?.classList.toggle("active", scope === "room");
+    fetchBloxLeaderboard(scope);
+  }
+
+  // ── Click-to-attach state (v4.9) ──
+  let attachedPieceIdx = -1;
+  let attachMoveHandler = null;
+
   // ── Board helpers ──
   function createEmptyBoard() {
     return Array.from({ length: GRID }, () => Array(GRID).fill(null));
@@ -704,15 +747,18 @@ const BloxGame = (() => {
     // Lift: on touch, lift above finger for visibility (v4.4: reduced 15%)
     const liftY = isTouch ? cellPx * TOUCH_LIFT_FACTOR : 10;
 
-    el.style.left = `${pointer.clientX - (offset.dc + 0.5) * cellPx}px`;
-    el.style.top = `${pointer.clientY - (offset.dr + 0.5) * cellPx - liftY}px`;
+    el.style.left = `${pointer ? pointer.clientX - (offset.dc + 0.5) * cellPx : -999}px`;
+    el.style.top = `${pointer ? pointer.clientY - (offset.dr + 0.5) * cellPx - liftY : -999}px`;
     document.body.appendChild(el);
     dragPreviewEl = el;
   }
 
   function moveDragPreview(pointer, isTouch) {
-    if (!dragPreviewEl || dragPieceIdx < 0) return;
-    const piece = tray[dragPieceIdx].piece;
+    if (!dragPreviewEl) return;
+    // v4.9: Support both drag mode (dragPieceIdx) and attach mode (attachedPieceIdx)
+    const pieceIdx = dragPieceIdx >= 0 ? dragPieceIdx : attachedPieceIdx;
+    if (pieceIdx < 0) return;
+    const piece = tray[pieceIdx].piece;
     const offset = getCenterOffset(piece);
     const cellPx = dragPreviewCellSize;
     const liftY = isTouch ? cellPx * TOUCH_LIFT_FACTOR : 10;
@@ -732,8 +778,56 @@ const BloxGame = (() => {
   function selectPiece(i) {
     if (!gameActive || gamePaused) return;
     if (tray[i]?.placed) return;
-    selectedPiece = selectedPiece === i ? -1 : i;
+
+    // v4.9: Click-to-attach mode
+    if (attachedPieceIdx === i) {
+      // Second click on same piece → deselect (cancel attach)
+      detachPiece();
+      return;
+    }
+    if (attachedPieceIdx >= 0) {
+      // Clicking different piece while one is attached → switch
+      detachPiece();
+    }
+
+    selectedPiece = i;
+    attachedPieceIdx = i;
     renderTray();
+    // Mark wrapper with .attached class
+    const wrappers = $("blox-tray")?.querySelectorAll(".blox-piece-wrapper");
+    if (wrappers?.[i]) wrappers[i].classList.add("attached");
+
+    // Create floating preview that follows cursor
+    createDragPreview(tray[i].piece, null, false);
+    attachMoveHandler = (ev) => {
+      moveDragPreview(ev, false);
+      clearGhost();
+      const target = getBoardTarget(ev.clientX, ev.clientY, tray[i].piece);
+      if (target) showGhostAt(tray[i].piece, target.targetR, target.targetC);
+    };
+    document.addEventListener("mousemove", attachMoveHandler);
+
+    // ESC to cancel
+    document.addEventListener("keydown", onAttachKeydown);
+  }
+
+  function detachPiece() {
+    if (attachMoveHandler) {
+      document.removeEventListener("mousemove", attachMoveHandler);
+      attachMoveHandler = null;
+    }
+    document.removeEventListener("keydown", onAttachKeydown);
+    removeDragPreview();
+    clearGhost();
+    attachedPieceIdx = -1;
+    selectedPiece = -1;
+    renderTray();
+  }
+
+  function onAttachKeydown(e) {
+    if (e.key === "Escape") {
+      detachPiece();
+    }
   }
 
   function onCellClick(r, c) {
@@ -751,6 +845,11 @@ const BloxGame = (() => {
 
     placePiece(t.piece, r, c);
     t.placed = true;
+
+    // v4.9: Clean up attach mode after successful placement
+    if (attachedPieceIdx >= 0) {
+      detachPiece();
+    }
     selectedPiece = -1;
 
     renderBoard();
@@ -919,6 +1018,8 @@ const BloxGame = (() => {
     highScore = Math.max(highScore, score);
     HUB.swipeBlocked = false;
     clearSavedState();
+    // v4.9: clean up any attached piece
+    if (attachedPieceIdx >= 0) detachPiece();
 
     const data = await api("/api/blox/end", {
       userId: HUB.userId,
@@ -935,6 +1036,8 @@ const BloxGame = (() => {
     showGameOver(score);
     syncToStore();
     updateStats();
+    // v4.9: refresh leaderboard after score submission
+    fetchBloxLeaderboard();
   }
 
   function gameOver() {
@@ -982,6 +1085,14 @@ const BloxGame = (() => {
       endGame();
     });
 
+    // v4.9: Leaderboard tab clicks
+    $("blox-lb-tab-all")?.addEventListener("click", () =>
+      setBloxLbTab("global"),
+    );
+    $("blox-lb-tab-room")?.addEventListener("click", () =>
+      setBloxLbTab("room"),
+    );
+
     board = createEmptyBoard();
     renderBoard();
     initBoardMouseTracking();
@@ -989,10 +1100,15 @@ const BloxGame = (() => {
 
     // Show initial overlay
     showPauseOverlay();
+
+    // v4.9: Initial leaderboard fetch
+    fetchBloxLeaderboard();
   }
 
   function onEnter() {
     updateStats();
+    // v4.9: refresh leaderboard on screen enter
+    fetchBloxLeaderboard();
     // Show pause overlay when entering screen (if game is active, pause it)
     if (gameActive) {
       showPauseOverlay();
@@ -1001,5 +1117,5 @@ const BloxGame = (() => {
     }
   }
 
-  return { init, onEnter, startGame };
+  return { init, onEnter, startGame, fetchBloxLeaderboard, setBloxLbTab };
 })();

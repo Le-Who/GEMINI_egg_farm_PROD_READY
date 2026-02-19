@@ -836,22 +836,20 @@ const Match3Game = (() => {
             c.classList.toggle("active", c.dataset.mode === newMode),
           );
 
-        // If switching mode during active game, just switch directly
+        // v4.9: Always route through energy confirmation for mode switches
+        // This ensures energy consent is respected when switching modes mid-game
         if (gameActive && newMode !== gameMode && score > 0) {
           const label =
             card.querySelector(".m3-mode-name")?.textContent || newMode;
           if (typeof showToast === "function")
             showToast(`🔄 Switching to ${label}…`);
-          startGame(newMode);
+          confirmAndStart(newMode);
           return;
         }
 
         // v4.8: Route through energy confirmation for new games
-        if (gameActive) {
-          startGame(newMode);
-        } else {
-          confirmAndStart(newMode);
-        }
+        // (same mode restart or already-active game with no score)
+        confirmAndStart(newMode);
       });
       // Insert inline inside m3-main, before the board
       const main = $("m3-board-container")?.closest(".m3-main");

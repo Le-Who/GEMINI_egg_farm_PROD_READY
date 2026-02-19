@@ -64,6 +64,20 @@
   border-color: rgba(251, 191, 36, 0.5);
   animation: plotGlow 1.5s ease-in-out infinite;
 }
+/* v4.9: Almost-ready pulse — client thinks done, server disagrees */
+.farm-plot.almost-ready {
+  border-color: rgba(251, 146, 36, 0.4);
+  animation: plotAlmostGlow 0.9s ease-in-out infinite;
+}
+@keyframes plotAlmostGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 rgba(251, 146, 36, 0);
+  }
+  50% {
+    box-shadow: 0 0 14px rgba(251, 146, 36, 0.2);
+  }
+}
 
 .farm-plot .crop-emoji {
   font-size: 2rem;
@@ -148,7 +162,7 @@
   position: absolute;
   top: 0;
   left: calc(100% + 16px);
-  width: 240px;
+  width: 320px; /* v4.9: widened from 240px for extra seed column */
   background: rgba(255, 255, 255, 0.04);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -256,14 +270,18 @@
   flex-shrink: 0;
 }
 .farm-inv-btn {
-  padding: 3px 7px;
+  padding: 6px 14px; /* v4.9: larger touch targets */
   border: none;
-  border-radius: 6px;
-  font-size: 0.6rem;
+  border-radius: 8px;
+  font-size: 0.78rem; /* v4.9: bigger text */
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s;
   line-height: 1.2;
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
 }
 .farm-inv-btn.sell {
   background: rgba(240, 208, 96, 0.2);
@@ -426,6 +444,25 @@
   font-size: 0.6rem;
   color: var(--text-dim);
 }
+/* v4.9: Inline quick-buy button on seed cards */
+.farm-seed-card .seed-quick-buy {
+  margin-top: 4px;
+  padding: 4px 10px;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: 8px;
+  background: rgba(34, 197, 94, 0.1);
+  color: #86efac;
+  font-size: 0.65rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: "Inter", sans-serif;
+}
+.farm-seed-card .seed-quick-buy:hover {
+  background: rgba(34, 197, 94, 0.25);
+  border-color: rgba(34, 197, 94, 0.5);
+  transform: scale(1.05);
+}
 
 /* ─── Reward Toast ─── */
 .farm-reward {
@@ -560,4 +597,3 @@
     gap: 6px;
   }
 }
-
