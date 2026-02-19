@@ -3,13 +3,13 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { PluginManager, definePlugin } from "../src/plugin";
+import { PluginManager, definePlugin } from "../../core/src/plugin";
 import type {
   BasePlayerState,
   GameConfig,
   GameAction,
   ActionResult,
-} from "../src/types";
+} from "../../core/src/types";
 
 interface TestState extends BasePlayerState {
   coins: number;
