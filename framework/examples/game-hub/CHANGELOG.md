@@ -1,5 +1,21 @@
 # Changelog
 
+## v4.10.0 — 2026-02-19
+
+### UX/UI Audit — Phase 2 (Accessibility + Consistency)
+
+- **Gold color brightened** (5.2): `--gold` changed from `#fbbf24` → `#f5cf50` for better contrast on dark glass panels (~5.5:1 ratio on `#1e1b2e` surfaces).
+- **Button style convention** (6.5): `btn-danger` (red gradient) and `btn-success` (green gradient) standardized in `base.css`. Convention established: primary=purple, success/confirm=green, danger=red. Duplicate `btn-danger` removed from `blox.css`.
+
+> **Note:** Items 5.1, 5.4, 5.5, 5.6, 6.1, 6.2, 6.4 were already implemented in Phase 1 (v4.9).
+
+## v4.9.1 — 2026-02-19
+
+### Bug Fixes
+
+- **Screen headers hidden**: Removed per-game `<h2>` headers (`display: none`) — nav bar already provides game labels. Reclaims ~70px of vertical space, fixing Blox piece tray being clipped behind the nav bar and farm plots being partially obscured.
+- **Match-3 cross-device desync**: `restoreGame()` now treats server state as authoritative — clears localStorage `savedModes` entirely and replaces with only the server's active session. Prevents stale sessions from device A appearing on device B.
+
 ## v4.9.0 — 2026-02-19
 
 ### UX/UI Audit — Phase 1 (Navigation, Visual Polish, Feedback)

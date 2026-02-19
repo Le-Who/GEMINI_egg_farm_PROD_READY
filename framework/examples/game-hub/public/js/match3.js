@@ -289,8 +289,8 @@ const Match3Game = (() => {
     fetchLeaderboard();
     updateStartButton();
 
-    // Hydrate savedModes from localStorage before restoring from server
-    loadSavedModes();
+    // v4.9.1: Don't pre-load localStorage savedModes — restoreGame() will
+    // set savedModes authoritatively from server state to prevent cross-device desync
 
     // v4.5.3: Eagerly create mode selector so it always exists for hideModeSelector()
     showModeSelector();
@@ -497,7 +497,11 @@ const Match3Game = (() => {
         gameMode = restoredMode;
 
         if (gameActive) {
-          // Also stash into savedModes so mode-switching can find it
+          // v4.9.1: Server is authoritative — replace ALL local savedModes
+          // with only the server's active session. This prevents cross-device
+          // desync where stale localStorage sessions from device A leak into
+          // device B's session list.
+          savedModes = {};
           savedModes[restoredMode] = {
             board: JSON.parse(JSON.stringify(board)),
             score,
@@ -512,12 +516,19 @@ const Match3Game = (() => {
           renderBoard(true);
           showToast("💎 Game restored!");
         } else {
+          // No active server game — clear localStorage sessions to prevent
+          // stale sessions from another device appearing
+          savedModes = {};
+          persistSavedModes();
           highScore = data.highScore || 0;
           $("m3-best").textContent = highScore;
           board = generateBoard();
           renderBoard(true);
         }
       } else if (data) {
+        // Server has no game at all — clear localStorage sessions
+        savedModes = {};
+        persistSavedModes();
         highScore = data.highScore || 0;
         $("m3-best").textContent = highScore;
         board = generateBoard();
