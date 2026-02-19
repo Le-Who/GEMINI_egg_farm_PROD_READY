@@ -7,7 +7,7 @@ import {
   loadGameConfig,
   loadGameConfigWithEnv,
   DEFAULT_GAME_CONFIG,
-} from "../src/config";
+} from "../../core/src/config";
 
 describe("Config", () => {
   it("should return defaults when given empty object", () => {

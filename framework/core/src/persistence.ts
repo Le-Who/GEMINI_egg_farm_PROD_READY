@@ -117,7 +117,7 @@ export class LocalFileAdapter<
   private async writeToDisk(): Promise<void> {
     try {
       const obj = Object.fromEntries(this.store);
-      fs.writeFileSync(this.filePath, JSON.stringify(obj, null, 2));
+      await fs.promises.writeFile(this.filePath, JSON.stringify(obj, null, 2));
     } catch (err) {
       console.error("[LocalFileAdapter] Write error:", err);
     }
