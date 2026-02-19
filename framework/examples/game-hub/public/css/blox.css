@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Building Blox Screen Styles (v4.8.0)
+ *  Game Hub — Building Blox Screen Styles (v4.8.1)
  * ═══════════════════════════════════════════════════ */
 
 /* Scope overlays to this screen only */
@@ -254,20 +254,21 @@
   will-change: transform, left, top;
 }
 
-/* ─── Main Layout (board + leaderboard side-by-side) ─── */
+/* ─── Main Layout (board centered, leaderboard docked left) ─── */
 .blox-main {
   display: flex;
-  gap: 16px;
-  align-items: flex-start;
   justify-content: center;
   width: 100%;
+  position: relative; /* anchor for absolutely-positioned leaderboard */
 }
 
-/* ─── Leaderboard Panel (v4.9: glassmorphism, always visible) ─── */
+/* ─── Leaderboard Panel (v4.9.1: docked left, out of flow) ─── */
 .blox-lb-panel {
+  position: absolute;
+  right: calc(50% + 220px); /* board half-width ≈ 200px + 20px gap */
+  top: 0;
   width: 200px;
   min-width: 180px;
-  flex-shrink: 0;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 16px;
@@ -380,6 +381,7 @@
     align-items: center;
   }
   .blox-lb-panel {
+    position: static; /* back in flow on narrow screens */
     width: 100%;
     max-width: calc(var(--blox-cell, 36px) * 10 + 2px * 9 + 16px);
     display: none; /* hidden on mobile by default */

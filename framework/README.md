@@ -839,7 +839,7 @@ npm test
 
 #### Game Hub (`examples/game-hub`)
 
-Game Hub имеет собственный набор тестов (184 штук) на `node:test` — см. `examples/game-hub/README.md`:
+Game Hub имеет собственный набор тестов (184 штук) на `node:test` — см. `examples/game-hub/README.md`. Текущая версия — **v4.8.1** (фикс центрирования Building Blox + лидерборд):
 
 ```bash
 cd examples/game-hub

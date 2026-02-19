@@ -1,5 +1,16 @@
 # Changelog
 
+## v4.8.1 — 2026-02-19
+
+### Bug Fixes
+
+- **Blox leaderboard alignment**: Leaderboard panel was shifted too far left and pushed the game board off-center. `blox-lb-panel` is now `position: absolute; right: calc(50% + 220px)` — floats to the left of the centered board without affecting layout flow. Game area is always centered on the player's screen.
+- **Blox board centering**: Removed `gap` and `align-items` from `.blox-main` flex container so the board+tray column is the sole flex child driving centering.
+
+### Version Bump
+
+- `blox.css` header → `v4.8.1`.
+
 ## v4.8.0 — 2026-02-19
 
 ### Bug Fixes

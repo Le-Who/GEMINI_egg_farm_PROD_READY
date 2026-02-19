@@ -2,7 +2,7 @@
 
 > A combined Farm + Trivia + Match-3 + Building Blox game running as a single Discord Embedded App Activity with horizontal screen-swipe navigation.
 
-**v4.6.0** — Global version constant (auto-synced from `package.json`); Star Drop gems have unique colors and animated glow borders; Play Again button fix.
+**v4.8.1** — Blox leaderboard alignment fix (board always centered, leaderboard docked left out of flow); Match-3 UX overhaul (mode persistence, auto-start, energy confirmation, simplified game-over).
 
 ## Quick Start
 
@@ -82,7 +82,7 @@ npm run dev
 - **Duel Lobby** & **Voice Chat Invite**.
 - **Gold Rewards**: Earn gold for winning quizzes.
 
-### 🧱 Building Blox (v4.0 → v4.1)
+### 🧱 Building Blox (v4.0 → v4.8.1)
 
 - **10×10 grid block puzzle**: Place Tetris-like pieces, clear rows + columns for score.
 - **12 piece shapes** (1-cell dot through 5-cell pentomino) with distinct colors.
