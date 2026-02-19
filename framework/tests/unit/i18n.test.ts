@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { I18n } from "../src/i18n";
+import { I18n } from "../../core/src/i18n";
 
 describe("I18n", () => {
   it("should return key if no translation found", () => {

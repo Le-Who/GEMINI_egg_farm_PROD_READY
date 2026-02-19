@@ -3,10 +3,10 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { StateManager } from "../src/stateManager";
-import { MemoryAdapter } from "../src/persistence";
-import { EventBus } from "../src/eventBus";
-import type { BasePlayerState } from "../src/types";
+import { StateManager } from "../../core/src/stateManager";
+import { MemoryAdapter } from "../../core/src/persistence";
+import { EventBus } from "../../core/src/eventBus";
+import type { BasePlayerState } from "../../core/src/types";
 
 interface TestState extends BasePlayerState {
   coins: number;
