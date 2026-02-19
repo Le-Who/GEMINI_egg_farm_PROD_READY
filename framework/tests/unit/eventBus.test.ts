@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { EventBus } from "../src/eventBus";
+import { EventBus } from "../../core/src/eventBus";
 
 describe("EventBus", () => {
   it("should emit and receive events", () => {
