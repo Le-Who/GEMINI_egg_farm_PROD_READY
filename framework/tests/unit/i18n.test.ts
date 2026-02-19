@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { I18n } from "../src/i18n";
+import { I18n } from "../../core/src/i18n";
 
 describe("I18n", () => {
   it("should return key if no translation found", () => {
@@ -66,5 +66,73 @@ describe("I18n", () => {
     expect(i18n.tField(item, "name")).toBe("Tomato");
     i18n.setLocale("ru");
     expect(i18n.tField(item, "name")).toBe("Помидор");
+  });
+
+  it("should support explicit locale argument in tField", () => {
+    const i18n = new I18n("en");
+    const item = {
+      name: "Tomato",
+      localizedNames: { ru: "Помидор" },
+    };
+    // Should ignore current locale "en" and use "ru"
+    expect(i18n.tField(item, "name", "ru")).toBe("Помидор");
+  });
+
+  it("should support field_locale convention", () => {
+    const i18n = new I18n("en");
+    const item = {
+      name: "Apple",
+      name_fr: "Pomme",
+    };
+    i18n.setLocale("fr");
+    expect(i18n.tField(item, "name")).toBe("Pomme");
+  });
+
+  it("should support localizedDescriptions map", () => {
+    const i18n = new I18n("en");
+    const item = {
+      description: "A red fruit",
+      localizedDescriptions: { es: "Una fruta roja" },
+    };
+    i18n.setLocale("es");
+    expect(i18n.tField(item, "description")).toBe("Una fruta roja");
+  });
+
+  it("should prioritize field_locale over localizedNames map", () => {
+    const i18n = new I18n("en");
+    const item = {
+      name: "Tomato",
+      name_ru: "Томат",
+      localizedNames: { ru: "Помидор" },
+    };
+    i18n.setLocale("ru");
+    // Code checks `field_loc` first
+    expect(i18n.tField(item, "name")).toBe("Томат");
+  });
+
+  it("should fall back to default field if translation missing", () => {
+    const i18n = new I18n("en");
+    const item = {
+      name: "Carrot",
+      localizedNames: {},
+    };
+    i18n.setLocale("de");
+    expect(i18n.tField(item, "name")).toBe("Carrot");
+  });
+
+  it("should return empty string if field missing entirely", () => {
+    const i18n = new I18n("en");
+    const item = {};
+    expect(i18n.tField(item, "name")).toBe("");
+  });
+
+  it("should handle custom fields with field_locale convention", () => {
+    const i18n = new I18n("en");
+    const item = {
+      title: "Boss",
+      title_jp: "Shacho",
+    };
+    i18n.setLocale("jp");
+    expect(i18n.tField(item, "title")).toBe("Shacho");
   });
 });
