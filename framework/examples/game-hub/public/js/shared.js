@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Shared Module (v4.9.0)
+ *  Game Hub — Shared Module (v4.11.0)
  *  Discord SDK auth, API helper, screen navigation
  *  CSP-compliant: no inline handlers, no external fonts
  * ═══════════════════════════════════════════════════ */
@@ -273,6 +273,10 @@ async function triggerScreenCallbacks() {
   if (name === "match3" && typeof Match3Game !== "undefined")
     Match3Game.onEnter();
   if (name === "blox" && typeof BloxGame !== "undefined") BloxGame.onEnter();
+
+  // 7.1: Farm Shop FAB — visible only on farm screen
+  const fab = document.getElementById("farm-shop-fab");
+  if (fab) fab.classList.toggle("visible", name === "farm");
 }
 
 /* ─── Toast (v4.9: dedup + type variants + leading icons 2.4) ─── */
@@ -599,6 +603,77 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (bootLoader) {
     bootLoader.classList.add("hidden");
     setTimeout(() => bootLoader.remove(), 600); // Remove from DOM after fade
+  }
+
+  // ═══ Phase 3 (v4.11): Cognitive Load Reduction ═══
+
+  // 7.7: Economy guide overlay toggle
+  const econBtn = document.getElementById("econ-guide-btn");
+  const econOverlay = document.getElementById("econ-guide-overlay");
+  const econClose = document.getElementById("econ-guide-close");
+  if (econBtn && econOverlay) {
+    econBtn.addEventListener("click", () => econOverlay.classList.add("show"));
+    if (econClose)
+      econClose.addEventListener("click", () =>
+        econOverlay.classList.remove("show"),
+      );
+    econOverlay.addEventListener("click", (e) => {
+      if (e.target === econOverlay) econOverlay.classList.remove("show");
+    });
+  }
+
+  // 7.1: Farm shop FAB → switch to shop tab
+  const fab = document.getElementById("farm-shop-fab");
+  if (fab) {
+    fab.addEventListener("click", () => {
+      if (typeof FarmGame !== "undefined" && FarmGame.switchFarmTab) {
+        FarmGame.switchFarmTab("shop");
+      }
+    });
+    // Show FAB on initial load if on farm screen
+    if (HUB.currentScreen === 2) fab.classList.add("visible");
+  }
+
+  // 7.6: One-time energy tutorial tooltip
+  const ENERGY_TUT_KEY = "hub_energy_tutorial_shown";
+  if (!localStorage.getItem(ENERGY_TUT_KEY)) {
+    const energyPill = document.getElementById("hud-energy");
+    if (energyPill) {
+      setTimeout(() => {
+        const tip = document.createElement("div");
+        tip.className = "energy-tutorial";
+        tip.innerHTML =
+          "⚡ Energy recharges over time. Feed your pet crops to restore it!" +
+          ' <span class="tutorial-dismiss">✕</span>';
+        energyPill.style.position = "relative";
+        energyPill.appendChild(tip);
+        const dismiss = tip.querySelector(".tutorial-dismiss");
+        if (dismiss) {
+          dismiss.addEventListener("click", () => {
+            tip.remove();
+            localStorage.setItem(ENERGY_TUT_KEY, "1");
+          });
+        }
+        // Auto-dismiss after 10 seconds
+        setTimeout(() => {
+          if (tip.parentElement) {
+            tip.remove();
+            localStorage.setItem(ENERGY_TUT_KEY, "1");
+          }
+        }, 10000);
+      }, 3000); // Show after 3s delay
+    }
+  }
+
+  // 7.3: Trivia settings panel toggle
+  const triviaSettingsToggle = document.getElementById(
+    "trivia-settings-toggle",
+  );
+  const triviaSettingsPanel = document.getElementById("trivia-settings-panel");
+  if (triviaSettingsToggle && triviaSettingsPanel) {
+    triviaSettingsToggle.addEventListener("click", () => {
+      triviaSettingsPanel.classList.toggle("open");
+    });
   }
 
   // Cell size for match-3 based on viewport (responsive, mobile-aware)

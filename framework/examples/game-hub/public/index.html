@@ -8,13 +8,13 @@
       name="description"
       content="Unified Game Hub: Farm, Trivia (Solo &amp; Duel), Match-3 with Leaderboard — Discord Activities Framework Demo"
     />
-    <link rel="stylesheet" href="css/base.css?v=4.9" />
-    <link rel="stylesheet" href="css/farm.css?v=4.9" />
-    <link rel="stylesheet" href="css/trivia.css?v=4.9" />
-    <link rel="stylesheet" href="css/match3.css?v=4.9" />
-    <link rel="stylesheet" href="css/blox.css?v=4.9" />
-    <link rel="stylesheet" href="css/hud.css?v=4.9" />
-    <link rel="stylesheet" href="css/pet.css?v=4.9" />
+    <link rel="stylesheet" href="css/base.css?v=4.11" />
+    <link rel="stylesheet" href="css/farm.css?v=4.11" />
+    <link rel="stylesheet" href="css/trivia.css?v=4.11" />
+    <link rel="stylesheet" href="css/match3.css?v=4.11" />
+    <link rel="stylesheet" href="css/blox.css?v=4.11" />
+    <link rel="stylesheet" href="css/hud.css?v=4.11" />
+    <link rel="stylesheet" href="css/pet.css?v=4.11" />
   </head>
   <body>
     <!-- ═══ Boot Loading Overlay ═══ -->
@@ -69,6 +69,35 @@
         <span class="hud-icon">🪙</span>
         <span id="hud-gold-text">--</span>
       </div>
+      <button class="econ-guide-btn" id="econ-guide-btn" title="Economy Guide">
+        ?
+      </button>
+    </div>
+
+    <!-- ═══ 7.1: Farm Shop FAB ═══ -->
+    <button class="farm-shop-fab" id="farm-shop-fab" title="Open Shop">
+      🛒
+    </button>
+
+    <!-- ═══ 7.7: Economy Guide Overlay ═══ -->
+    <div class="econ-guide-overlay" id="econ-guide-overlay">
+      <div class="econ-guide-card">
+        <h3>💰 Economy Flow</h3>
+        <div class="econ-guide-flow">
+          <div class="econ-step">⚡ Energy → Play Games</div>
+          <div class="econ-arrow">↓</div>
+          <div class="econ-step">💎 Score Points → Earn 🪙 Gold</div>
+          <div class="econ-arrow">↓</div>
+          <div class="econ-step">🪙 Gold → Buy 🌾 Seeds</div>
+          <div class="econ-arrow">↓</div>
+          <div class="econ-step">🌱 Plant & Harvest Crops</div>
+          <div class="econ-arrow">↓</div>
+          <div class="econ-step">🥕 Feed Pet → Restore ⚡ Energy</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" id="econ-guide-close">
+          Got it!
+        </button>
+      </div>
     </div>
 
     <!-- ═══ Viewport ═══ -->
@@ -99,6 +128,32 @@
                 <span class="mode-label">Join Duel</span>
                 <span class="mode-desc">Enter invite code</span>
               </button>
+            </div>
+            <!-- 7.3: Trivia Settings -->
+            <button class="trivia-settings-toggle" id="trivia-settings-toggle">
+              ⚙️ Settings
+            </button>
+            <div class="trivia-settings-panel" id="trivia-settings-panel">
+              <label
+                >Category
+                <select id="trivia-category-select">
+                  <option value="" selected>All Categories</option>
+                  <option value="science">Science</option>
+                  <option value="history">History</option>
+                  <option value="geography">Geography</option>
+                  <option value="entertainment">Entertainment</option>
+                  <option value="sports">Sports</option>
+                </select>
+              </label>
+              <label
+                >Difficulty
+                <select id="trivia-difficulty-select">
+                  <option value="">Any</option>
+                  <option value="easy">Easy</option>
+                  <option value="medium" selected>Medium</option>
+                  <option value="hard">Hard</option>
+                </select>
+              </label>
             </div>
           </div>
 

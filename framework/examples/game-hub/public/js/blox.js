@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Building Blox Module (v4.8.0)
+ *  Game Hub — Building Blox Module (v4.11.0)
  *  10×10 Block Puzzle: place pieces, clear lines
  *  ─ localStorage persistence, pause overlay, touch drag,
  *    grab-point anchor ghost, mouse drag-and-drop,

@@ -1,5 +1,21 @@
 # Changelog
 
+## v4.11.0 — 2026-02-19
+
+### UX/UI Audit — Phase 3 (Cognitive Load Reduction)
+
+- **Farm shop FAB** (7.1): Floating 🛒 button on farm screen opens shop tab directly.
+- **Match-3 recommended badge** (7.2): "⭐ Recommended" badge on Classic mode for first 3 games, auto-hides after.
+- **Trivia settings panel** (7.3): ⚙️ Settings toggle exposes category and difficulty selectors. Defaults: All/Medium.
+- **Farm growth time estimate** (7.4): "~45s left" / "~2m left" label below growth bar on each plot.
+- **Energy tutorial tooltip** (7.6): One-time tooltip on energy pill explaining how energy works. Auto-dismisses after 10s.
+- **Economy guide overlay** (7.7): `?` button in TopHUD opens a flow diagram showing the full economy loop.
+
+### Housekeeping
+
+- Cache-busting: CSS `?v=4.9` → `?v=4.11` in `index.html`.
+- `package.json` version bumped to `4.11.0`.
+
 ## v4.10.0 — 2026-02-19
 
 ### UX/UI Audit — Phase 2 (Accessibility + Consistency)

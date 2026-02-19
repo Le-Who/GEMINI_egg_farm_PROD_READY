@@ -2,7 +2,7 @@
 
 > A combined Farm + Trivia + Match-3 + Building Blox game running as a single Discord Embedded App Activity with horizontal screen-swipe navigation.
 
-**v4.10.0** — UX/UI Audit Phase 1+2: universal bottom nav bar, warm pastel overlays, tinted toasts, enlarged touch targets, brightened gold, standardized button variants. Screen headers hidden; Match-3 cross-device desync fixed.
+**v4.11.0** — UX/UI Audit Phase 1–3: universal bottom nav bar, warm pastel overlays, tinted toasts, enlarged touch targets, brightened gold, standardized button variants, farm shop FAB, growth time estimates, M3 recommended badge, trivia settings panel, energy tutorial tooltip, economy guide overlay.
 
 ## Quick Start
 

@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Match-3 Module (v4.8.0)
+ *  Game Hub — Match-3 Module (v4.11.0)
  *  Client-side engine, CSS transitions, state restore
  *  ─ GameStore integration (match3 slice)
  *  ─ Pause/Continue overlay, touch swipe, default mode
@@ -680,6 +680,13 @@ const Match3Game = (() => {
 
     if (data && data.highScore !== undefined) highScore = data.highScore;
 
+    // 7.2: Increment total games counter (for recommended badge)
+    const prevGames = parseInt(
+      localStorage.getItem("hub_m3_total_games") || "0",
+      10,
+    );
+    localStorage.setItem("hub_m3_total_games", String(prevGames + 1));
+
     // Sync resources from server response
     if (data && data.resources && typeof HUD !== "undefined") {
       HUD.syncFromServer(data.resources);
@@ -822,6 +829,7 @@ const Match3Game = (() => {
             <span class="m3-mode-icon">💎</span>
             <span class="m3-mode-name">Classic</span>
             <span class="m3-mode-desc">30 moves to score big</span>
+            ${parseInt(localStorage.getItem("hub_m3_total_games") || "0", 10) < 3 ? '<span class="m3-recommended">⭐ Recommended</span>' : ""}
           </button>
           <button class="m3-mode-card" data-mode="timed">
             <span class="m3-mode-icon">⏱️</span>

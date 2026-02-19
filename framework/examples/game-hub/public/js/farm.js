@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Farm Module (v4.8.0)
+ *  Game Hub — Farm Module (v4.11.0)
  *  Plots, planting, watering, harvesting, seed shop
  *  ─ Local growth timer, diff-update fix, farm badge
  *  ─ Diff-update plots (no blink), horizontal buy bar, plot dispatcher
@@ -400,6 +400,7 @@ const FarmGame = (() => {
         <div class="crop-emoji">${cfg.emoji || "🌱"}</div>
         <div class="crop-name">${cfg.name || plot.crop}</div>
         <div class="growth-bar"><div class="growth-bar-fill${isReady ? " done" : ""}${isJustPlanted ? " plant-burst" : ""}" style="width:${displayPct}%"></div></div>
+        ${!isReady ? `<div class="growth-time-label">${formatTimeLeft(plot, pct)}</div>` : ""}
         ${!plot.watered && !isReady ? '<button class="farm-water-btn" title="Water">💧</button>' : ""}
         ${plot.watered ? '<button class="farm-water-btn watered" disabled>💧</button>' : ""}
       `;
@@ -884,6 +885,19 @@ const FarmGame = (() => {
       .catch(() => {});
   }
 
+  /* ─── 7.4: Growth Time Estimate ─── */
+  function formatTimeLeft(plot, pct) {
+    if (pct >= 1) return "Ready!";
+    const mult = plot.watered ? plot.wateringMultiplier || 0.7 : 1;
+    const totalMs = (plot.growthTime || 15000) * mult;
+    const remainMs = totalMs * (1 - pct);
+    const secs = Math.ceil(remainMs / 1000);
+    if (secs <= 0) return "Ready!";
+    if (secs < 60) return `~${secs}s left`;
+    const mins = Math.ceil(secs / 60);
+    return `~${mins}m left`;
+  }
+
   /* ─── Local Growth Computation (Issue 5, v4.9: clock-corrected) ─── */
   function getLocalGrowth(plot) {
     if (!plot.crop || !plot.plantedAt) return 0;
@@ -1047,5 +1061,6 @@ const FarmGame = (() => {
     getLocalGrowth,
     sellCrop,
     feedPet,
+    switchFarmTab,
   };
 })();

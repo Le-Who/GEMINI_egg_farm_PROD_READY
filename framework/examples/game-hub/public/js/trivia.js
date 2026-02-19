@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Trivia Module  (v4.8.0)
+ *  Game Hub — Trivia Module  (v4.11.0)
  *  Solo mode, Duel mode, timer, results
  *  ─ Forfeit, cancel, lobby ready-up, voice invite
  *  ─ GameStore integration (trivia slice)
@@ -195,6 +195,10 @@ const TriviaGame = (() => {
       userId: HUB.userId,
       username: HUB.username,
       count: 5,
+      // 7.3: Read user-selected category & difficulty from settings panel
+      category: document.getElementById("trivia-category-select")?.value || "",
+      difficulty:
+        document.getElementById("trivia-difficulty-select")?.value || "medium",
     });
     if (data && data.error === "NOT_ENOUGH_ENERGY") {
       showToast("⚡ Not enough energy!");
