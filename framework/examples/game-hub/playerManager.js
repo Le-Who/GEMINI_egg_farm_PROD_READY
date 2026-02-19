@@ -118,7 +118,11 @@ export function getPlayer(userId, username) {
   if (username) p.username = username;
   // ─── Blox Schema Migration ───
   if (!p.blox) {
-    p.blox = { highScore: 0, totalGames: 0 };
+    p.blox = { highScore: 0, totalGames: 0, savedState: null };
+    debouncedSaveDb();
+  }
+  if (p.blox && !("savedState" in p.blox)) {
+    p.blox.savedState = null;
     debouncedSaveDb();
   }
   // ─── Match-3 savedModes migration ───

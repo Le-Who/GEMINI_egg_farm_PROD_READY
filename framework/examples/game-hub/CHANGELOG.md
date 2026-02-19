@@ -1,5 +1,14 @@
 # Changelog
 
+## v4.12.3 — 2026-02-19
+
+### Blox Cross-Device Sync
+
+- **Server-side board persistence**: Added `savedState` to player data with automatic migration.
+- **New endpoints**: `POST /api/blox/state` (fetch saved board), `POST /api/blox/sync` (push board to server).
+- **Client sync**: `saveState()` fire-and-forgets to server after every piece placement. `init()` fetches server state and merges into localStorage for cross-device resume.
+- **Bug fix**: Removed stale `closeLeaderboard` reference in Match-3 `init()` that crashed on load.
+
 ## v4.12.2 — 2026-02-19
 
 ### Match-3 Inline Leaderboard

@@ -52,5 +52,27 @@ export default function bloxRoutes(requireAuth, resolveUser) {
     });
   });
 
+  // v4.12.3: Get saved board state for cross-device sync
+  router.post("/api/blox/state", requireAuth, (req, res) => {
+    const { userId, username } = resolveUser(req);
+    if (!userId) return res.status(400).json({ error: "userId required" });
+    const p = getPlayer(userId, username);
+    res.json({
+      savedState: p.blox.savedState || null,
+      highScore: p.blox.highScore,
+    });
+  });
+
+  // v4.12.3: Sync board state from client to server
+  router.post("/api/blox/sync", requireAuth, (req, res) => {
+    const { userId } = resolveUser(req);
+    const { savedState } = req.body;
+    if (!userId) return res.status(400).json({ error: "userId required" });
+    const p = getPlayer(userId);
+    p.blox.savedState = savedState ?? null;
+    debouncedSaveDb();
+    res.json({ success: true });
+  });
+
   return router;
 }

@@ -319,7 +319,7 @@ const BloxGame = (() => {
     return false;
   }
 
-  // ── Persistence ──
+  // ── Persistence (v4.12.3: + server sync for cross-device) ──
   function saveState() {
     try {
       const state = {
@@ -334,6 +334,11 @@ const BloxGame = (() => {
         gameActive,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      // v4.12.3: fire-and-forget server sync
+      api("/api/blox/sync", {
+        userId: HUB.userId,
+        savedState: state,
+      }).catch(() => {});
     } catch (_) {
       /* quota exceeded - silent */
     }
@@ -367,6 +372,11 @@ const BloxGame = (() => {
 
   function clearSavedState() {
     localStorage.removeItem(STORAGE_KEY);
+    // v4.12.3: clear server state too
+    api("/api/blox/sync", {
+      userId: HUB.userId,
+      savedState: null,
+    }).catch(() => {});
   }
 
   // ── Rendering ──
@@ -1092,6 +1102,26 @@ const BloxGame = (() => {
     $("blox-lb-tab-room")?.addEventListener("click", () =>
       setBloxLbTab("room"),
     );
+
+    // v4.12.3: Fetch server state for cross-device sync
+    try {
+      const serverData = await api("/api/blox/state", {
+        userId: HUB.userId,
+        username: HUB.username,
+      });
+      if (serverData?.highScore)
+        highScore = Math.max(highScore, serverData.highScore);
+      // Merge server state into localStorage if local has no save
+      const localSave = loadState();
+      if (!localSave && serverData?.savedState) {
+        localStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify(serverData.savedState),
+        );
+      }
+    } catch (_) {
+      /* offline — use local only */
+    }
 
     board = createEmptyBoard();
     renderBoard();
