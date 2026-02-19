@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Match-3 Module (v4.7.0)
+ *  Game Hub — Match-3 Module (v4.8.0)
  *  Client-side engine, CSS transitions, state restore
  *  ─ GameStore integration (match3 slice)
  *  ─ Pause/Continue overlay, touch swipe, default mode
@@ -720,6 +720,75 @@ const Match3Game = (() => {
     updateStartButton();
   }
 
+  /* ─── Helper: get currently selected mode from mode bar ─── */
+  function getSelectedMode() {
+    const sel = $("m3-mode-selector");
+    const active = sel?.querySelector(".m3-mode-card.active");
+    return (
+      active?.dataset.mode || localStorage.getItem(LAST_MODE_KEY) || "classic"
+    );
+  }
+
+  /* ─── Energy confirmation before starting a new game (v4.8) ─── */
+  function confirmAndStart(mode) {
+    if (!mode) mode = getSelectedMode();
+
+    // If there's a saved session → resume for free (no energy cost)
+    if (savedModes[mode]) {
+      startGame(mode);
+      return;
+    }
+
+    // Energy gatekeep — show not-enough modal if insufficient
+    if (typeof HUD !== "undefined" && !HUD.hasEnergy(5)) {
+      if (HUD.showEnergyModal) {
+        HUD.showEnergyModal(5, () => startGame(mode));
+      } else {
+        showToast("⚡ Need 5 energy to play!");
+      }
+      return;
+    }
+
+    // Enough energy → show inline confirmation overlay
+    const modeLabel =
+      mode === "timed"
+        ? "Time Attack"
+        : mode === "drop"
+          ? "Star Drop"
+          : "Classic";
+    let overlay = $("m3-confirm-overlay");
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.id = "m3-confirm-overlay";
+      overlay.className = "overlay";
+      overlay.innerHTML = `
+        <div class="overlay-card" style="max-width:320px;text-align:center">
+          <h3 id="m3-confirm-title" style="margin:0 0 12px"></h3>
+          <p id="m3-confirm-desc" style="font-size:0.9rem;color:var(--text-dim);margin-bottom:20px"></p>
+          <div style="display:flex;gap:10px;justify-content:center">
+            <button class="btn btn-primary" id="m3-confirm-yes">✅ Play</button>
+            <button class="btn btn-secondary" id="m3-confirm-no">❌ Cancel</button>
+          </div>
+        </div>
+      `;
+      const m3Main =
+        $("m3-board-container")?.closest(".m3-main") ||
+        $("m3-board-container")?.parentElement;
+      if (m3Main) m3Main.appendChild(overlay);
+    }
+    $("m3-confirm-title").textContent = `⚡ ${modeLabel}`;
+    $("m3-confirm-desc").textContent = `Spend 5 energy to play ${modeLabel}?`;
+    overlay.classList.add("show");
+
+    $("m3-confirm-yes").onclick = () => {
+      overlay.classList.remove("show");
+      startGame(mode);
+    };
+    $("m3-confirm-no").onclick = () => {
+      overlay.classList.remove("show");
+    };
+  }
+
   /* ─── Mode Selector UI ─── */
   function showModeSelector() {
     // v4.6: Dismiss any active overlays so mode selector is visible
@@ -759,14 +828,30 @@ const Match3Game = (() => {
         const card = e.target.closest(".m3-mode-card");
         if (!card) return;
         const newMode = card.dataset.mode;
-        // If switching mode during active game, just switch (no confirm — blocked by Discord sandbox)
+
+        // v4.8: Update active highlight immediately
+        sel
+          .querySelectorAll(".m3-mode-card")
+          .forEach((c) =>
+            c.classList.toggle("active", c.dataset.mode === newMode),
+          );
+
+        // If switching mode during active game, just switch directly
         if (gameActive && newMode !== gameMode && score > 0) {
           const label =
             card.querySelector(".m3-mode-name")?.textContent || newMode;
           if (typeof showToast === "function")
             showToast(`🔄 Switching to ${label}…`);
+          startGame(newMode);
+          return;
         }
-        startGame(newMode);
+
+        // v4.8: Route through energy confirmation for new games
+        if (gameActive) {
+          startGame(newMode);
+        } else {
+          confirmAndStart(newMode);
+        }
       });
       // Insert inline inside m3-main, before the board
       const main = $("m3-board-container")?.closest(".m3-main");
@@ -779,11 +864,14 @@ const Match3Game = (() => {
     } else {
       sel.classList.add("show");
     }
-    // Remove playing state and active highlights
+    // Remove playing state, then highlight last-played mode (v4.8)
     sel.classList.remove("playing");
+    const lastMode = localStorage.getItem(LAST_MODE_KEY) || "classic";
     sel
       .querySelectorAll(".m3-mode-card")
-      .forEach((c) => c.classList.remove("active"));
+      .forEach((c) =>
+        c.classList.toggle("active", c.dataset.mode === lastMode),
+      );
   }
   function hideModeSelector() {
     const sel = $("m3-mode-selector");
@@ -960,6 +1048,11 @@ const Match3Game = (() => {
     let swiping = false;
 
     $b.addEventListener("pointerdown", (e) => {
+      // v4.8: Auto-start game on piece interaction when mode is pre-selected
+      if (!gameActive && !isAnimating && !gamePaused) {
+        confirmAndStart(getSelectedMode());
+        return;
+      }
       if (isAnimating || !gameActive || gamePaused) return;
       const cell = e.target.closest(".m3-cell");
       if (!cell) return;
@@ -1029,6 +1122,11 @@ const Match3Game = (() => {
 
   /* ═══ Cell Click ═══ */
   function onCellClick(x, y) {
+    // v4.8: Auto-start game on piece interaction when mode is pre-selected
+    if (!gameActive && !isAnimating && !gamePaused) {
+      confirmAndStart(getSelectedMode());
+      return;
+    }
     if (isAnimating || !gameActive || gamePaused) return;
     if (!selected) {
       selected = { x, y };
@@ -1348,6 +1446,10 @@ const Match3Game = (() => {
   function showGameOver(finalScore) {
     $("m3-final-score").textContent = finalScore;
     $("m3-final-best").textContent = highScore;
+    // v4.8: Show "New Record!" congrats when player beats their high score
+    const isNewRecord = finalScore >= highScore && finalScore > 0;
+    const recordEl = $("m3-new-record");
+    if (recordEl) recordEl.style.display = isNewRecord ? "block" : "none";
     $("m3-overlay").classList.add("show");
   }
 
@@ -1418,6 +1520,7 @@ const Match3Game = (() => {
     init,
     onEnter,
     startGame,
+    confirmAndStart,
     showModeSelector,
     toggleLeaderboard,
     setLbTab,

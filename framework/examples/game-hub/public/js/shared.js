@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Shared Module (v4.7.0)
+ *  Game Hub — Shared Module (v4.8.0)
  *  Discord SDK auth, API helper, screen navigation
  *  CSP-compliant: no inline handlers, no external fonts
  * ═══════════════════════════════════════════════════ */
@@ -406,9 +406,12 @@ function bindNavigation() {
     ?.addEventListener("click", () => TriviaGame.cancelDuel());
 
   // Match-3 buttons
-  document
-    .getElementById("btn-m3-play-again")
-    ?.addEventListener("click", () => Match3Game.showModeSelector());
+  document.getElementById("btn-m3-dismiss")?.addEventListener("click", () => {
+    // v4.8: Dismiss game-over overlay, show mode selector with last mode pre-highlighted
+    const ov = document.getElementById("m3-overlay");
+    if (ov) ov.classList.remove("show");
+    Match3Game.showModeSelector();
+  });
   document
     .getElementById("btn-lb-tab-all")
     ?.addEventListener("click", () => Match3Game.setLbTab("all"));

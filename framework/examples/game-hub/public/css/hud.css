@@ -41,6 +41,7 @@
   );
   border: 1px solid rgba(255, 200, 50, 0.25);
   border-radius: 20px;
+  overflow: hidden;
   cursor: pointer;
   transition:
     border-color 0.2s,
@@ -85,9 +86,15 @@
   z-index: 0;
 }
 @keyframes auroraShift {
-  0%   { background-position: 0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 /* Keep icon + text above regen fill */
 .hud-energy .hud-icon,
