@@ -302,17 +302,15 @@ const FarmGame = (() => {
     const plot = state?.plots?.[i];
     if (!plot) return;
     const pct = getLocalGrowth(plot);
-    // v4.9 Harvest Guard: use server-provided growth if available, fall back to local
-    const serverGrowth = typeof plot.growth === "number" ? plot.growth : pct;
+    // v4.11.1: Trust local growth for harvest readiness. Local growth uses
+    // clock-corrected time (getServerNow) and is validated again server-side
+    // on the harvest API call. Previous guard required stale `plot.growth`
+    // from server (only refreshes every 30s), making crops un-harvestable
+    // immediately when they finished growing.
     const isLocallyReady = plot.crop && pct >= 1;
-    const isServerReady = plot.crop && serverGrowth >= 1;
 
-    if (isLocallyReady && isServerReady) {
-      // Both agree → safe to harvest
+    if (isLocallyReady) {
       harvest(i);
-    } else if (isLocallyReady && !isServerReady) {
-      // v4.9: Client thinks ready, server disagrees → "almost ready" toast
-      showToast("⏳ Almost ready! Just a few more seconds...");
     } else if (plot.crop && !plot.watered && !isLocallyReady) {
       // v4.5: growing + unwatered = water it (click-to-water UX)
       water(i);
@@ -913,14 +911,17 @@ const FarmGame = (() => {
 
   function startLocalGrowthTick() {
     stopLocalGrowthTick();
+    let prevHadGrowing = true; // assume growing on start
     growthTickId = setInterval(() => {
       if (!state?.plots) return;
-      // Smart tick: skip render when nothing is growing (Solutions 4 + 7)
       const hasGrowing = state.plots.some(
         (p) => p.crop && getLocalGrowth(p) < 1,
       );
-      if (!hasGrowing) return;
-      render(); // re-render with locally computed growth
+      if (!hasGrowing && !prevHadGrowing) return; // nothing changed, skip
+      // v4.11.1: Always render when transitioning from growing→done
+      // so CSS classes, growth labels, and badge update on the final tick
+      prevHadGrowing = hasGrowing;
+      render();
       updateFarmBadge();
     }, 500);
     // Lazy server sync every 30s for drift correction

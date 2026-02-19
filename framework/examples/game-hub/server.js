@@ -232,6 +232,7 @@ function getPlayer(userId, username) {
     // Clear stale game sessions
     if (p.trivia) p.trivia.session = null;
     if (p.match3) p.match3.currentGame = null;
+    if (p.match3 && !p.match3.savedModes) p.match3.savedModes = {};
     p.schemaVersion = 2;
     debouncedSaveDb();
   }
@@ -239,6 +240,11 @@ function getPlayer(userId, username) {
   // ─── Blox Schema Migration ───
   if (!p.blox) {
     p.blox = { highScore: 0, totalGames: 0 };
+    debouncedSaveDb();
+  }
+  // ─── Match-3 savedModes migration ───
+  if (p.match3 && !p.match3.savedModes) {
+    p.match3.savedModes = {};
     debouncedSaveDb();
   }
   return p;
@@ -1149,10 +1155,31 @@ app.post("/api/game/state", requireAuth, (req, res) => {
   if (!userId) return res.status(400).json({ error: "userId required" });
   const p = getPlayer(userId, username);
   if (p.match3.currentGame) {
-    res.json({ game: p.match3.currentGame, highScore: p.match3.highScore });
+    res.json({
+      game: p.match3.currentGame,
+      highScore: p.match3.highScore,
+      savedModes: p.match3.savedModes || {},
+    });
   } else {
-    res.json({ game: null, highScore: p.match3.highScore });
+    res.json({
+      game: null,
+      highScore: p.match3.highScore,
+      savedModes: p.match3.savedModes || {},
+    });
   }
+});
+
+// v4.11.1: Sync all saved mode states from client to server
+app.post("/api/game/sync-modes", requireAuth, (req, res) => {
+  const { userId } = resolveUser(req);
+  const { savedModes } = req.body;
+  if (!userId) return res.status(400).json({ error: "userId required" });
+  const p = getPlayer(userId);
+  if (savedModes && typeof savedModes === "object") {
+    p.match3.savedModes = savedModes;
+    debouncedSaveDb();
+  }
+  res.json({ success: true });
 });
 
 app.post("/api/game/start", requireAuth, (req, res) => {
@@ -1171,7 +1198,14 @@ app.post("/api/game/start", requireAuth, (req, res) => {
   }
   p.resources.energy.current -= ECONOMY.COST_MATCH3;
 
-  const game = { board: generateBoard(), score: 0, movesLeft: 30, combo: 0 };
+  const { mode = "classic" } = req.body;
+  const game = {
+    board: generateBoard(),
+    score: 0,
+    movesLeft: 30,
+    combo: 0,
+    mode,
+  };
   p.match3.currentGame = game;
   p.match3.totalGames++;
   debouncedSaveDb();
@@ -1360,8 +1394,8 @@ app.get("/api/blox/leaderboard", (req, res) => {
   }
 
   const leaders = entries
-    .filter((p) => p.blox.highScore > 0)
-    .sort((a, b) => b.blox.highScore - a.blox.highScore)
+    .filter((p) => p.blox?.highScore > 0)
+    .sort((a, b) => (b.blox?.highScore || 0) - (a.blox?.highScore || 0))
     .slice(0, 15)
     .map((p, i) => ({
       rank: i + 1,

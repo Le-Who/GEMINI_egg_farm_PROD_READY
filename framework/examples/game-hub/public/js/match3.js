@@ -40,12 +40,19 @@ const Match3Game = (() => {
   let savedModes = {}; // { mode: { board, score, movesLeft, ... } }
   const SAVED_MODES_KEY = "m3_saved_modes";
 
-  /** Persist savedModes to localStorage so they survive reload */
+  /** Persist savedModes to localStorage AND server (cross-device sync) */
   function persistSavedModes() {
     try {
       localStorage.setItem(SAVED_MODES_KEY, JSON.stringify(savedModes));
     } catch (_) {
       /* quota exceeded — ignore */
+    }
+    // v4.11.1: sync to server for cross-device persistence
+    if (HUB.userId) {
+      api("/api/game/sync-modes", {
+        userId: HUB.userId,
+        savedModes,
+      }).catch(() => {});
     }
   }
   /** Hydrate savedModes from localStorage */
@@ -486,7 +493,12 @@ const Match3Game = (() => {
         userId: HUB.userId,
         username: HUB.username,
       });
-      if (data && data.game) {
+      if (!data) return;
+
+      // v4.11.1: Restore ALL saved modes from server (cross-device sync)
+      const serverSavedModes = data.savedModes || {};
+
+      if (data.game) {
         const restoredMode = data.game.mode || gameMode;
         board = data.game.board;
         score = data.game.score || 0;
@@ -497,11 +509,8 @@ const Match3Game = (() => {
         gameMode = restoredMode;
 
         if (gameActive) {
-          // v4.9.1: Server is authoritative — replace ALL local savedModes
-          // with only the server's active session. This prevents cross-device
-          // desync where stale localStorage sessions from device A leak into
-          // device B's session list.
-          savedModes = {};
+          // Merge server savedModes + override the active mode from currentGame
+          savedModes = { ...serverSavedModes };
           savedModes[restoredMode] = {
             board: JSON.parse(JSON.stringify(board)),
             score,
@@ -511,24 +520,30 @@ const Match3Game = (() => {
             starsDropped,
             timedSecondsLeft,
           };
-          persistSavedModes();
+          // Only persist to localStorage (not back to server — avoid loop)
+          try {
+            localStorage.setItem(SAVED_MODES_KEY, JSON.stringify(savedModes));
+          } catch (_) {}
           updateStatsUI();
           renderBoard(true);
           showToast("💎 Game restored!");
         } else {
-          // No active server game — clear localStorage sessions to prevent
-          // stale sessions from another device appearing
-          savedModes = {};
-          persistSavedModes();
+          // No active game — use server savedModes if present
+          savedModes = { ...serverSavedModes };
+          try {
+            localStorage.setItem(SAVED_MODES_KEY, JSON.stringify(savedModes));
+          } catch (_) {}
           highScore = data.highScore || 0;
           $("m3-best").textContent = highScore;
           board = generateBoard();
           renderBoard(true);
         }
-      } else if (data) {
-        // Server has no game at all — clear localStorage sessions
-        savedModes = {};
-        persistSavedModes();
+      } else {
+        // No game on server — use server savedModes if any
+        savedModes = { ...serverSavedModes };
+        try {
+          localStorage.setItem(SAVED_MODES_KEY, JSON.stringify(savedModes));
+        } catch (_) {}
         highScore = data.highScore || 0;
         $("m3-best").textContent = highScore;
         board = generateBoard();
