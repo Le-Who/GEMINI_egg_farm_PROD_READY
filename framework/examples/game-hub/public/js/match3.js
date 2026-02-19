@@ -298,9 +298,6 @@ const Match3Game = (() => {
     // v4.5.3: "New Game" button always goes through mode selector
     $("m3-btn-start").onclick = () => showModeSelector();
     $("m3-btn-lb").onclick = toggleLeaderboard;
-    // Leaderboard close handlers
-    $("m3-lb-close").onclick = closeLeaderboard;
-    $("m3-lb-backdrop").onclick = closeLeaderboard;
 
     fetchLeaderboard();
     updateStartButton();
