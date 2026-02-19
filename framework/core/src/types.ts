@@ -5,6 +5,8 @@
  * Game-specific types (e.g., CropData, CardDeck) are defined in templates.
  */
 
+import type React from "react";
+
 // ═══════════════════════════════════════════════════════════
 // Game Configuration
 // ═══════════════════════════════════════════════════════════
