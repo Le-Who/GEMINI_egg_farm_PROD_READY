@@ -2,7 +2,7 @@
 
 > A combined Farm + Trivia + Match-3 + Building Blox game running as a single Discord Embedded App Activity with horizontal screen-swipe navigation.
 
-**v4.12.0** — Server modularization: monolithic `server.js` split into 6 feature route modules, dedicated `playerManager.js`, and `data/questions.json`. Zero functional changes, 184 tests passing.
+**v4.12.3** — Blox cross-device sync, inline Match-3 leaderboard, Match-3 persistence fixes, server modularization. 184 tests passing.
 
 ## Quick Start
 
@@ -86,8 +86,7 @@ npm run dev
 
 - **10×10 grid block puzzle**: Place Tetris-like pieces, clear rows + columns for score.
 - **12 piece shapes** (1-cell dot through 5-cell pentomino) with distinct colors.
-- **Pause Overlay** (v4.1): Frosted-glass overlay with New Game / Continue / End Game buttons.
-- **localStorage Persistence** (v4.1): Board, tray, score, high score saved on every placement.
+- **localStorage Persistence + Server Sync** (v4.12.3): Board, tray, score saved locally AND synced to server for cross-device resume.
 - **Ghost Preview**: Board-level `mousemove` with center-of-mass offset. No per-cell gap flicker.
 - **Touch Drag-and-Drop** (v4.1): Drag pieces from tray to board with floating preview.
 - **Swipe Blocking** (v4.1): `HUB.swipeBlocked` prevents accidental navigation during active game.
@@ -105,7 +104,7 @@ npm run dev
 - **Client-side engine** with server validation.
 - **Swap Slide Animation** (v1.8): Gems visually glide into each other’s positions.
 - **Energy Gate**: 5⚡ to start → quick-feed modal if insufficient.
-- **Slide-in Leaderboard**: Responsive side-panel.
+- **Always-Visible Leaderboard** (v4.12.2): Docked right of board on desktop, toggle on mobile.
 - **Progressive Gold Rewards**: `calcGoldReward(score)` — gold scales with score tiers.
 
 ### 📱 Mobile Navigation (v4.1)
@@ -134,6 +133,8 @@ npm run dev
 | `POST` | `/api/game/start`      | Start Match-3 (-5 Energy)                  |
 | `POST` | `/api/blox/start`      | Start Blox (-4 Energy)                     |
 | `POST` | `/api/blox/end`        | End Blox (gold reward)                     |
+| `POST` | `/api/blox/state`      | Get Blox saved board state                 |
+| `POST` | `/api/blox/sync`       | Sync Blox board to server                  |
 | `POST` | `/api/trivia/start`    | Start Trivia (-3 Energy)                   |
 | `GET`  | `/api/leaderboard`     | Global leaderboard                         |
 
@@ -150,7 +151,7 @@ game-hub/
 │   ├── resources.js     # /api/resources/* + /api/pet/* + sell-crop
 │   ├── trivia.js        # Solo trivia + duel rooms + history
 │   ├── match3.js        # /api/game/* (state, start, move, end, sync)
-│   ├── blox.js          # /api/blox/start + /api/blox/end
+│   ├── blox.js          # /api/blox/* (start, end, state, sync)
 │   └── leaderboard.js   # Match-3 + Blox leaderboards
 ├── data/
 │   └── questions.json   # Trivia question bank (extracted from server.js)
@@ -232,6 +233,6 @@ gcloud run deploy game-hub \
 > Each game uses the persistence approach best suited to its gameplay pattern:
 
 - **Farm & Pet**: Server-authoritative — all state on server, client polls and pushes via REST API.
-- **Match-3**: Client-side `localStorage` for session state (board, score, moves), server for leaderboard scores.
-- **Blox**: Client-side `localStorage` for in-progress game, server for leaderboard.
+- **Match-3**: Client-side `localStorage` + server `sync-modes` for cross-device persistence. Server for leaderboard.
+- **Blox**: Client-side `localStorage` + server `sync` (v4.12.3) for cross-device resume. Server for leaderboard.
 - **Trivia**: Ephemeral — no persistence between sessions (each game is fresh).

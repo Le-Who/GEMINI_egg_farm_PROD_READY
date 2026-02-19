@@ -2,7 +2,7 @@
 
 > A 4-in-1 social game hub built as a **Discord Embedded App Activity**. Cozy Farm, Brain Blitz trivia, Gem Crush match-3, and Building Blox puzzle — all in one app with a unified pet companion, resource economy, and offline simulation.
 
-**Current version: v4.12.0**
+**Current version: v4.12.3**
 
 ---
 
@@ -13,7 +13,7 @@
 | 🌱 **Cozy Farm**          | Plant, water, harvest crops · Buy plots · Seed shop with 8 crop types    |
 | 🧠 **Brain Blitz**        | Solo trivia + async duels via invite codes · 3 difficulty tiers          |
 | 💎 **Gem Crush**          | 8×8 match-3 with cascades, combos, and leaderboard · 3 game modes        |
-| 🧱 **Building Blox**      | 10×10 block puzzle · 12 pieces · localStorage persistence · touch drag   |
+| 🧱 **Building Blox**      | 10×10 block puzzle · 12 pieces · cross-device sync · touch drag          |
 | 🐾 **Pet Companion**      | Free-roaming pet with smart docking · Auto-water/harvest/plant abilities |
 | ⚡ **Energy System**      | Quick-feed modal · 3-min regen · Gates match-3 and trivia plays          |
 | 💾 **Offline Simulation** | Auto-harvest, auto-plant, auto-water while away · Welcome-back report    |
@@ -36,7 +36,7 @@ framework/examples/game-hub/
 │   ├── resources.js       # /api/resources/* + /api/pet/* + sell-crop
 │   ├── trivia.js          # Solo trivia + duel rooms + history
 │   ├── match3.js          # /api/game/* (state, start, move, end, sync)
-│   ├── blox.js            # /api/blox/start + /api/blox/end
+│   ├── blox.js            # /api/blox/* (start, end, state, sync)
 │   └── leaderboard.js     # Match-3 + Blox leaderboards
 ├── data/
 │   └── questions.json     # Trivia question bank
