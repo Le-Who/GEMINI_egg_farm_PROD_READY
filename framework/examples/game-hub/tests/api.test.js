@@ -143,6 +143,17 @@ describe("POST /api/farm/plant", () => {
     });
     assert.equal(status, 400);
   });
+
+  it("rejects negative amount (exploit attempt)", async () => {
+    await post("/api/farm/state", { userId: "buyer3", username: "B3" });
+    const { status, data } = await post("/api/farm/buy-seeds", {
+      userId: "buyer3",
+      cropId: "strawberry",
+      amount: -100,
+    });
+    assert.equal(status, 400);
+    assert.equal(data.error, "invalid amount");
+  });
 });
 
 /* ─────────────────────────────────────────────────────
