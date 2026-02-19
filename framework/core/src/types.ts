@@ -5,6 +5,8 @@
  * Game-specific types (e.g., CropData, CardDeck) are defined in templates.
  */
 
+import type { ComponentType } from "react";
+
 // ═══════════════════════════════════════════════════════════
 // Game Configuration
 // ═══════════════════════════════════════════════════════════
@@ -250,5 +252,5 @@ export interface UIRegistration {
   label: string;
   icon?: string;
   /** Component factory (React lazy-compatible) */
-  component: () => Promise<{ default: React.ComponentType<any> }>;
+  component: () => Promise<{ default: ComponentType<any> }>;
 }
