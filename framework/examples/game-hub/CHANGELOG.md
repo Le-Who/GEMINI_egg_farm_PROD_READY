@@ -1,5 +1,14 @@
 # Changelog
 
+## v4.12.1 — 2026-02-19
+
+### Match-3 Star Drop Persistence Fix
+
+- **Star Drop state loss**: `restoreGame()` now hydrates last-mode board from `savedModes` instead of generating a fresh board. Drop tokens (`💰🌾⚡`) are correctly restored on re-entry.
+- **DRY helper**: Added `restoreDropState(saved)` — shared by both `restoreGame()` and `startGame()` resume paths, eliminating the root asymmetry.
+- **Saved-session badges**: Mode cards now show `▶ 120pts · 18 moves` when a saved session exists, informing players before they click.
+- **CSS**: Added `has-save` styling for mode card description text (accent color + bold).
+
 ## v4.12.0 — 2026-02-19
 
 ### Server Modularization

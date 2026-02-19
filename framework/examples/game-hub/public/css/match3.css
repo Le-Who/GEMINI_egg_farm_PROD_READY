@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Match-3 Screen Styles (v4.11.0)
+ *  Game Hub — Match-3 Screen Styles (v4.12.1)
  * ═══════════════════════════════════════════════════ */
 
 /* Scope overlays to this screen only */
@@ -500,6 +500,11 @@
   font-size: 0.68rem;
   color: rgba(255, 255, 255, 0.55);
   line-height: 1.2;
+}
+/* v4.12.1: Saved-session badge on mode cards */
+.m3-mode-card.has-save .m3-mode-desc {
+  color: #a78bfa;
+  font-weight: 600;
 }
 @media (max-width: 400px) {
   .m3-mode-card {

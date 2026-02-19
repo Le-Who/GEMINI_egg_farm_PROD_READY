@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Match-3 Module (v4.11.0)
+ *  Game Hub — Match-3 Module (v4.12.1)
  *  Client-side engine, CSS transitions, state restore
  *  ─ GameStore integration (match3 slice)
  *  ─ Pause/Continue overlay, touch swipe, default mode
@@ -64,6 +64,15 @@ const Match3Game = (() => {
       savedModes = {};
     }
   }
+
+  /** v4.12.1: Restore drop-mode state from a savedModes entry (DRY helper) */
+  function restoreDropState(saved) {
+    dropStars = saved.dropStars
+      ? JSON.parse(JSON.stringify(saved.dropStars))
+      : [];
+    starsDropped = saved.starsDropped || 0;
+  }
+
   let timedTimer = null;
   let timedSecondsLeft = 0;
   let dropStars = []; // [{x, y, dropped: bool}] for drop mode
@@ -535,7 +544,21 @@ const Match3Game = (() => {
           } catch (_) {}
           highScore = data.highScore || 0;
           $("m3-best").textContent = highScore;
-          board = generateBoard();
+
+          // v4.12.1: Hydrate last-mode board from savedModes (fix Star Drop state loss)
+          const lastMode = localStorage.getItem(LAST_MODE_KEY) || "classic";
+          const lastSaved = savedModes[lastMode];
+          if (lastSaved && lastSaved.board) {
+            gameMode = lastMode;
+            board = JSON.parse(JSON.stringify(lastSaved.board));
+            score = lastSaved.score || 0;
+            movesLeft = lastSaved.movesLeft || 0;
+            combo = lastSaved.combo || 0;
+            timedSecondsLeft = lastSaved.timedSecondsLeft || TIMED_DURATION;
+            restoreDropState(lastSaved);
+          } else {
+            board = generateBoard();
+          }
           renderBoard(true);
         }
       } else {
@@ -546,7 +569,21 @@ const Match3Game = (() => {
         } catch (_) {}
         highScore = data.highScore || 0;
         $("m3-best").textContent = highScore;
-        board = generateBoard();
+
+        // v4.12.1: Hydrate last-mode board from savedModes (fix Star Drop state loss)
+        const lastMode = localStorage.getItem(LAST_MODE_KEY) || "classic";
+        const lastSaved = savedModes[lastMode];
+        if (lastSaved && lastSaved.board) {
+          gameMode = lastMode;
+          board = JSON.parse(JSON.stringify(lastSaved.board));
+          score = lastSaved.score || 0;
+          movesLeft = lastSaved.movesLeft || 0;
+          combo = lastSaved.combo || 0;
+          timedSecondsLeft = lastSaved.timedSecondsLeft || TIMED_DURATION;
+          restoreDropState(lastSaved);
+        } else {
+          board = generateBoard();
+        }
         renderBoard(true);
       }
     } catch (e) {
@@ -586,8 +623,7 @@ const Match3Game = (() => {
       score = s.score;
       movesLeft = s.movesLeft;
       combo = s.combo;
-      dropStars = s.dropStars ? JSON.parse(JSON.stringify(s.dropStars)) : [];
-      starsDropped = s.starsDropped || 0;
+      restoreDropState(s);
       timedSecondsLeft = s.timedSecondsLeft || TIMED_DURATION;
       gameActive = true;
 
@@ -904,6 +940,39 @@ const Match3Game = (() => {
       .forEach((c) =>
         c.classList.toggle("active", c.dataset.mode === lastMode),
       );
+
+    // v4.12.1: Show saved-session badges on mode cards (Solution #6)
+    updateModeBadges(sel);
+  }
+
+  /** v4.12.1: Update mode cards with saved-session info */
+  function updateModeBadges(sel) {
+    if (!sel) sel = $("m3-mode-selector");
+    if (!sel) return;
+    const defaultDescs = {
+      classic: "30 moves to score big",
+      timed: "90 seconds · 1.5× gold",
+      drop: "Drop tokens to bottom for loot",
+    };
+    sel.querySelectorAll(".m3-mode-card").forEach((card) => {
+      const mode = card.dataset.mode;
+      const desc = card.querySelector(".m3-mode-desc");
+      if (!desc) return;
+      const saved = savedModes[mode];
+      if (saved && saved.movesLeft > 0 && saved.board) {
+        const pts = saved.score || 0;
+        if (mode === "timed") {
+          const sec = saved.timedSecondsLeft || 0;
+          desc.textContent = `▶ ${pts}pts · ${sec}s left`;
+        } else {
+          desc.textContent = `▶ ${pts}pts · ${saved.movesLeft} moves`;
+        }
+        card.classList.add("has-save");
+      } else {
+        desc.textContent = defaultDescs[mode] || "";
+        card.classList.remove("has-save");
+      }
+    });
   }
   function hideModeSelector() {
     const sel = $("m3-mode-selector");
