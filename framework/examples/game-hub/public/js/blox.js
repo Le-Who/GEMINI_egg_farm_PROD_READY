@@ -1111,9 +1111,8 @@ const BloxGame = (() => {
       });
       if (serverData?.highScore)
         highScore = Math.max(highScore, serverData.highScore);
-      // Merge server state into localStorage if local has no save
-      const localSave = loadState();
-      if (!localSave && serverData?.savedState) {
+      // Always prefer server state (canonical — every saveState() syncs to it)
+      if (serverData?.savedState) {
         localStorage.setItem(
           STORAGE_KEY,
           JSON.stringify(serverData.savedState),
