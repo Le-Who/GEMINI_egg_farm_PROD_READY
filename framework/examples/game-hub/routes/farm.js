@@ -128,6 +128,9 @@ export default function farmRoutes(requireAuth, resolveUser) {
   router.post("/api/farm/buy-seeds", requireAuth, (req, res) => {
     const { userId } = resolveUser(req);
     const { cropId, amount = 1 } = req.body;
+    if (!Number.isInteger(amount) || amount <= 0) {
+      return res.status(400).json({ error: "invalid amount" });
+    }
     const p = getPlayer(userId);
     const cfg = CROPS[cropId];
     if (!cfg) return res.status(400).json({ error: "unknown crop" });
