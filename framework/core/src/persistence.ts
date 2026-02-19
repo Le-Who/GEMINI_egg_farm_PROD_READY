@@ -26,7 +26,7 @@ export class MemoryAdapter<
   }
 
   async save(playerId: string, state: TState): Promise<void> {
-    this.store.set(playerId, JSON.parse(JSON.stringify(state)));
+    this.store.set(playerId, structuredClone(state));
   }
 
   async loadAll(): Promise<Map<string, TState>> {
@@ -35,10 +35,7 @@ export class MemoryAdapter<
 
   async saveAll(states: Map<string, TState>): Promise<void> {
     this.store = new Map(
-      Array.from(states.entries()).map(([k, v]) => [
-        k,
-        JSON.parse(JSON.stringify(v)),
-      ]),
+      Array.from(states.entries()).map(([k, v]) => [k, structuredClone(v)]),
     );
   }
 
