@@ -1,5 +1,31 @@
 # Changelog
 
+## v4.12.0 — 2026-02-19
+
+### Server Modularization
+
+Refactored monolithic `server.js` (1542 lines) into a modular composition root (~220 lines) with feature-specific route modules. Zero functional changes — all 184 tests passing.
+
+- **`playerManager.js`** [NEW]: Extracted player state management, persistence (GCS + local fallback), schema migration, and graceful shutdown.
+- **`data/questions.json`** [NEW]: Extracted hardcoded trivia question bank from server.js.
+- **`routes/farm.js`** [NEW]: Farm endpoints (`/api/farm/*`, `/api/content/crops`).
+- **`routes/resources.js`** [NEW]: Resource and Pet endpoints (`/api/resources/*`, `/api/pet/*`, `/api/farm/sell-crop`).
+- **`routes/trivia.js`** [NEW]: Solo and Duel Trivia endpoints, room management, history.
+- **`routes/match3.js`** [NEW]: Match-3 game endpoints (`/api/game/*`).
+- **`routes/blox.js`** [NEW]: Building Blox endpoints (`/api/blox/*`).
+- **`routes/leaderboard.js`** [NEW]: Match-3 and Blox leaderboard endpoints.
+- **`server.js`** [MODIFIED]: Now a composition root — imports, configures, and mounts all route modules.
+
+### Deployment Fix
+
+- **Dockerfile**: Added `COPY playerManager.js`, `COPY routes/`, `COPY data/` — missing modules caused `ERR_MODULE_NOT_FOUND` on Cloud Run.
+- **`.dockerignore`**: Changed `data/` → `data/hub-db.json` — `data/questions.json` was being excluded from the Docker build context.
+
+### Housekeeping
+
+- `package.json` version bumped to `4.12.0`.
+- Updated all README files with new project structure and test counts.
+
 ## v4.11.1 — 2026-02-19
 
 ### Bug Fixes

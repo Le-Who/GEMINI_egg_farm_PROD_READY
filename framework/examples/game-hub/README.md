@@ -1,8 +1,8 @@
-# 🎮 Game Hub — 3-in-1 Discord Activity
+# 🎮 Game Hub — 4-in-1 Discord Activity
 
 > A combined Farm + Trivia + Match-3 + Building Blox game running as a single Discord Embedded App Activity with horizontal screen-swipe navigation.
 
-**v4.11.0** — UX/UI Audit Phase 1–3: universal bottom nav bar, warm pastel overlays, tinted toasts, enlarged touch targets, brightened gold, standardized button variants, farm shop FAB, growth time estimates, M3 recommended badge, trivia settings panel, energy tutorial tooltip, economy guide overlay.
+**v4.12.0** — Server modularization: monolithic `server.js` split into 6 feature route modules, dedicated `playerManager.js`, and `data/questions.json`. Zero functional changes, 184 tests passing.
 
 ## Quick Start
 
@@ -141,9 +141,19 @@ npm run dev
 
 ```
 game-hub/
-├── server.js            # Express backend (Game logic + Discord auth)
-├── game-logic.js        # Extracted pure game logic (testable)
-├── storage.js           # GCS + local file persistence
+├── server.js            # Composition root (~220 lines): auth, config, mount routes
+├── playerManager.js     # Player state, persistence (GCS + local), schema migration
+├── game-logic.js        # Pure functions (crops, energy, offline simulation)
+├── storage.js           # GCS + local file persistence adapter
+├── routes/              # Feature-specific Express routers
+│   ├── farm.js          # /api/farm/* + /api/content/crops
+│   ├── resources.js     # /api/resources/* + /api/pet/* + sell-crop
+│   ├── trivia.js        # Solo trivia + duel rooms + history
+│   ├── match3.js        # /api/game/* (state, start, move, end, sync)
+│   ├── blox.js          # /api/blox/start + /api/blox/end
+│   └── leaderboard.js   # Match-3 + Blox leaderboards
+├── data/
+│   └── questions.json   # Trivia question bank (extracted from server.js)
 ├── public/
 │   ├── index.html       # 4-screen slider layout + energy modal + mobile nav bar
 │   ├── css/
@@ -165,9 +175,9 @@ game-hub/
 │   ├── api.test.js      # 24 API integration tests
 │   ├── blox.test.js     # 30 Building Blox tests
 │   ├── match3.test.js   # 12 tile clearing tests
-│   ├── ux.test.js       # 36 UX diagnostic tests (incl. Star Drop + version)
-│   ├── gcp.test.js      # 20 GCP resilience tests
-│   └── perf.test.js     # 7 performance benchmarks
+│   ├── ux.test.js       # 42 UX diagnostic tests (incl. Star Drop + version)
+│   ├── gcp.test.js      # 12 GCP resilience tests
+│   └── perf.test.js     # 15 performance benchmarks
 └── Dockerfile           # Cloud Run deployment
 ```
 
@@ -184,9 +194,9 @@ npm run test:perf # Performance benchmarks only
 | **API**  |    24 | All REST endpoints (farm, pet, trivia, match-3, blox, health)                        |
 | **Blox** |    30 | Piece shapes, placement, line clearing, scoring, game-over, reward, sync-clear       |
 | **M3**   |    12 | findMatches, resolveBoard, gravity, cascade, drop-type exclusion                     |
-| **UX**   |    36 | Pet flicker, zone bounds, growth ticks, mode selector, Star Drop colors, version     |
-| **GCP**  |    20 | Latency (<200ms), concurrency, payload (<16KB), save stress, stale reconnect         |
-| **Perf** |     7 | Board generation, match detection, offline processing                                |
+| **UX**   |    42 | Pet flicker, zone bounds, growth ticks, mode selector, Star Drop colors, version     |
+| **GCP**  |    12 | Latency (<200ms), concurrency, payload (<16KB), save stress, stale reconnect         |
+| **Perf** |    15 | Board generation, match detection, offline processing, question picking              |
 
 Uses Node.js built-in `node:test` — zero test dependencies.
 

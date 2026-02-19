@@ -2,7 +2,7 @@
 
 > A 4-in-1 social game hub built as a **Discord Embedded App Activity**. Cozy Farm, Brain Blitz trivia, Gem Crush match-3, and Building Blox puzzle — all in one app with a unified pet companion, resource economy, and offline simulation.
 
-**Current version: v4.11.0**
+**Current version: v4.12.0**
 
 ---
 
@@ -27,10 +27,21 @@
 
 ```
 framework/examples/game-hub/
-├── server.js              # Express backend — REST API, auth, game logic (1400+ lines)
+├── server.js              # Express composition root (~220 lines)
+├── playerManager.js       # Player state, persistence, schema migration
 ├── game-logic.js          # Pure functions (crops, energy, offline simulation)
+├── storage.js             # GCS + local file persistence adapter
+├── routes/                # Feature-specific Express routers
+│   ├── farm.js            # /api/farm/* + /api/content/crops
+│   ├── resources.js       # /api/resources/* + /api/pet/* + sell-crop
+│   ├── trivia.js          # Solo trivia + duel rooms + history
+│   ├── match3.js          # /api/game/* (state, start, move, end, sync)
+│   ├── blox.js            # /api/blox/start + /api/blox/end
+│   └── leaderboard.js     # Match-3 + Blox leaderboards
+├── data/
+│   └── questions.json     # Trivia question bank
 ├── public/
-│   ├── index.html         # Single-page shell (3-screen sliding track)
+│   ├── index.html         # Single-page shell (4-screen sliding track)
 │   ├── js/
 │   │   ├── shared.js      # Discord SDK, auth, navigation, HUD, pet docking
 │   │   ├── farm.js        # Farm module (plots, shop, buy-plot, optimistic updates)
@@ -38,16 +49,16 @@ framework/examples/game-hub/
 │   │   ├── match3.js      # Match-3 engine (swap animation, cascades, leaderboard)
 │   │   ├── blox.js        # Building Blox (persistence, pause, touch drag, ghost)
 │   │   ├── pet.js         # Pet companion (roam, sleep, auto-water, abilities)
-│   │   └── game-store.js  # GameStore (Zustand-like slice manager)
+│   │   └── store.js       # GameStore (Zustand-like slice manager)
 │   └── css/               # Modular CSS (base, farm, trivia, match3, blox, hud, pet)
 └── tests/
     ├── unit.test.js       # 49 unit tests (pure functions)
     ├── api.test.js        # 24 API integration tests
-    ├── blox.test.js       # 26 Building Blox tests
+    ├── blox.test.js       # 30 Building Blox tests
     ├── match3.test.js     # 12 tile clearing tests
-    ├── ux.test.js         # 29 UX diagnostic tests
-    ├── gcp.test.js        # 20 GCP resilience tests
-    └── perf.test.js       # 7 performance benchmarks
+    ├── ux.test.js         # 42 UX diagnostic tests
+    ├── gcp.test.js        # 12 GCP resilience tests
+    └── perf.test.js       # 15 performance benchmarks
 ```
 
 ---
@@ -90,7 +101,7 @@ npm run dev
 ## 🧪 Testing
 
 ```bash
-npm test          # All 167 tests (unit + API + blox + match3 + UX + GCP + perf)
+npm test          # All 184 tests (unit + API + blox + match3 + UX + GCP + perf)
 npm run test:perf # Performance benchmarks only
 ```
 
@@ -98,11 +109,11 @@ npm run test:perf # Performance benchmarks only
 | -------- | ---------------------- | ----: |
 | **Unit** | `tests/unit.test.js`   |    49 |
 | **API**  | `tests/api.test.js`    |    24 |
-| **Blox** | `tests/blox.test.js`   |    26 |
+| **Blox** | `tests/blox.test.js`   |    30 |
 | **M3**   | `tests/match3.test.js` |    12 |
-| **UX**   | `tests/ux.test.js`     |    29 |
-| **GCP**  | `tests/gcp.test.js`    |    20 |
-| **Perf** | `tests/perf.test.js`   |     7 |
+| **UX**   | `tests/ux.test.js`     |    42 |
+| **GCP**  | `tests/gcp.test.js`    |    12 |
+| **Perf** | `tests/perf.test.js`   |    15 |
 
 ---
 

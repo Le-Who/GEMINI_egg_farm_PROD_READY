@@ -839,11 +839,11 @@ npm test
 
 #### Game Hub (`examples/game-hub`)
 
-Game Hub имеет собственный набор тестов (184 штук) на `node:test` — см. `examples/game-hub/README.md`. Текущая версия — **v4.8.1** (фикс центрирования Building Blox + лидерборд):
+Game Hub имеет собственный набор тестов (184 штук) на `node:test` — см. `examples/game-hub/README.md`. Текущая версия — **v4.12.0** (модульная архитектура сервера: 6 роут-модулей + playerManager + data/questions.json):
 
 ```bash
 cd examples/game-hub
-npm test          # Unit (49) + API (24) + Blox (30) + M3 (12) + UX (36) + GCP (20) + Perf (7) + Version (2) + Star Drop (4)
+npm test          # Unit (49) + API (24) + Blox (30) + M3 (12) + UX (42) + GCP (12) + Perf (15)
 ```
 
 ### CI
