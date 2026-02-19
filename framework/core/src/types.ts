@@ -245,6 +245,9 @@ export type ActivityLifecycleState =
 // ═══════════════════════════════════════════════════════════
 
 /** Registration for a UI panel/modal that the game provides */
+import type React from "react";
+
+/** Registration for a UI panel/modal that the game provides */
 export interface UIRegistration {
   id: string;
   label: string;
