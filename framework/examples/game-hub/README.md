@@ -163,7 +163,7 @@ game-hub/
 ├── tests/
 │   ├── unit.test.js     # 49 unit tests (game logic)
 │   ├── api.test.js      # 24 API integration tests
-│   ├── blox.test.js     # 26 Building Blox tests
+│   ├── blox.test.js     # 30 Building Blox tests
 │   ├── match3.test.js   # 12 tile clearing tests
 │   ├── ux.test.js       # 36 UX diagnostic tests (incl. Star Drop + version)
 │   ├── gcp.test.js      # 20 GCP resilience tests
@@ -174,7 +174,7 @@ game-hub/
 ## 🧪 Testing
 
 ```bash
-npm test          # All 180 tests
+npm test          # All 184 tests
 npm run test:perf # Performance benchmarks only
 ```
 
@@ -182,7 +182,7 @@ npm run test:perf # Performance benchmarks only
 | -------- | ----: | ------------------------------------------------------------------------------------ |
 | **Unit** |    49 | Player factory, energy regen, offline simulation, farm growth, match-3 board, trivia |
 | **API**  |    24 | All REST endpoints (farm, pet, trivia, match-3, blox, health)                        |
-| **Blox** |    26 | Piece shapes, placement, line clearing, scoring, game-over, reward                   |
+| **Blox** |    30 | Piece shapes, placement, line clearing, scoring, game-over, reward, sync-clear       |
 | **M3**   |    12 | findMatches, resolveBoard, gravity, cascade, drop-type exclusion                     |
 | **UX**   |    36 | Pet flicker, zone bounds, growth ticks, mode selector, Star Drop colors, version     |
 | **GCP**  |    20 | Latency (<200ms), concurrency, payload (<16KB), save stress, stale reconnect         |

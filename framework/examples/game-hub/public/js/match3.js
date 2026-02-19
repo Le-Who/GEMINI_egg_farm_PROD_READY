@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Match-3 Module (v4.6.0)
+ *  Game Hub — Match-3 Module (v4.7.0)
  *  Client-side engine, CSS transitions, state restore
  *  ─ GameStore integration (match3 slice)
  *  ─ Pause/Continue overlay, touch swipe, default mode
@@ -1140,14 +1140,9 @@ const Match3Game = (() => {
       gameActive = false;
       stopTimedCountdown();
 
-      // Send final move
-      api("/api/game/move", {
-        userId: HUB.userId,
-        fromX,
-        fromY,
-        toX,
-        toY,
-      }).catch(() => {});
+      // v4.7: Do NOT send /api/game/move here — it races with /api/game/end
+      // and causes 400 "no active game" errors. The server computes rewards
+      // from the final score, so the last move doesn't need server validation.
 
       // Calculate end score/rewards based on mode
       let endScore = score;

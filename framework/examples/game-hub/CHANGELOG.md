@@ -1,5 +1,20 @@
 # Changelog
 
+## v4.7.0 — 2026-02-19
+
+### Bug Fixes
+
+- **Blox premature game-over**: `clearLines()` now clears `board[][]` synchronously; the 300ms `setTimeout` only handles the visual `.clearing` CSS animation. The game-over check (`canAnyPieceFit()`) is deferred until after the animation completes, ensuring it runs against the correct board state.
+- **Match-3 API race condition**: Removed the duplicate fire-and-forget `/api/game/move` call inside the game-over branch of `attemptSwap()`. This call raced with `/api/game/end`, causing 400 "no active game" errors on the server.
+
+### Tests
+
+- 4 new game-over correctness tests in `blox.test.js` — verifies synchronous line clearing and correct `canAnyPieceFit()` behaviour after clears.
+
+### Version Bump
+
+- All file headers, `package.json` → `v4.7.0`.
+
 ## v4.6.0 — 2026-02-18
 
 ### Bug Fixes

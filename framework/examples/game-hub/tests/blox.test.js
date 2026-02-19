@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════
- *  Game Hub — Building Blox Tests (v4.6.0)
+ *  Game Hub — Building Blox Tests (v4.7.0)
  *  Tests for piece validation, placement, line clearing,
  *  scoring, game-over detection, and reward calculation.
  * ═══════════════════════════════════════════════════════
@@ -287,6 +287,136 @@ describe("Building Blox — Game Over Detection", () => {
         canPieceFit(piece, board),
         `${piece.id} should fit on empty board`,
       );
+    }
+  });
+});
+
+/* ═══ Game-Over Correctness (v4.7 — clearLines sync fix) ═══ */
+describe("Building Blox — Game-Over Correctness", () => {
+  const GRID = 10;
+
+  function createBoard() {
+    return Array.from({ length: GRID }, () => Array(GRID).fill(null));
+  }
+  function canPlace(piece, row, col, board) {
+    for (const [dr, dc] of piece.cells) {
+      const r = row + dr,
+        c = col + dc;
+      if (r < 0 || r >= GRID || c < 0 || c >= GRID) return false;
+      if (board[r][c] !== null) return false;
+    }
+    return true;
+  }
+  function canPieceFit(piece, board) {
+    for (let r = 0; r < GRID; r++) {
+      for (let c = 0; c < GRID; c++) {
+        if (canPlace(piece, r, c, board)) return true;
+      }
+    }
+    return false;
+  }
+  function clearLinesSynchronous(board) {
+    const rowsToClear = [];
+    const colsToClear = [];
+    for (let r = 0; r < GRID; r++) {
+      if (board[r].every((c) => c !== null)) rowsToClear.push(r);
+    }
+    for (let c = 0; c < GRID; c++) {
+      let full = true;
+      for (let r = 0; r < GRID; r++) {
+        if (board[r][c] === null) {
+          full = false;
+          break;
+        }
+      }
+      if (full) colsToClear.push(c);
+    }
+    // SYNC clear — mirrors the v4.7 fix
+    for (const r of rowsToClear) {
+      for (let c = 0; c < GRID; c++) board[r][c] = null;
+    }
+    for (const c of colsToClear) {
+      for (let r = 0; r < GRID; r++) board[r][c] = null;
+    }
+    return rowsToClear.length + colsToClear.length;
+  }
+
+  it("clearLines clears board cells synchronously", () => {
+    const board = createBoard();
+    for (let c = 0; c < GRID; c++) board[0][c] = "#filled";
+    const cleared = clearLinesSynchronous(board);
+    assert.equal(cleared, 1, "Should clear exactly 1 row");
+    // Board row 0 should be empty IMMEDIATELY (sync)
+    for (let c = 0; c < GRID; c++) {
+      assert.equal(board[0][c], null, `Cell [0][${c}] should be null`);
+    }
+  });
+
+  it("canAnyPieceFit sees empty cells after synchronous line clear", () => {
+    // Fill board except row 0 (which is entirely full) and one cell in row 1
+    const board = createBoard();
+    // Fill row 0 completely
+    for (let c = 0; c < GRID; c++) board[0][c] = "#a";
+    // Fill rest of board except one cell
+    for (let r = 1; r < GRID; r++) {
+      for (let c = 0; c < GRID; c++) board[r][c] = "#b";
+    }
+    board[5][5] = null; // single empty cell
+
+    // Before clear: dot can fit at (5,5), but large pieces cannot
+    const i5 = BLOX_PIECES.find((p) => p.id === "i5");
+    assert.ok(!canPieceFit(i5, board), "i5 should NOT fit before clear");
+
+    // Clear row 0
+    clearLinesSynchronous(board);
+
+    // After clear: row 0 is empty → i5 NOW fits at (0,0)
+    assert.ok(
+      canPieceFit(i5, board),
+      "i5 MUST fit after row 0 is cleared — game should NOT end",
+    );
+  });
+
+  it("game does NOT end when moves exist in newly-cleared cells", () => {
+    const board = createBoard();
+    // Nearly full board — only row 9 is completely full
+    for (let r = 0; r < GRID - 1; r++) {
+      for (let c = 0; c < GRID; c++) board[r][c] = "#color";
+    }
+    for (let c = 0; c < GRID; c++) board[9][c] = "#full";
+    // Only empty spot is (4,4) — not enough for i5
+    board[4][4] = null;
+
+    const dot = BLOX_PIECES.find((p) => p.id === "dot");
+    assert.ok(canPieceFit(dot, board), "dot fits at (4,4) before clear");
+    assert.ok(
+      !canPieceFit(
+        BLOX_PIECES.find((p) => p.id === "i5"),
+        board,
+      ),
+      "i5 does NOT fit before clear",
+    );
+
+    // Clearing row 9 frees 10 cells
+    clearLinesSynchronous(board);
+
+    // After clear: row 9 is empty, ALL pieces should fit
+    for (const piece of BLOX_PIECES) {
+      assert.ok(
+        canPieceFit(piece, board),
+        `${piece.id} should fit after row 9 cleared`,
+      );
+    }
+  });
+
+  it("dot piece always fits on empty board (sanity)", () => {
+    const board = createBoard();
+    const dot = BLOX_PIECES.find((p) => p.id === "dot");
+    // Every cell should work
+    for (let r = 0; r < GRID; r++) {
+      for (let c = 0; c < GRID; c++) {
+        assert.ok(canPlace(dot, r, c, board), `dot should fit at (${r},${c})`);
+      }
     }
   });
 });

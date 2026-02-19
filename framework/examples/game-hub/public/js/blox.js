@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
- *  Game Hub — Building Blox Module (v4.6.0)
+ *  Game Hub — Building Blox Module (v4.7.0)
  *  10×10 Block Puzzle: place pieces, clear lines
  *  ─ localStorage persistence, pause overlay, touch drag,
  *    grab-point anchor ghost, mouse drag-and-drop,
@@ -194,6 +194,9 @@ const BloxGame = (() => {
   }
 
   // ── Line clearing ──
+  // v4.7: Board cells are cleared SYNCHRONOUSLY so canAnyPieceFit()
+  // checks the correct state. Only the visual re-render is delayed
+  // for the .clearing CSS animation.
   function clearLines() {
     let cleared = 0;
     const rowsToClear = [];
@@ -224,6 +227,7 @@ const BloxGame = (() => {
     cleared = rowsToClear.length + colsToClear.length;
 
     if (cleared > 0) {
+      // 1. Start CSS animation on the DOM cells
       const gridEl = $("blox-board");
       if (gridEl) {
         for (const key of cellsToClear) {
@@ -233,13 +237,14 @@ const BloxGame = (() => {
         }
       }
 
-      setTimeout(() => {
-        for (const key of cellsToClear) {
-          const [r, c] = key.split(",").map(Number);
-          board[r][c] = null;
-        }
-        renderBoard();
-      }, 300);
+      // 2. Clear board state IMMEDIATELY (sync) so game-over check is correct
+      for (const key of cellsToClear) {
+        const [r, c] = key.split(",").map(Number);
+        board[r][c] = null;
+      }
+
+      // 3. Re-render board AFTER animation completes (visual only)
+      setTimeout(() => renderBoard(), 300);
 
       const bonus = cleared > 1 ? cleared * 5 : 0;
       const pts = cleared * 10 + bonus;
@@ -753,22 +758,34 @@ const BloxGame = (() => {
     initBoardMouseTracking(); // Re-bind after re-render
 
     setTimeout(() => {
-      clearLines();
+      const linesWereCleared = clearLines() > 0;
       updateStats();
       saveState();
       syncToStore();
 
+      // v4.7: Defer game-over check until AFTER the clear animation
+      // so the player sees lines vanish before any overlay appears.
+      // Board state is already correct (clearLines clears synchronously).
+      const checkDelay = linesWereCleared ? 350 : 0;
+
       if (tray.every((x) => x.placed)) {
-        setTimeout(() => {
-          refillTray();
-          renderTray();
-          saveState();
-          if (!canAnyPieceFit()) {
-            gameOver();
-          }
-        }, 200);
+        setTimeout(
+          () => {
+            refillTray();
+            renderTray();
+            saveState();
+            if (!canAnyPieceFit()) {
+              gameOver();
+            }
+          },
+          Math.max(checkDelay, 200),
+        );
       } else {
-        if (!canAnyPieceFit()) {
+        if (checkDelay > 0) {
+          setTimeout(() => {
+            if (!canAnyPieceFit()) gameOver();
+          }, checkDelay);
+        } else if (!canAnyPieceFit()) {
           setTimeout(gameOver, 400);
         }
       }
