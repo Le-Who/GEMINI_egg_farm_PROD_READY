@@ -1,6 +1,6 @@
 node_modules/
 .env
-data/
+data/hub-db.json
 *.log
 .git/
 tests/
