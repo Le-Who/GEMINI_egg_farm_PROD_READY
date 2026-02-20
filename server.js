@@ -747,9 +747,9 @@ async function startServer(port = PORT) {
     res.sendFile(indexPath);
   });
 
-  return app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-    console.log(`Admin panel: http://localhost:${PORT}/admin`);
+  return app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
+    console.log(`Admin panel: http://localhost:${port}/admin`);
     console.log(
       `Storage: ${getBucket() ? "GCS (" + GCS_BUCKET + ")" : "LOCAL (ephemeral)"}`,
     );

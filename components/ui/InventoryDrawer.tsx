@@ -35,7 +35,7 @@ const TABS = [
   { id: "consumable", label: "Consumables", type: ItemType.CONSUMABLE },
 ];
 
-export const InventoryDrawer: React.FC<InventoryDrawerProps> = ({
+export const InventoryDrawer: React.FC<InventoryDrawerProps> = React.memo(({
   user,
   selectedItemId,
   rotation,
@@ -273,4 +273,4 @@ export const InventoryDrawer: React.FC<InventoryDrawerProps> = ({
       </div>
     </>
   );
-};
+});

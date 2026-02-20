@@ -10,7 +10,7 @@ interface NeighborsPanelProps {
   onToggle: () => void;
 }
 
-export const NeighborsPanel: React.FC<NeighborsPanelProps> = ({
+export const NeighborsPanel: React.FC<NeighborsPanelProps> = React.memo(({
   onVisit,
   isOpen,
   onToggle,
@@ -101,4 +101,4 @@ export const NeighborsPanel: React.FC<NeighborsPanelProps> = ({
       </div>
     </div>
   );
-};
+});
