@@ -630,6 +630,12 @@ async function startServer(port = PORT) {
       return res.status(400).json({ error: "Invalid sticker type" });
     }
 
+    if (message && !/^[a-zA-Z0-9\s.,!?'\-_]+$/.test(message)) {
+      return res
+        .status(400)
+        .json({ error: "Message contains invalid characters" });
+    }
+
     const targetState = db.get(targetId);
     if (!targetState) return res.status(404).json({ error: "User not found" });
 
