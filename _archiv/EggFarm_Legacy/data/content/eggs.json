@@ -1,0 +1,21 @@
+{
+  "egg_common": {
+    "id": "egg_common",
+    "name": "Spotted Egg",
+    "name_ru": "Пятнистое яйцо",
+    "type": "EGG",
+    "price": 100,
+    "currency": "coins",
+    "color": "0xffeebb",
+    "width": 1,
+    "height": 1,
+    "sprite": null,
+    "description": "What's inside?",
+    "description_ru": "Что внутри?",
+    "hatchTime": 20,
+    "pool": [
+      { "petId": "slime_green", "weight": 80 },
+      { "petId": "cat_lucky", "weight": 20 }
+    ]
+  }
+}

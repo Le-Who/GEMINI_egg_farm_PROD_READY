@@ -1,0 +1,33 @@
+{
+  "id": "{{GAME_ID}}",
+  "title": "{{GAME_TITLE}}",
+  "description": "A match-3 puzzle game for Discord Activities",
+  "genre": "match-3",
+  "version": "{{VERSION}}",
+  "locales": {{LOCALES}},
+  "persistence": "{{PERSISTENCE}}",
+  "discord": {
+    "clientId": "",
+    "scopes": ["identify", "rpc.activities.write"]
+  },
+  "rendering": {
+    "type": "canvas",
+    "grid": {
+      "width": 8,
+      "height": 8,
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "isometric": false
+    },
+    "backgroundColor": 1776411
+  },
+  "server": {
+    "port": 8080,
+    "adminPanel": true,
+    "adminPasswordEnv": "ADMIN_PASSWORD"
+  },
+  "features": {
+    "leaderboard": true,
+    "powerups": true
+  }
+}

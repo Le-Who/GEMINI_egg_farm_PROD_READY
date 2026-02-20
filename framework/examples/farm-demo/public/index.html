@@ -1,0 +1,664 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🌱 Farm Sim — Framework Demo</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      :root {
+        --bg: #0c1a0c;
+        --surface: rgba(255, 255, 255, 0.04);
+        --border: rgba(255, 255, 255, 0.08);
+        --text: #e2e8f0;
+        --text-dim: #94a3b8;
+        --accent: #4ade80;
+        --gold: #fbbf24;
+      }
+      body {
+        font-family: "Inter", system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .header {
+        text-align: center;
+        padding: 20px 16px 4px;
+      }
+      .header h1 {
+        font-size: 1.5rem;
+        font-weight: 900;
+        background: linear-gradient(135deg, #4ade80, #fbbf24, #22c55e);
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .header .sub {
+        font-size: 0.7rem;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-top: 4px;
+      }
+
+      .stats-bar {
+        display: flex;
+        gap: 8px;
+        padding: 10px 14px;
+        margin: 8px 16px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        width: min(540px, calc(100vw - 32px));
+        justify-content: space-around;
+      }
+      .stat {
+        text-align: center;
+        flex: 1;
+      }
+      .stat-val {
+        font-size: 1.3rem;
+        font-weight: 900;
+        line-height: 1;
+      }
+      .stat-lbl {
+        font-size: 0.58rem;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-top: 2px;
+      }
+      .stat-val.coins {
+        color: var(--gold);
+      }
+      .stat-val.xp {
+        color: var(--accent);
+      }
+      .stat-val.lvl {
+        color: #60a5fa;
+      }
+
+      /* Plots grid */
+      .plots-label {
+        font-size: 0.7rem;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin: 16px 0 8px;
+        text-align: center;
+      }
+      .plots {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        width: min(420px, calc(100vw - 32px));
+      }
+      .plot {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 14px 10px;
+        text-align: center;
+        position: relative;
+        min-height: 130px;
+        transition: all 0.2s;
+        cursor: pointer;
+        backdrop-filter: blur(8px);
+      }
+      .plot:hover {
+        border-color: var(--accent);
+        transform: translateY(-2px);
+      }
+      .plot .emoji {
+        font-size: 2.2rem;
+        margin-bottom: 4px;
+      }
+      .plot .crop-name {
+        font-size: 0.7rem;
+        font-weight: 700;
+        margin-bottom: 4px;
+      }
+      .plot .status {
+        font-size: 0.6rem;
+        color: var(--text-dim);
+      }
+      .plot .badge {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        padding: 2px 6px;
+        border-radius: 6px;
+        font-size: 0.55rem;
+        font-weight: 700;
+      }
+      .badge.growing {
+        background: rgba(251, 191, 36, 0.15);
+        color: var(--gold);
+      }
+      .badge.ready {
+        background: rgba(34, 197, 94, 0.2);
+        color: var(--accent);
+      }
+      .badge.watered {
+        background: rgba(96, 165, 250, 0.15);
+        color: #60a5fa;
+      }
+
+      /* Growth bar */
+      .growth-bg {
+        width: 100%;
+        height: 6px;
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 3px;
+        margin: 6px 0 2px;
+        overflow: hidden;
+      }
+      .growth-fill {
+        height: 100%;
+        border-radius: 3px;
+        transition: width 0.3s ease;
+        background: linear-gradient(90deg, #84cc16, #22c55e);
+      }
+      .growth-fill.done {
+        background: linear-gradient(90deg, #fbbf24, #f97316);
+      }
+
+      /* Shop */
+      .shop-label {
+        font-size: 0.7rem;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin: 20px 0 8px;
+        text-align: center;
+      }
+      .shop {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: center;
+        width: min(540px, calc(100vw - 32px));
+      }
+      .shop-item {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 10px 14px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        min-width: 80px;
+      }
+      .shop-item:hover {
+        border-color: var(--gold);
+        transform: translateY(-2px);
+      }
+      .shop-item .s-emoji {
+        font-size: 1.5rem;
+      }
+      .shop-item .s-name {
+        font-size: 0.6rem;
+        font-weight: 700;
+        margin: 2px 0;
+      }
+      .shop-item .s-price {
+        font-size: 0.6rem;
+        color: var(--gold);
+        font-weight: 700;
+      }
+      .shop-item .s-owned {
+        font-size: 0.55rem;
+        color: var(--text-dim);
+      }
+
+      /* Modal */
+      .modal-bg {
+        position: fixed;
+        inset: 0;
+        background: rgba(12, 26, 12, 0.85);
+        backdrop-filter: blur(8px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 200;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s;
+      }
+      .modal-bg.show {
+        opacity: 1;
+        pointer-events: all;
+      }
+      .modal {
+        background: rgba(20, 40, 20, 0.95);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 28px 32px;
+        text-align: center;
+        max-width: 340px;
+        transform: scale(0.9);
+        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+      .modal-bg.show .modal {
+        transform: scale(1);
+      }
+      .modal h3 {
+        font-size: 1.1rem;
+        font-weight: 900;
+        margin-bottom: 12px;
+      }
+      .modal .crop-options {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: center;
+        margin: 12px 0;
+      }
+      .crop-opt {
+        padding: 10px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+        min-width: 70px;
+      }
+      .crop-opt:hover {
+        border-color: var(--accent);
+      }
+      .crop-opt .c-emoji {
+        font-size: 1.4rem;
+      }
+      .crop-opt .c-name {
+        font-size: 0.55rem;
+        font-weight: 700;
+        margin-top: 2px;
+      }
+      .crop-opt .c-count {
+        font-size: 0.5rem;
+        color: var(--text-dim);
+      }
+      .crop-opt.disabled {
+        opacity: 0.3;
+        pointer-events: none;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 20px;
+        border: none;
+        border-radius: 10px;
+        font-family: "Inter", sans-serif;
+        font-size: 0.8rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .btn-sm {
+        padding: 5px 12px;
+        font-size: 0.7rem;
+        border-radius: 8px;
+      }
+      .btn-primary {
+        background: linear-gradient(135deg, #4ade80, #22c55e);
+        color: #0c1a0c;
+        box-shadow: 0 4px 16px rgba(34, 197, 94, 0.25);
+      }
+      .btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 24px rgba(34, 197, 94, 0.4);
+      }
+      .btn-water {
+        background: linear-gradient(135deg, #60a5fa, #3b82f6);
+        color: white;
+        box-shadow: 0 3px 12px rgba(59, 130, 246, 0.25);
+      }
+      .btn-harvest {
+        background: linear-gradient(135deg, #fbbf24, #f59e0b);
+        color: #1a1a00;
+        box-shadow: 0 3px 12px rgba(251, 191, 36, 0.25);
+      }
+      .btn-close {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text-dim);
+      }
+      .btn-close:hover {
+        border-color: var(--text);
+      }
+      .actions-row {
+        display: flex;
+        gap: 6px;
+        justify-content: center;
+        margin-top: 6px;
+      }
+
+      /* Toast */
+      .toast {
+        position: fixed;
+        top: 16px;
+        left: 50%;
+        transform: translateX(-50%) translateY(-80px);
+        background: rgba(34, 197, 94, 0.9);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        z-index: 300;
+        transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        pointer-events: none;
+      }
+      .toast.show {
+        transform: translateX(-50%) translateY(0);
+      }
+
+      .footer {
+        text-align: center;
+        padding: 16px;
+        color: var(--text-dim);
+        font-size: 0.65rem;
+        letter-spacing: 0.04em;
+        margin-top: auto;
+      }
+
+      @keyframes harvest {
+        0% {
+          transform: scale(1);
+        }
+        40% {
+          transform: scale(1.3) rotate(-10deg);
+        }
+        60% {
+          transform: scale(1.3) rotate(10deg);
+        }
+        100% {
+          transform: scale(0) translateY(-30px);
+          opacity: 0;
+        }
+      }
+      .plot.harvesting .emoji {
+        animation: harvest 0.5s ease forwards;
+      }
+      @keyframes plantPop {
+        0% {
+          transform: scale(0);
+        }
+        60% {
+          transform: scale(1.2);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+      .plot.planting .emoji {
+        animation: plantPop 0.3s ease;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h1>🌱 Cozy Farm</h1>
+      <div class="sub">Farm Sim Demo — Discord Activities Framework</div>
+    </div>
+
+    <div class="stats-bar">
+      <div class="stat">
+        <div class="stat-val coins" id="s-coins">200</div>
+        <div class="stat-lbl">💰 Coins</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val xp" id="s-xp">0</div>
+        <div class="stat-lbl">✨ XP</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val lvl" id="s-level">1</div>
+        <div class="stat-lbl">⭐ Level</div>
+      </div>
+    </div>
+
+    <div class="plots-label">🌾 Your Garden</div>
+    <div class="plots" id="plots"></div>
+
+    <div class="shop-label">🛒 Seed Shop</div>
+    <div class="shop" id="shop"></div>
+
+    <!-- Plant Modal -->
+    <div class="modal-bg" id="plant-modal">
+      <div class="modal">
+        <h3>🌱 Choose a Seed</h3>
+        <div class="crop-options" id="crop-options"></div>
+        <button class="btn btn-close btn-sm" onclick="closePlantModal()">
+          Cancel
+        </button>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <div class="footer">
+      Built with Discord Activities Game Framework — Real-time growth simulation
+    </div>
+
+    <script>
+      const UID = "demo_" + Math.random().toString(36).slice(2, 8);
+      let state = null,
+        crops = null,
+        refreshTimer = null,
+        selectedPlot = null;
+
+      async function api(p, b) {
+        return (
+          await fetch(p, {
+            method: b ? "POST" : "GET",
+            headers: { "Content-Type": "application/json" },
+            body: b ? JSON.stringify(b) : undefined,
+          })
+        ).json();
+      }
+
+      function toast(msg) {
+        const t = document.getElementById("toast");
+        t.textContent = msg;
+        t.classList.add("show");
+        setTimeout(() => t.classList.remove("show"), 2000);
+      }
+
+      async function init() {
+        crops = await api("/api/content/crops");
+        state = await api("/api/farm/state", {
+          userId: UID,
+          username: "Farmer",
+        });
+        render();
+        renderShop();
+        // Auto-refresh growth every second
+        clearInterval(refreshTimer);
+        refreshTimer = setInterval(refreshGrowth, 1000);
+      }
+
+      async function refreshGrowth() {
+        state = await api("/api/farm/state", {
+          userId: UID,
+          username: "Farmer",
+        });
+        renderPlots();
+        updateStats();
+      }
+
+      function updateStats() {
+        document.getElementById("s-coins").textContent = state.coins;
+        document.getElementById("s-xp").textContent = state.xp;
+        document.getElementById("s-level").textContent = state.level;
+      }
+
+      function render() {
+        renderPlots();
+        updateStats();
+      }
+
+      function renderPlots() {
+        const $p = document.getElementById("plots");
+        $p.innerHTML = "";
+        state.plots.forEach((plot, i) => {
+          const div = document.createElement("div");
+          div.className = "plot";
+          if (plot.crop) {
+            const c = crops[plot.crop];
+            const pct = Math.floor(plot.growth * 100);
+            const ready = pct >= 100;
+            const stages = ["🌰", "🌱", "🪴", c?.emoji || "🌿"];
+            const stageIdx = ready
+              ? 3
+              : Math.min(2, Math.floor(plot.growth * 3));
+            div.innerHTML = `
+        <div class="emoji">${stages[stageIdx]}</div>
+        <div class="crop-name">${c?.name || plot.crop}</div>
+        <div class="growth-bg"><div class="growth-fill${ready ? " done" : ""}" style="width:${pct}%"></div></div>
+        <div class="status">${ready ? "✅ Ready!" : pct + "% grown"}</div>
+        ${plot.watered ? '<div class="badge watered">💧</div>' : ""}
+        ${ready ? '<div class="badge ready">✅</div>' : '<div class="badge growing">🌱</div>'}
+        <div class="actions-row">
+          ${ready ? `<button class="btn btn-harvest btn-sm" onclick="harvest(${i})">🌾 Harvest</button>` : ""}
+          ${!ready && !plot.watered ? `<button class="btn btn-water btn-sm" onclick="water(${i})">💧 Water</button>` : ""}
+        </div>
+      `;
+          } else {
+            div.innerHTML = `
+        <div class="emoji">🟫</div>
+        <div class="crop-name">Empty Plot</div>
+        <div class="status">Click to plant</div>
+      `;
+            div.addEventListener("click", () => openPlantModal(i));
+          }
+          $p.appendChild(div);
+        });
+      }
+
+      function renderShop() {
+        const $s = document.getElementById("shop");
+        $s.innerHTML = "";
+        for (const [id, c] of Object.entries(crops)) {
+          const owned = state.inventory[id] || 0;
+          const div = document.createElement("div");
+          div.className = "shop-item";
+          div.innerHTML = `
+      <div class="s-emoji">${c.emoji}</div>
+      <div class="s-name">${c.name}</div>
+      <div class="s-price">💰 ${c.seedPrice}</div>
+      <div class="s-owned">Owned: ${owned}</div>
+    `;
+          div.addEventListener("click", () => buySeed(id));
+          $s.appendChild(div);
+        }
+      }
+
+      function openPlantModal(plotId) {
+        selectedPlot = plotId;
+        const $opts = document.getElementById("crop-options");
+        $opts.innerHTML = "";
+        for (const [id, c] of Object.entries(crops)) {
+          const count = state.inventory[id] || 0;
+          const div = document.createElement("div");
+          div.className = "crop-opt" + (count <= 0 ? " disabled" : "");
+          div.innerHTML = `<div class="c-emoji">${c.emoji}</div><div class="c-name">${c.name}</div><div class="c-count">×${count}</div>`;
+          if (count > 0)
+            div.addEventListener("click", () => plantCrop(plotId, id));
+          $opts.appendChild(div);
+        }
+        document.getElementById("plant-modal").classList.add("show");
+      }
+
+      function closePlantModal() {
+        document.getElementById("plant-modal").classList.remove("show");
+        selectedPlot = null;
+      }
+
+      async function plantCrop(plotId, cropId) {
+        closePlantModal();
+        const data = await api("/api/farm/plant", {
+          userId: UID,
+          plotId,
+          cropId,
+        });
+        if (data.success) {
+          state.plots = data.plots;
+          state.inventory = data.inventory;
+          state.coins = data.coins;
+          toast(`🌱 Planted ${crops[cropId].emoji} ${crops[cropId].name}!`);
+          // Animate
+          render();
+          renderShop();
+          const plotEl = document.getElementById("plots").children[plotId];
+          if (plotEl) plotEl.classList.add("planting");
+        }
+      }
+
+      async function water(plotId) {
+        const data = await api("/api/farm/water", { userId: UID, plotId });
+        if (data.success) {
+          state.plots = data.plots;
+          toast("💧 Watered! Growth speed +30%");
+          renderPlots();
+        }
+      }
+
+      async function harvest(plotId) {
+        const plotEl = document.getElementById("plots").children[plotId];
+        if (plotEl) plotEl.classList.add("harvesting");
+        await new Promise((r) => setTimeout(r, 400));
+
+        const data = await api("/api/farm/harvest", { userId: UID, plotId });
+        if (data.success) {
+          state.plots = data.plots;
+          state.coins = data.coins;
+          state.xp = data.xp;
+          state.level = data.level;
+          toast(
+            `${data.reward.crop} Harvested! +${data.reward.coins}💰 +${data.reward.xp}✨${data.leveledUp ? " 🎉 LEVEL UP!" : ""}`,
+          );
+          render();
+          renderShop();
+        }
+      }
+
+      async function buySeed(cropId) {
+        const data = await api("/api/farm/buy-seeds", {
+          userId: UID,
+          cropId,
+          amount: 1,
+        });
+        if (data.success) {
+          state.coins = data.coins;
+          state.inventory = data.inventory;
+          toast(
+            `🛒 Bought 1× ${crops[cropId].emoji} ${crops[cropId].name} seed`,
+          );
+          render();
+          renderShop();
+        } else {
+          toast("❌ Not enough coins!");
+        }
+      }
+
+      init();
+    </script>
+  </body>
+</html>

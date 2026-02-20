@@ -1,0 +1,7 @@
+[
+  { "level": 1, "xpRequired": 0, "unlocks": ["mint", "incubator_basic"] },
+  { "level": 2, "xpRequired": 50, "unlocks": ["wheat"] },
+  { "level": 3, "xpRequired": 150, "unlocks": ["basil", "egg_common"] },
+  { "level": 4, "xpRequired": 350, "unlocks": ["pot_upgrade"] },
+  { "level": 5, "xpRequired": 700, "unlocks": ["garden_access", "fence_white"] }
+]

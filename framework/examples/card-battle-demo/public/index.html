@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>⚔️ Card Battle — Framework Demo</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      :root {
+        --bg: #0a0c15;
+        --surface: rgba(255, 255, 255, 0.04);
+        --border: rgba(255, 255, 255, 0.08);
+        --text: #e2e8f0;
+        --text-dim: #94a3b8;
+        --accent: #f472b6;
+        --fire: #ef4444;
+        --water: #3b82f6;
+        --earth: #22c55e;
+        --air: #67e8f9;
+        --dark: #8b5cf6;
+        --light: #fbbf24;
+      }
+      body {
+        font-family: "Inter", system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .header {
+        text-align: center;
+        padding: 20px 16px 4px;
+      }
+      .header h1 {
+        font-size: 1.5rem;
+        font-weight: 900;
+        background: linear-gradient(135deg, #f472b6, #ef4444, #fbbf24);
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .header .sub {
+        font-size: 0.7rem;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-top: 4px;
+      }
+
+      /* HP Bars */
+      .arena {
+        width: min(520px, calc(100vw - 32px));
+        margin: 12px 0;
+      }
+      .hp-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 6px 0;
+      }
+      .hp-label {
+        width: 90px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-align: right;
+      }
+      .hp-bar-bg {
+        flex: 1;
+        height: 20px;
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 10px;
+        overflow: hidden;
+        position: relative;
+      }
+      .hp-bar {
+        height: 100%;
+        border-radius: 10px;
+        transition: width 0.5s ease;
+      }
+      .hp-bar.player-bar {
+        background: linear-gradient(90deg, #22c55e, #4ade80);
+      }
+      .hp-bar.enemy-bar {
+        background: linear-gradient(90deg, #ef4444, #f97316);
+      }
+      .hp-num {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: white;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+      }
+      .vs-divider {
+        text-align: center;
+        font-size: 1.2rem;
+        font-weight: 900;
+        color: var(--accent);
+        margin: 4px 0;
+        letter-spacing: 0.1em;
+      }
+
+      /* Cards */
+      .hand-label {
+        font-size: 0.7rem;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin: 16px 0 8px;
+        text-align: center;
+      }
+      .hand {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      .card {
+        width: 140px;
+        padding: 14px 12px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-align: center;
+        position: relative;
+        backdrop-filter: blur(8px);
+      }
+      .card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 8px 30px rgba(255, 255, 255, 0.06);
+      }
+      .card:active {
+        transform: translateY(-2px);
+      }
+      .card.disabled {
+        opacity: 0.4;
+        pointer-events: none;
+      }
+      .card .emoji {
+        font-size: 2.2rem;
+      }
+      .card .name {
+        font-size: 0.8rem;
+        font-weight: 700;
+        margin: 6px 0 2px;
+      }
+      .card .ability-tag {
+        font-size: 0.6rem;
+        color: var(--accent);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .card .stats {
+        display: flex;
+        justify-content: space-around;
+        margin-top: 8px;
+      }
+      .card .stat-atk {
+        color: #ef4444;
+        font-weight: 700;
+        font-size: 0.85rem;
+      }
+      .card .stat-hp {
+        color: #22c55e;
+        font-weight: 700;
+        font-size: 0.85rem;
+      }
+      .card .rarity-common {
+        border-top: 3px solid #94a3b8;
+      }
+      .card .rarity-rare {
+        border-top: 3px solid #3b82f6;
+      }
+      .card .rarity-legendary {
+        border-top: 3px solid #fbbf24;
+      }
+      .card.rarity-common {
+        border-top: 3px solid #94a3b8;
+      }
+      .card.rarity-rare {
+        border-top: 3px solid #3b82f6;
+      }
+      .card.rarity-legendary {
+        border-top: 3px solid #fbbf24;
+      }
+
+      /* Battle Log */
+      .log-container {
+        width: min(520px, calc(100vw - 32px));
+        max-height: 160px;
+        overflow-y: auto;
+        margin: 16px 0;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 10px 14px;
+      }
+      .log-entry {
+        font-size: 0.75rem;
+        margin: 3px 0;
+        line-height: 1.4;
+      }
+      .log-entry.player {
+        color: #4ade80;
+      }
+      .log-entry.opponent {
+        color: #f87171;
+      }
+      .log-entry.system {
+        color: #fbbf24;
+        font-weight: 700;
+      }
+
+      /* Stats bar */
+      .stats-row {
+        display: flex;
+        gap: 20px;
+        justify-content: center;
+        margin: 8px 0;
+      }
+      .stat-chip {
+        font-size: 0.75rem;
+        color: var(--text-dim);
+      }
+      .stat-chip span {
+        font-weight: 700;
+        color: var(--text);
+      }
+
+      /* Buttons */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 28px;
+        border: none;
+        border-radius: 12px;
+        font-family: "Inter", sans-serif;
+        font-size: 0.9rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .btn-primary {
+        background: linear-gradient(135deg, #f472b6, #ec4899);
+        color: white;
+        box-shadow: 0 4px 20px rgba(236, 72, 153, 0.3);
+      }
+      .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 30px rgba(236, 72, 153, 0.5);
+      }
+      .actions {
+        margin: 16px 0;
+        text-align: center;
+      }
+
+      /* Overlay */
+      .overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(10, 12, 21, 0.88);
+        backdrop-filter: blur(12px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 200;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.4s;
+      }
+      .overlay.show {
+        opacity: 1;
+        pointer-events: all;
+      }
+      .overlay-card {
+        background: rgba(30, 32, 50, 0.95);
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        padding: 36px 44px;
+        text-align: center;
+        transform: scale(0.9);
+        transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+      .overlay.show .overlay-card {
+        transform: scale(1);
+      }
+      .overlay-card h2 {
+        font-size: 2rem;
+        font-weight: 900;
+        margin-bottom: 8px;
+      }
+      .overlay-card .result-icon {
+        font-size: 3.5rem;
+        margin: 12px 0;
+      }
+      .overlay-card .result-sub {
+        color: var(--text-dim);
+        font-size: 0.85rem;
+        margin-bottom: 20px;
+      }
+
+      .footer {
+        text-align: center;
+        padding: 16px;
+        color: var(--text-dim);
+        font-size: 0.65rem;
+        letter-spacing: 0.04em;
+      }
+
+      @keyframes cardAttack {
+        0% {
+          transform: translateY(0);
+        }
+        30% {
+          transform: translateY(-20px) scale(1.1);
+        }
+        60% {
+          transform: translateY(5px);
+        }
+        100% {
+          transform: translateY(0);
+        }
+      }
+      @keyframes shake {
+        0%,
+        100% {
+          transform: translateX(0);
+        }
+        25% {
+          transform: translateX(-4px);
+        }
+        75% {
+          transform: translateX(4px);
+        }
+      }
+      @keyframes dmgFlash {
+        0% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.3;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+      .card.attacking {
+        animation: cardAttack 0.4s ease;
+      }
+      .hp-bar-bg.hit {
+        animation:
+          shake 0.3s ease,
+          dmgFlash 0.3s ease;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h1>⚔️ Card Battle Arena</h1>
+      <div class="sub">Card Battle Demo — Discord Activities Framework</div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-chip">Wins: <span id="wins">0</span></div>
+      <div class="stat-chip">Losses: <span id="losses">0</span></div>
+      <div class="stat-chip">Turn: <span id="turn-num">1</span></div>
+    </div>
+
+    <div class="arena">
+      <div class="hp-row">
+        <div class="hp-label">🤖 Enemy</div>
+        <div class="hp-bar-bg" id="enemy-hp-bg">
+          <div
+            class="hp-bar enemy-bar"
+            id="enemy-hp-bar"
+            style="width: 100%"
+          ></div>
+          <div class="hp-num" id="enemy-hp-text">30/30</div>
+        </div>
+      </div>
+      <div class="vs-divider">⚔️ VS</div>
+      <div class="hp-row">
+        <div class="hp-label">🧙 You</div>
+        <div class="hp-bar-bg" id="player-hp-bg">
+          <div
+            class="hp-bar player-bar"
+            id="player-hp-bar"
+            style="width: 100%"
+          ></div>
+          <div class="hp-num" id="player-hp-text">30/30</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hand-label" id="hand-label">— Choose a card to attack —</div>
+    <div class="hand" id="hand"></div>
+
+    <div class="log-container" id="log"></div>
+
+    <div class="actions">
+      <button class="btn btn-primary" id="btn-start" onclick="startBattle()">
+        ⚔️ Start Battle
+      </button>
+    </div>
+
+    <div class="overlay" id="overlay">
+      <div class="overlay-card">
+        <div class="result-icon" id="result-icon">🎉</div>
+        <h2 id="result-title">Victory!</h2>
+        <div class="result-sub" id="result-sub">You defeated the enemy.</div>
+        <button class="btn btn-primary" onclick="startBattle()">
+          🔄 Play Again
+        </button>
+      </div>
+    </div>
+
+    <div class="footer">
+      Built with Discord Activities Game Framework — Server-side battle logic
+    </div>
+
+    <script>
+      const USER_ID = "demo_" + Math.random().toString(36).slice(2, 8);
+
+      let isPlaying = false;
+
+      const $hand = document.getElementById("hand");
+      const $log = document.getElementById("log");
+      const $overlay = document.getElementById("overlay");
+      const $wins = document.getElementById("wins");
+      const $losses = document.getElementById("losses");
+      const $turnNum = document.getElementById("turn-num");
+      const $handLabel = document.getElementById("hand-label");
+
+      async function api(path, body) {
+        const r = await fetch(path, {
+          method: body ? "POST" : "GET",
+          headers: { "Content-Type": "application/json" },
+          body: body ? JSON.stringify(body) : undefined,
+        });
+        return r.json();
+      }
+
+      function setHP(who, current, max) {
+        const pct = Math.max(0, (current / max) * 100);
+        document.getElementById(`${who}-hp-bar`).style.width = pct + "%";
+        document.getElementById(`${who}-hp-text`).textContent =
+          `${current}/${max}`;
+        if (current < max) {
+          document.getElementById(`${who}-hp-bg`).classList.add("hit");
+          setTimeout(
+            () =>
+              document.getElementById(`${who}-hp-bg`).classList.remove("hit"),
+            350,
+          );
+        }
+      }
+
+      function addLog(entries) {
+        for (const e of entries) {
+          const div = document.createElement("div");
+          div.className = "log-entry " + (e.actor || "system");
+          div.textContent = `[${e.turn || "—"}] ${e.message}`;
+          $log.appendChild(div);
+        }
+        $log.scrollTop = $log.scrollHeight;
+      }
+
+      function renderHand(cards, enabled) {
+        $hand.innerHTML = "";
+        cards.forEach((c, i) => {
+          const div = document.createElement("div");
+          div.className = `card rarity-${c.rarity || "common"}${enabled ? "" : " disabled"}`;
+          div.innerHTML = `
+      <div class="emoji">${c.emoji}</div>
+      <div class="name">${c.name}</div>
+      <div class="ability-tag">✦ ${c.ability || "—"}</div>
+      <div class="stats"><span class="stat-atk">⚔${c.currentATK}</span> <span class="stat-hp">♥${c.currentHP}</span></div>
+    `;
+          if (enabled) div.addEventListener("click", () => playCard(i, div));
+          $hand.appendChild(div);
+        });
+      }
+
+      async function startBattle() {
+        $overlay.classList.remove("show");
+        $log.innerHTML = "";
+        isPlaying = true;
+
+        const data = await api("/api/battle/start", {
+          userId: USER_ID,
+          username: "Player",
+        });
+        setHP("player", data.battle.playerHP, 30);
+        setHP("enemy", data.battle.opponentHP, 30);
+        $turnNum.textContent = data.battle.turnNumber;
+        $wins.textContent = data.stats.wins;
+        $losses.textContent = data.stats.losses;
+        addLog(data.battle.log);
+        renderHand(data.battle.playerHand, true);
+        $handLabel.textContent = "— Choose a card to attack —";
+        document.getElementById("btn-start").style.display = "none";
+      }
+
+      async function playCard(index, el) {
+        if (!isPlaying) return;
+        isPlaying = false;
+
+        el.classList.add("attacking");
+        renderHand(
+          [...$hand.children].map((_, i) => (i === index ? null : null)),
+          false,
+        );
+
+        // Disable all cards visually
+        $hand
+          .querySelectorAll(".card")
+          .forEach((c) => c.classList.add("disabled"));
+
+        const data = await api("/api/battle/play", {
+          userId: USER_ID,
+          cardIndex: index,
+        });
+
+        const newEntries = data.battle.log.slice(-2); // last 2 entries (player + AI)
+        addLog(newEntries);
+
+        setHP("enemy", data.battle.opponentHP, 30);
+        await sleep(400);
+        setHP("player", data.battle.playerHP, 30);
+        $turnNum.textContent = data.battle.turnNumber || "—";
+
+        if (data.gameOver) {
+          const won = data.winner === "player";
+          $wins.textContent = data.stats.wins;
+          $losses.textContent = data.stats.losses;
+          document.getElementById("result-icon").textContent = won
+            ? "🏆"
+            : "💀";
+          document.getElementById("result-title").textContent = won
+            ? "Victory!"
+            : "Defeat";
+          document.getElementById("result-sub").textContent = won
+            ? `You won in ${data.battle.turnNumber} turns!`
+            : "The enemy was too strong this time.";
+          setTimeout(() => $overlay.classList.add("show"), 800);
+          $handLabel.textContent = "— Battle Over —";
+          document.getElementById("btn-start").style.display = "";
+          return;
+        }
+
+        // Re-render hand
+        renderHand(data.battle.playerHand, true);
+        isPlaying = true;
+      }
+
+      function sleep(ms) {
+        return new Promise((r) => setTimeout(r, ms));
+      }
+      startBattle();
+    </script>
+  </body>
+</html>
