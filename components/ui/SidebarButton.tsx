@@ -31,6 +31,7 @@ export const SidebarButton: React.FC<SidebarButtonProps> = ({
           colorClass
     } ${pulse ? "animate-bounce ring-4 ring-yellow-400/50 border-yellow-200" : ""}`}
     title={label}
+    aria-label={label}
   >
     <Icon size={24} className="drop-shadow-md" />
     <span className="absolute right-14 bg-emerald-950/90 border border-emerald-700 text-white px-3 py-1.5 rounded-xl text-xs opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-xl backdrop-blur-sm font-bold tracking-wide">
