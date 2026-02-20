@@ -1,0 +1,41 @@
+{
+  "mint": {
+    "id": "mint",
+    "name": "Fresh Mint",
+    "name_ru": "Свежая мята",
+    "seedPrice": 10,
+    "sellPrice": 14,
+    "growthTime": 5,
+    "xpReward": 2,
+    "levelReq": 1,
+    "color": "0x00ff88",
+    "sprite": null,
+    "growthSprites": []
+  },
+  "wheat": {
+    "id": "wheat",
+    "name": "Golden Wheat",
+    "name_ru": "Золотая пшеница",
+    "seedPrice": 25,
+    "sellPrice": 35,
+    "growthTime": 30,
+    "xpReward": 5,
+    "levelReq": 2,
+    "color": "0xffdd00",
+    "sprite": null,
+    "growthSprites": []
+  },
+  "basil": {
+    "id": "basil",
+    "name": "Spicy Basil",
+    "name_ru": "Пряный базилик",
+    "seedPrice": 60,
+    "sellPrice": 90,
+    "growthTime": 60,
+    "xpReward": 12,
+    "levelReq": 3,
+    "color": "0x228822",
+    "sprite": null,
+    "growthSprites": []
+  }
+}

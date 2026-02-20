@@ -1,0 +1,1031 @@
+import Phaser from "phaser";
+import {
+  GRID_SIZE,
+  TILE_WIDTH,
+  TILE_HEIGHT,
+  ITEMS,
+  CROPS,
+  EGGS,
+  PETS,
+  CANVAS_BG_COLOR,
+  GARDEN_BG_COLOR,
+} from "../../constants";
+import {
+  PlacedItem,
+  ItemType,
+  PetData,
+  RoomType,
+  CropConfig,
+  EchoMark,
+} from "../../types";
+import {
+  PetAIState,
+  createPetAIState,
+  resetPetAI,
+  updatePetAI as updatePetAISystem,
+  triggerPetReaction as triggerPetReactionSystem,
+} from "../systems/PetAI";
+import {
+  drawProceduralItemFallback as drawProceduralFallback,
+  generateProceduralTexture as generateProcTexture,
+  getCropSprite as getCropSpriteUtil,
+} from "../systems/ProceduralRenderer";
+
+// Union type for anything that needs to be sorted and drawn on the grid
+type RenderEntity =
+  | { type: "ITEM"; data: PlacedItem; isGhost: boolean }
+  | { type: "PLAYER"; gridX: number; gridY: number }
+  | { type: "PET"; gridX: number; gridY: number; petData: PetData };
+
+export class MainScene extends Phaser.Scene {
+  public cameras!: Phaser.Cameras.Scene2D.CameraManager;
+  public add!: Phaser.GameObjects.GameObjectFactory;
+  public input!: Phaser.Input.InputPlugin;
+  public time!: Phaser.Time.Clock;
+  public tweens!: Phaser.Tweens.TweenManager;
+
+  private gridGraphics!: Phaser.GameObjects.Graphics;
+  private highlightGraphics!: Phaser.GameObjects.Graphics;
+  private overlayGraphics!: Phaser.GameObjects.Graphics;
+  private itemsGraphics!: Phaser.GameObjects.Graphics; // Persistent: items/player/pet rendering
+  private childOverlayGraphics!: Phaser.GameObjects.Graphics; // Crops/eggs/progress above item textures
+
+  // Sprite rendering system — Object Pool
+  private spritePool!: Phaser.GameObjects.Group; // Reusable image pool (never destroyed)
+  private activeSprites: Phaser.GameObjects.Image[] = []; // Sprites used THIS frame
+  private textPool!: Phaser.GameObjects.Group; // Reusable floating text pool
+  private loadingTextures: Set<string> = new Set(); // URLs currently being loaded
+  private loadedTextures: Set<string> = new Set(); // Successfully loaded texture keys
+  private failedTextures: Set<string> = new Set(); // URLs that failed to load
+
+  public onTileClick?: (x: number, y: number) => void;
+  public onPetClick?: (petId: string) => void; // Called when pet tile is clicked
+  public placedItems: PlacedItem[] = [];
+  public currentRoomType: RoomType = "interior";
+  public currentPet: PetData | null = null;
+  public isVisiting: boolean = false;
+  public wateredPlants: Set<string> = new Set();
+  public playerGridPos = { x: 7, y: 7 };
+  public tutorialStep: number = 0;
+
+  // Echo Ghost — visitor interaction marks (owner view)
+  public echoMarks: EchoMark[] = [];
+
+  // Free-roaming pet AI state (delegated to game/systems/PetAI)
+  private petAI: PetAIState = createPetAIState();
+  private petReactionEmojis = ["❤️", "⭐", "✨", "🐾", "💕"];
+
+  // Editor State
+  private ghostItemId: string | null = null;
+  private ghostRotation: number = 0;
+  private currentGhostGridPos: { x: number; y: number } | null = null;
+
+  constructor() {
+    super({ key: "MainScene" });
+  }
+
+  // Calculate zoom so the full iso grid fits in the viewport
+  private calculateZoom(): number {
+    const vw = this.scale.width;
+    const vh = this.scale.height;
+    const gridPixelWidth = GRID_SIZE * TILE_WIDTH; // 1024
+    const gridPixelHeight = GRID_SIZE * TILE_HEIGHT; // 512
+    const padding = 0.85; // 15% breathing room
+    const zoomX = (vw * padding) / gridPixelWidth;
+    const zoomY = (vh * padding) / gridPixelHeight;
+    return Math.min(zoomX, zoomY, 2.0); // cap at 2x
+  }
+
+  create() {
+    this.cameras.main.centerOn(0, 0);
+    this.cameras.main.setZoom(this.calculateZoom());
+
+    // Recalculate zoom on window/iframe resize
+    this.scale.on("resize", () => {
+      this.cameras.main.setZoom(this.calculateZoom());
+      this.cameras.main.centerOn(0, 0);
+      this.drawGrid();
+    });
+
+    this.gridGraphics = this.add.graphics();
+    this.itemsGraphics = this.add.graphics();
+    this.childOverlayGraphics = this.add.graphics();
+    this.childOverlayGraphics.setDepth(50); // Above max item depth (~26)
+    this.highlightGraphics = this.add.graphics();
+    this.overlayGraphics = this.add.graphics();
+
+    this.drawGrid();
+
+    // --- Object Pools ---
+    this.spritePool = this.add.group({
+      classType: Phaser.GameObjects.Image,
+      maxSize: 100, // Max sprite images in a single frame
+      runChildUpdate: false,
+    });
+    this.textPool = this.add.group({
+      classType: Phaser.GameObjects.Text,
+      maxSize: 20,
+      runChildUpdate: false,
+    });
+
+    // --- Input for tile clicking ---
+    this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+      const iso = this.getIsoFromScreen(pointer.worldX, pointer.worldY);
+
+      // Check pet click first
+      if (
+        this.currentPet &&
+        Math.floor(this.petAI.x) === iso.x &&
+        Math.floor(this.petAI.y) === iso.y
+      ) {
+        if (this.onPetClick) {
+          this.onPetClick(this.currentPet.id);
+        }
+        this.triggerPetReaction();
+        return; // Don't pass click to tile handler
+      }
+
+      if (this.isValidGrid(iso.x, iso.y) && this.onTileClick) {
+        this.onTileClick(iso.x, iso.y);
+      }
+    });
+
+    this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
+      const { x, y } = this.getIsoFromScreen(pointer.worldX, pointer.worldY);
+      this.currentGhostGridPos = { x, y };
+    });
+  }
+
+  update(_time: number, delta: number) {
+    this.updatePetAI(delta);
+    this.drawScene();
+  }
+
+  public setRoomData(
+    items: PlacedItem[],
+    roomType: RoomType,
+    currentPet: PetData | null = null,
+    isVisiting = false,
+    wateredPlants?: Set<string>,
+    tutorialStep: number = 0,
+    echoMarks?: EchoMark[],
+  ) {
+    this.placedItems = items;
+    this.currentRoomType = roomType;
+
+    // Reset pet position when pet changes
+    const prevPetId = this.currentPet?.id;
+    this.currentPet = currentPet;
+    if (currentPet && currentPet.id !== prevPetId) {
+      resetPetAI(this.petAI, this.playerGridPos.x, this.playerGridPos.y);
+    }
+
+    this.isVisiting = isVisiting;
+    this.wateredPlants = wateredPlants || new Set();
+    this.tutorialStep = tutorialStep;
+    this.echoMarks = echoMarks || [];
+
+    const bgColor =
+      this.currentRoomType === "garden" ? GARDEN_BG_COLOR : CANVAS_BG_COLOR;
+    this.cameras.main.setBackgroundColor(bgColor);
+
+    this.drawGrid();
+  }
+
+  public setGhostItem(itemId: string | null, rotation: number) {
+    this.ghostItemId = itemId;
+    this.ghostRotation = rotation;
+  }
+
+  public setPlayerPos(x: number, y: number) {
+    this.playerGridPos = { x, y };
+  }
+
+  // ─── Free-Roaming Pet AI (delegated to game/systems/PetAI) ─────────
+
+  private updatePetAI(delta: number) {
+    updatePetAISystem(
+      this.petAI,
+      delta,
+      !!this.currentPet,
+      this.playerGridPos.x,
+      this.playerGridPos.y,
+      this.placedItems,
+    );
+  }
+
+  private isTileOccupied(x: number, y: number): boolean {
+    return this.placedItems.some(
+      (item) => item.gridX === x && item.gridY === y,
+    );
+  }
+
+  public triggerPetReaction() {
+    triggerPetReactionSystem(
+      this.petAI,
+      this,
+      (x, y) => this.getScreenFromIso(x, y),
+      this.petReactionEmojis,
+    );
+  }
+
+  public showFloatingText(
+    gridX: number,
+    gridY: number,
+    text: string,
+    color: string,
+  ) {
+    const screen = this.getScreenFromIso(gridX, gridY);
+
+    // Acquire from pool or create new
+    let textObj = this.textPool.getFirstDead(
+      false,
+    ) as Phaser.GameObjects.Text | null;
+    if (textObj) {
+      textObj.setActive(true).setVisible(true);
+      textObj.setPosition(screen.x, screen.y - 60);
+      textObj.setText(text);
+      textObj.setStyle({ color: color });
+      textObj.setAlpha(1).setScale(1);
+      textObj.setOrigin(0.5);
+    } else {
+      textObj = this.add
+        .text(screen.x, screen.y - 60, text, {
+          fontFamily: "monospace",
+          fontSize: "20px",
+          color: color,
+          stroke: "#000000",
+          strokeThickness: 4,
+          fontStyle: "bold",
+        })
+        .setOrigin(0.5);
+      this.textPool.add(textObj);
+    }
+
+    this.tweens.add({
+      targets: textObj,
+      y: screen.y - 120,
+      alpha: 0,
+      scale: 1.5,
+      duration: 1200,
+      ease: "Back.easeOut",
+      onComplete: () => {
+        (textObj as Phaser.GameObjects.Text).setActive(false).setVisible(false);
+      },
+    });
+  }
+
+  // --- Sprite Texture Management ---
+
+  /** Get a texture key from a sprite URL path like /sprites/foo.png or https://example.com/foo.png */
+  private getSpriteKey(spritePath: string): string {
+    // Determine if it's a remote URL
+    if (spritePath.startsWith("http")) {
+      // Simple hash-like key for URLs
+      let hash = 0;
+      for (let i = 0; i < spritePath.length; i++) {
+        const char = spritePath.charCodeAt(i);
+        hash = (hash << 5) - hash + char;
+        hash |= 0;
+      }
+      return `remote_sprite_${Math.abs(hash)}`;
+    }
+    // Local path
+    return `sprite_${spritePath.replace(/[^a-zA-Z0-9]/g, "_")}`;
+  }
+
+  /** Dynamically load a sprite texture from URL. Returns true if texture is ready. */
+  private ensureSpriteLoaded(spritePath: string): boolean {
+    if (!spritePath) return false;
+    const key = this.getSpriteKey(spritePath);
+
+    // Already loaded?
+    if (this.loadedTextures.has(key)) return true;
+    // Already failed?
+    if (this.failedTextures.has(key)) return false;
+    // Currently loading?
+    if (this.loadingTextures.has(key)) return false;
+
+    // Start loading
+    this.loadingTextures.add(key);
+    this.load.image(key, spritePath);
+    this.load.once("filecomplete-image-" + key, () => {
+      this.loadingTextures.delete(key);
+      this.loadedTextures.add(key);
+    });
+    this.load.once("loaderror", (file: any) => {
+      if (file.key === key) {
+        this.loadingTextures.delete(key);
+        this.failedTextures.add(key);
+        console.warn(`Failed to load sprite: ${spritePath}`);
+      }
+    });
+    this.load.start();
+    return false;
+  }
+
+  /** Place a sprite image from pool at screen coordinates. */
+  private renderTexture(
+    key: string,
+    screenX: number,
+    screenY: number,
+    width: number,
+    height: number,
+    alpha: number = 1,
+    depth: number = 0,
+    originY: number = 0.5,
+    tint?: number | null,
+  ): boolean {
+    // Acquire from pool or create new (only if pool has capacity)
+    let img = this.spritePool.getFirstDead(
+      false,
+    ) as Phaser.GameObjects.Image | null;
+    if (img) {
+      img.setActive(true).setVisible(true);
+      img.setTexture(key);
+      img.setPosition(screenX, screenY);
+    } else {
+      if (this.spritePool.isFull()) {
+        return false;
+      }
+      img = this.add.image(screenX, screenY, key);
+      this.spritePool.add(img);
+    }
+    img.setOrigin(0.5, originY);
+    img.setDisplaySize(width, height);
+    img.setAlpha(alpha);
+    img.setDepth(depth);
+    // Apply or clear tint
+    if (tint != null) {
+      img.setTint(tint);
+    } else {
+      img.clearTint();
+    }
+    this.activeSprites.push(img);
+    return true;
+  }
+
+  /** Wrapper for drawing loaded sprites by path */
+  private drawSpriteImage(
+    spritePath: string,
+    screenX: number,
+    screenY: number,
+    width: number,
+    height: number,
+    alpha: number = 1,
+    depth: number = 0,
+    originY: number = 0.5,
+    tint?: number | null,
+  ): boolean {
+    const key = this.getSpriteKey(spritePath);
+    if (!this.loadedTextures.has(key)) {
+      this.ensureSpriteLoaded(spritePath);
+      return false; // Not ready yet, caller should fallback
+    }
+    return this.renderTexture(
+      key,
+      screenX,
+      screenY,
+      width,
+      height,
+      alpha,
+      depth,
+      originY,
+      tint,
+    );
+  }
+
+  // ─── Procedural Rendering (delegated to game/systems/ProceduralRenderer) ───
+
+  private drawProceduralItemFallback(
+    config: (typeof ITEMS)[string],
+    screenX: number,
+    screenY: number,
+    alpha: number,
+    tint?: number | null,
+  ) {
+    drawProceduralFallback(
+      this.itemsGraphics,
+      config,
+      screenX,
+      screenY,
+      alpha,
+      tint,
+    );
+  }
+
+  private generateProceduralTexture(itemId: string) {
+    generateProcTexture(this, itemId);
+  }
+
+  private getCropSprite(
+    cropConfig: CropConfig,
+    progress: number,
+  ): string | null {
+    return getCropSpriteUtil(cropConfig, progress);
+  }
+
+  private drawScene() {
+    // 1. Clear previous frame
+    this.highlightGraphics.clear();
+    this.overlayGraphics.clear();
+    this.itemsGraphics.clear();
+    this.childOverlayGraphics.clear();
+
+    // Return previous frame's sprites to pool (deactivate, don't destroy)
+    for (const img of this.activeSprites) {
+      img.setActive(false).setVisible(false);
+    }
+    this.activeSprites.length = 0;
+
+    // 2. Build Render List
+    const renderList: RenderEntity[] = [];
+
+    // Items
+    this.placedItems.forEach((item) => {
+      renderList.push({ type: "ITEM", data: item, isGhost: false });
+    });
+
+    // Ghost Item
+    if (
+      this.ghostItemId &&
+      this.currentGhostGridPos &&
+      this.isValidGrid(this.currentGhostGridPos.x, this.currentGhostGridPos.y)
+    ) {
+      renderList.push({
+        type: "ITEM",
+        isGhost: true,
+        data: {
+          id: "ghost",
+          itemId: this.ghostItemId,
+          gridX: this.currentGhostGridPos.x,
+          gridY: this.currentGhostGridPos.y,
+          rotation: this.ghostRotation,
+          placedAt: Date.now(),
+          meta: {},
+          cropData: null,
+        },
+      });
+    }
+
+    // Player
+    renderList.push({
+      type: "PLAYER",
+      gridX: this.playerGridPos.x,
+      gridY: this.playerGridPos.y,
+    });
+
+    // Pet — uses AI position instead of static offset
+    if (this.currentPet) {
+      // Lerp between current and target for smooth movement
+      const lerpX = Phaser.Math.Linear(
+        this.petAI.x,
+        this.petAI.targetX,
+        this.petAI.moveProgress,
+      );
+      const lerpY = Phaser.Math.Linear(
+        this.petAI.y,
+        this.petAI.targetY,
+        this.petAI.moveProgress,
+      );
+
+      renderList.push({
+        type: "PET",
+        gridX: lerpX,
+        gridY: lerpY,
+        petData: this.currentPet,
+      });
+    }
+
+    // 3. Sort by Depth
+    renderList.sort((a, b) => {
+      // Primary sort: Isometric depth (x + y)
+      const aDepth =
+        (a.type === "ITEM" ? a.data.gridX : a.gridX) +
+        (a.type === "ITEM" ? a.data.gridY : a.gridY);
+      const bDepth =
+        (b.type === "ITEM" ? b.data.gridX : b.gridX) +
+        (b.type === "ITEM" ? b.data.gridY : b.gridY);
+
+      if (aDepth !== bDepth) return aDepth - bDepth;
+
+      // Secondary sort: X coordinate
+      const aX = a.type === "ITEM" ? a.data.gridX : a.gridX;
+      const bX = b.type === "ITEM" ? b.data.gridX : b.gridX;
+      return aX - bX;
+    });
+
+    // 4. Draw All Entities
+    renderList.forEach((entity) => {
+      if (entity.type === "ITEM") {
+        this.drawItem(entity.data, entity.isGhost);
+      } else if (entity.type === "PLAYER") {
+        this.drawPlayer(entity.gridX, entity.gridY);
+      } else if (entity.type === "PET") {
+        this.drawPet(entity.gridX, entity.gridY, entity.petData);
+      }
+    });
+
+    // 5. Draw Highlight (On Top of items to be clear)
+    if (this.currentGhostGridPos && !this.isVisiting) {
+      this.drawHighlight(
+        this.currentGhostGridPos.x,
+        this.currentGhostGridPos.y,
+      );
+    }
+
+    // 6. Draw Tutorial Hints
+    this.drawTutorialHints();
+
+    // 7. Echo Ghost marks (owner view — show per-object interaction icons)
+    if (!this.isVisiting && this.echoMarks.length > 0) {
+      const newMarks = this.echoMarks.filter((m) => m.status === "new");
+      // Deduplicate by grid position (show one icon per tile)
+      const byGrid = new Map<string, EchoMark[]>();
+      for (const mark of newMarks) {
+        const key = `${mark.gridX}_${mark.gridY}`;
+        if (!byGrid.has(key)) byGrid.set(key, []);
+        byGrid.get(key)!.push(mark);
+      }
+
+      const echoIcons: Record<string, string> = {
+        watering: "💧",
+        billboard_post: "✒️",
+      };
+
+      byGrid.forEach((marks, gridKey) => {
+        const firstMark = marks[0];
+        const screen = this.getScreenFromIso(firstMark.gridX, firstMark.gridY);
+        const pulse = 0.3 + 0.2 * Math.sin(Date.now() / 400);
+        const g = this.overlayGraphics;
+
+        // Pulsing glow
+        g.fillStyle(0x88ccff, pulse);
+        g.fillCircle(screen.x, screen.y, 18);
+        g.fillStyle(0xffffff, pulse + 0.1);
+        g.fillCircle(screen.x, screen.y, 8);
+
+        // Count badge
+        const count = marks.length;
+        const icon = echoIcons[firstMark.actionType] || "✨";
+        const textKey = `echo_${gridKey}`;
+        let label = this.children.getByName(
+          textKey,
+        ) as Phaser.GameObjects.Text | null;
+
+        if (!label) {
+          const badge = count > 1 ? `${icon} ×${count}` : icon;
+          label = this.add
+            .text(screen.x, screen.y - 28, badge, {
+              fontSize: "16px",
+            })
+            .setOrigin(0.5)
+            .setName(textKey)
+            .setDepth(9999)
+            .setInteractive();
+
+          // Tooltip on hover: "Nick · 2h ago"
+          label.on("pointerover", () => {
+            const newest = marks[marks.length - 1];
+            const ago = this.formatTimeAgo(newest.createdAt);
+            const tip = `${newest.actorNick} · ${ago}`;
+            this.showFloatingText(
+              firstMark.gridX,
+              firstMark.gridY,
+              tip,
+              "#88ccff",
+            );
+          });
+        } else {
+          // Update badge text for potential count changes
+          const badge = count > 1 ? `${icon} ×${count}` : icon;
+          label.setText(badge);
+        }
+        label.setPosition(screen.x, screen.y - 28);
+        label.setAlpha(pulse + 0.3);
+      });
+
+      // Clean up labels for marks that no longer exist
+      this.children.getAll().forEach((child) => {
+        if (child.name?.startsWith("echo_")) {
+          if (!byGrid.has(child.name.replace("echo_", ""))) {
+            child.destroy();
+          }
+        }
+      });
+    } else {
+      // Clean up all echo labels when not applicable
+      this.children.getAll().forEach((child) => {
+        if (child.name?.startsWith("echo_")) {
+          child.destroy();
+        }
+      });
+    }
+  }
+
+  private drawTutorialHints() {
+    if (this.tutorialStep === 3) {
+      // "Click the Planter to plant Mint"
+      this.placedItems.forEach((item) => {
+        const config = ITEMS[item.itemId];
+        if (config.type === ItemType.PLANTER && !item.cropData) {
+          this.drawBounceArrow(item.gridX, item.gridY, 0xffff00);
+        }
+      });
+    }
+
+    if (this.tutorialStep === 4) {
+      // "Harvest"
+      this.placedItems.forEach((item) => {
+        if (item.cropData) {
+          const cropConfig = CROPS[item.cropData.cropId];
+          const isReady =
+            Date.now() - item.cropData.plantedAt >=
+            cropConfig.growthTime * 1000;
+          if (isReady) {
+            this.drawBounceArrow(item.gridX, item.gridY, 0x00ff00);
+          }
+        }
+      });
+    }
+  }
+
+  private drawBounceArrow(gridX: number, gridY: number, color: number) {
+    const screen = this.getScreenFromIso(gridX, gridY);
+    const bounce = Math.sin(this.time.now / 150) * 10;
+
+    this.overlayGraphics.lineStyle(4, 0x000000, 1);
+    this.overlayGraphics.fillStyle(color, 1);
+
+    const ay = screen.y - 60 + bounce;
+
+    // Arrow shape
+    const path = [
+      new Phaser.Geom.Point(screen.x - 10, ay - 20),
+      new Phaser.Geom.Point(screen.x + 10, ay - 20),
+      new Phaser.Geom.Point(screen.x + 10, ay),
+      new Phaser.Geom.Point(screen.x + 20, ay),
+      new Phaser.Geom.Point(screen.x, ay + 20),
+      new Phaser.Geom.Point(screen.x - 20, ay),
+      new Phaser.Geom.Point(screen.x - 10, ay),
+    ];
+
+    this.overlayGraphics.fillPoints(path, true);
+    this.overlayGraphics.strokePoints(path, true);
+  }
+
+  private drawPlayer(gridX: number, gridY: number) {
+    const screen = this.getScreenFromIso(gridX, gridY);
+    const g = this.itemsGraphics;
+    const bounce = Math.sin(this.time.now / 200) * 3;
+
+    // Shadow
+    g.fillStyle(0x000000, 0.3);
+    g.fillEllipse(screen.x, screen.y, 24, 12);
+
+    // Body
+    g.fillStyle(0x3366cc, 1);
+    g.fillRect(screen.x - 8, screen.y - 35 + bounce, 16, 25);
+
+    // Head
+    g.fillStyle(0xffccaa, 1);
+    g.fillCircle(screen.x, screen.y - 42 + bounce, 10);
+
+    // Hat
+    g.fillStyle(0xddaa44, 1);
+    g.fillEllipse(screen.x, screen.y - 48 + bounce, 26, 8);
+    g.fillCircle(screen.x, screen.y - 52 + bounce, 8);
+
+    // No renderGroup.add needed — using persistent graphics
+  }
+
+  private drawPet(gridX: number, gridY: number, data: PetData) {
+    const config = PETS[data.configId];
+    if (!config) return;
+
+    const screen = this.getScreenFromIso(gridX, gridY);
+    const g = this.itemsGraphics;
+    const bounce = Math.sin(this.time.now / 150) * 4;
+    const depth = gridX + gridY;
+
+    // Shadow
+    g.fillStyle(0x000000, 0.3);
+    g.fillEllipse(screen.x, screen.y, 16, 8);
+
+    // Try sprite rendering
+    if (config.sprite) {
+      const drawn = this.drawSpriteImage(
+        config.sprite,
+        screen.x,
+        screen.y - 18 + bounce, // Adjusted Y for smaller size (was 24)
+        36, // Width 36 (was 48)
+        36, // Height 36 (was 48)
+        1,
+        depth,
+      );
+      if (drawn) return; // Sprite rendered, skip procedural
+    }
+
+    // Procedural fallback
+    g.fillStyle(config.color, 1);
+    g.fillCircle(screen.x, screen.y - 10 + bounce, 10);
+
+    // Eyes
+    g.fillStyle(0xffffff, 1);
+    g.fillCircle(screen.x - 3, screen.y - 12 + bounce, 3);
+    g.fillCircle(screen.x + 3, screen.y - 12 + bounce, 3);
+    g.fillStyle(0x000000, 1);
+    g.fillCircle(screen.x - 3, screen.y - 12 + bounce, 1);
+    g.fillCircle(screen.x + 3, screen.y - 12 + bounce, 1);
+  }
+
+  private drawItem(item: PlacedItem, isGhost: boolean) {
+    const config = ITEMS[item.itemId];
+    if (!config) return;
+
+    const screen = this.getScreenFromIso(item.gridX, item.gridY);
+    const g = this.itemsGraphics;
+    const depth = item.gridX + item.gridY;
+
+    let color = config.color;
+    let alpha = isGhost ? 0.6 : 1;
+
+    if (isGhost) {
+      const pulse = Math.sin(this.time.now / 200) * 0.1 + 0.6;
+      alpha = pulse;
+    }
+
+    // Height
+    let height = 20;
+    if (config.type === ItemType.PLANTER) height = 15;
+    if (config.type === ItemType.INCUBATOR) height = 15;
+
+    // --- Try sprite rendering for non-planter/non-incubator items ---
+    if (
+      config.sprite &&
+      config.type !== ItemType.PLANTER &&
+      config.type !== ItemType.INCUBATOR
+    ) {
+      const spriteW = TILE_WIDTH * config.width;
+      const spriteH = spriteW * 1.2; // Slightly taller than wide for 3D feel
+      const drawn = this.drawSpriteImage(
+        config.sprite,
+        screen.x,
+        screen.y - height - spriteH / 2, // Center-anchor: position at visual center above base
+        spriteW,
+        spriteH,
+        alpha,
+        depth,
+        0.5,
+        item.tint, // Apply dye tint if set
+      );
+      if (drawn) return; // Sprite rendered — skip procedural
+    }
+
+    // --- Procedural Texture Cache (Optimized) ---
+    this.generateProceduralTexture(item.itemId);
+    const procKey = `proc_${item.itemId}`;
+    const drewTexture = this.renderTexture(
+      procKey,
+      screen.x,
+      screen.y,
+      TILE_WIDTH,
+      TILE_HEIGHT + height,
+      alpha,
+      depth,
+      1.0, // Bottom-anchor
+      item.tint,
+    );
+    if (!drewTexture) {
+      this.drawProceduralItemFallback(
+        config,
+        screen.x,
+        screen.y,
+        alpha,
+        item.tint,
+      );
+    }
+
+    // Crop rendering (uses childOverlayGraphics to ensure crops render above planter textures)
+    if (config.type === ItemType.PLANTER) {
+      if (item.cropData) {
+        const cropConfig = CROPS[item.cropData.cropId];
+        if (cropConfig) {
+          const progress = Math.min(
+            1,
+            (Date.now() - item.cropData.plantedAt) /
+              (cropConfig.growthTime * 1000),
+          );
+          const cx = screen.x;
+          const cy = screen.y - height - 5;
+          const cg = this.childOverlayGraphics; // Overlay layer (depth 50)
+
+          // Try sprite-based crop rendering
+          const cropSprite = this.getCropSprite(cropConfig, progress);
+          if (cropSprite) {
+            // Eased growth curve — fast when young, slowing near maturity
+            const easedP = Phaser.Math.Easing.Quadratic.Out(progress);
+            const cropH = 12 + easedP * 30;
+
+            // Maintain source aspect ratio
+            const spriteKey = this.getSpriteKey(cropSprite);
+            const tex = this.textures.exists(spriteKey)
+              ? this.textures.get(spriteKey)
+              : null;
+            const srcImg = tex?.getSourceImage();
+            const ratio = srcImg ? srcImg.width / srcImg.height : 0.6;
+            const cropW = cropH * ratio;
+
+            // Bottom-anchor: sprite grows UP from soil surface
+            const soilY = screen.y - height;
+            const drawn = this.drawSpriteImage(
+              cropSprite,
+              cx,
+              soilY, // Base position = top of planter (soil)
+              cropW,
+              cropH,
+              alpha,
+              depth + 0.1,
+              1.0, // originY = 1.0 — bottom-anchored
+            );
+            if (drawn) {
+              // Sparkle effect for ready crops (above the plant top)
+              if (progress >= 1 && !this.isVisiting) {
+                cg.lineStyle(2, 0xffff00, alpha);
+                cg.strokeCircle(cx, soilY - cropH - 5, 8);
+              }
+              return; // Skip procedural crop drawing
+            }
+          }
+
+          // Procedural crop fallback (on overlay layer so it's above planter texture)
+          cg.fillStyle(progress < 1 ? 0x88aa88 : cropConfig.color, alpha);
+          const growH = 5 + progress * 25;
+          cg.fillRect(cx - 3, cy - growH, 6, growH);
+          if (progress >= 1) {
+            cg.fillCircle(cx, cy - growH, 6);
+            if (!this.isVisiting) {
+              cg.lineStyle(2, 0xffff00, alpha);
+              cg.strokeCircle(cx, cy - growH - 5, 8);
+            }
+          }
+        }
+      }
+    }
+
+    // Incubator (uses childOverlayGraphics to ensure egg/progress render above incubator texture)
+    if (config.type === ItemType.INCUBATOR) {
+      if (item.meta?.eggId) {
+        const egg = EGGS[item.meta.eggId];
+
+        if (egg) {
+          const cg = this.childOverlayGraphics; // Overlay layer (depth 50)
+
+          // Try Egg Sprite
+          const eggSpriteDrawn = egg.sprite
+            ? this.drawSpriteImage(
+                egg.sprite,
+                screen.x,
+                screen.y - height - 15,
+                32,
+                36, // Slightly oval
+                alpha,
+                depth + 1,
+              )
+            : false;
+
+          if (!eggSpriteDrawn) {
+            // Procedural Egg Fallback (on overlay layer)
+            cg.fillStyle(0xffeebb, alpha);
+            cg.fillEllipse(screen.x, screen.y - height - 10, 14, 18);
+            // Spots
+            cg.fillStyle(0xccaa88, alpha);
+            cg.fillCircle(screen.x - 3, screen.y - height - 12, 2);
+          }
+          const elapsed = (Date.now() - (item.meta.hatchStart || 0)) / 1000;
+          const progress = Math.min(1, elapsed / egg.hatchTime);
+
+          // Progress bar (on overlay layer)
+          const barWidth = 30;
+          const barHeight = 4;
+          const barX = screen.x - barWidth / 2;
+          const barY = screen.y - height + 8;
+
+          cg.fillStyle(0x333333, 0.8);
+          cg.fillRect(barX, barY, barWidth, barHeight);
+
+          // Progress bar fill
+          const fillColor = progress >= 1 ? 0x00ff88 : 0xffaa00;
+          cg.fillStyle(fillColor, alpha);
+          cg.fillRect(barX, barY, barWidth * progress, barHeight);
+
+          // Border
+          cg.lineStyle(1, 0x666666, alpha);
+          cg.strokeRect(barX, barY, barWidth, barHeight);
+
+          if (progress >= 1) {
+            // Ready sparkle effect
+            if (!this.isVisiting) {
+              const sparkle = Math.sin(this.time.now / 150) * 0.5 + 0.5;
+              cg.lineStyle(2, 0x00ff88, sparkle);
+              cg.strokeCircle(screen.x, screen.y - height - 10, 14);
+              cg.lineStyle(1, 0xffff00, sparkle * 0.6);
+              cg.strokeCircle(screen.x, screen.y - height - 10, 18);
+            }
+          }
+        }
+      }
+    }
+
+    // No renderGroup.add needed — using persistent graphics
+  }
+
+  private drawGrid() {
+    this.gridGraphics.clear();
+    const color = this.isVisiting ? 0x6688aa : 0x555555;
+    this.gridGraphics.lineStyle(2, color, 0.3);
+
+    for (let x = 0; x < GRID_SIZE; x++) {
+      for (let y = 0; y < GRID_SIZE; y++) {
+        const screen = this.getScreenFromIso(x, y);
+        const points = [
+          new Phaser.Geom.Point(screen.x, screen.y),
+          new Phaser.Geom.Point(
+            screen.x + TILE_WIDTH / 2,
+            screen.y - TILE_HEIGHT / 2,
+          ),
+          new Phaser.Geom.Point(screen.x, screen.y - TILE_HEIGHT),
+          new Phaser.Geom.Point(
+            screen.x - TILE_WIDTH / 2,
+            screen.y - TILE_HEIGHT / 2,
+          ),
+        ];
+        this.gridGraphics.strokePoints(points, true);
+      }
+    }
+  }
+
+  private drawHighlight(gridX: number, gridY: number) {
+    if (this.isValidGrid(gridX, gridY)) {
+      const screen = this.getScreenFromIso(gridX, gridY);
+
+      const pulse = Math.abs(Math.sin(this.time.now / 300));
+      this.highlightGraphics.lineStyle(3, 0xffffff, 0.5 + pulse * 0.5); // Pulsing white border
+      this.highlightGraphics.fillStyle(0xffffff, 0.1);
+
+      const points = [
+        new Phaser.Geom.Point(screen.x, screen.y),
+        new Phaser.Geom.Point(
+          screen.x + TILE_WIDTH / 2,
+          screen.y - TILE_HEIGHT / 2,
+        ),
+        new Phaser.Geom.Point(screen.x, screen.y - TILE_HEIGHT),
+        new Phaser.Geom.Point(
+          screen.x - TILE_WIDTH / 2,
+          screen.y - TILE_HEIGHT / 2,
+        ),
+      ];
+      this.highlightGraphics.fillPoints(points, true);
+      this.highlightGraphics.strokePoints(points, true);
+    }
+  }
+
+  private getScreenFromIso(x: number, y: number) {
+    const isoX = (x - y) * (TILE_WIDTH / 2);
+    const isoY = (x + y) * (TILE_HEIGHT / 2);
+    const offsetY = -(GRID_SIZE * TILE_HEIGHT) / 2;
+    return { x: isoX, y: isoY + offsetY };
+  }
+
+  private getIsoFromScreen(screenX: number, screenY: number) {
+    const offsetY = -(GRID_SIZE * TILE_HEIGHT) / 2;
+    const adjY = screenY - offsetY;
+    const adjX = screenX;
+    const halfW = TILE_WIDTH / 2;
+    const halfH = TILE_HEIGHT / 2;
+    // Adding 0.5 helps center the hit detection logic for rounding
+    const mu = adjY / halfH;
+    const mv = adjX / halfW;
+    const x = Math.round((mu + mv) / 2);
+    const y = Math.round((mu - mv) / 2);
+    // User reported offset: likely need to adjust for tile center vs top-left
+    // No change needed to math if TILE_HEIGHT is correct, but let's ensure we aren't rounding aggressively
+    return { x, y };
+  }
+
+  private formatTimeAgo(timestamp: number): string {
+    const diffMs = Date.now() - timestamp;
+    const diffSec = Math.floor(diffMs / 1000);
+    if (diffSec < 60) return "just now";
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `${diffHr}h ago`;
+    const diffDay = Math.floor(diffHr / 24);
+    return `${diffDay}d ago`;
+  }
+
+  private isValidGrid(x: number, y: number) {
+    return x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE;
+  }
+}

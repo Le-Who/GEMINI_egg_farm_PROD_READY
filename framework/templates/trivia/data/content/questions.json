@@ -1,0 +1,90 @@
+[
+  {
+    "id": "q1",
+    "name": "Discord HQ",
+    "category": "Technology",
+    "difficulty": "easy",
+    "question": "In which city is Discord's headquarters located?",
+    "correctAnswer": "San Francisco",
+    "wrongAnswers": ["New York", "Seattle", "Los Angeles"],
+    "timeLimit": 15,
+    "points": 100
+  },
+  {
+    "id": "q2",
+    "name": "JavaScript Creator",
+    "category": "Technology",
+    "difficulty": "easy",
+    "question": "Who created JavaScript?",
+    "correctAnswer": "Brendan Eich",
+    "wrongAnswers": ["James Gosling", "Guido van Rossum", "Dennis Ritchie"],
+    "timeLimit": 15,
+    "points": 100
+  },
+  {
+    "id": "q3",
+    "name": "HTTP Status",
+    "category": "Technology",
+    "difficulty": "medium",
+    "question": "What HTTP status code means 'Not Found'?",
+    "correctAnswer": "404",
+    "wrongAnswers": ["403", "500", "301"],
+    "timeLimit": 12,
+    "points": 150
+  },
+  {
+    "id": "q4",
+    "name": "Git Creator",
+    "category": "Technology",
+    "difficulty": "medium",
+    "question": "Who created Git?",
+    "correctAnswer": "Linus Torvalds",
+    "wrongAnswers": ["Bill Gates", "Steve Jobs", "Mark Zuckerberg"],
+    "timeLimit": 12,
+    "points": 150
+  },
+  {
+    "id": "q5",
+    "name": "React Creator",
+    "category": "Technology",
+    "difficulty": "hard",
+    "question": "Which company originally developed React?",
+    "correctAnswer": "Facebook (Meta)",
+    "wrongAnswers": ["Google", "Microsoft", "Twitter"],
+    "timeLimit": 10,
+    "points": 200
+  },
+  {
+    "id": "q6",
+    "name": "Planet Count",
+    "category": "Science",
+    "difficulty": "easy",
+    "question": "How many planets are in our solar system?",
+    "correctAnswer": "8",
+    "wrongAnswers": ["7", "9", "10"],
+    "timeLimit": 15,
+    "points": 100
+  },
+  {
+    "id": "q7",
+    "name": "Water Formula",
+    "category": "Science",
+    "difficulty": "easy",
+    "question": "What is the chemical formula for water?",
+    "correctAnswer": "H2O",
+    "wrongAnswers": ["CO2", "NaCl", "O2"],
+    "timeLimit": 15,
+    "points": 100
+  },
+  {
+    "id": "q8",
+    "name": "Speed of Light",
+    "category": "Science",
+    "difficulty": "hard",
+    "question": "What is the speed of light in km/s (approximately)?",
+    "correctAnswer": "300,000 km/s",
+    "wrongAnswers": ["150,000 km/s", "500,000 km/s", "1,000,000 km/s"],
+    "timeLimit": 10,
+    "points": 200
+  }
+]

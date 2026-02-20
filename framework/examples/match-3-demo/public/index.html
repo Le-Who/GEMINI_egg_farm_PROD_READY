@@ -1,0 +1,816 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>💎 Match-3 — Framework Demo</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      :root {
+        --bg: #0d0f1a;
+        --surface: rgba(255, 255, 255, 0.04);
+        --surface-hover: rgba(255, 255, 255, 0.08);
+        --border: rgba(255, 255, 255, 0.08);
+        --text: #e2e8f0;
+        --text-dim: #94a3b8;
+        --accent: #a78bfa;
+        --accent-glow: rgba(167, 139, 250, 0.35);
+        --fire: linear-gradient(135deg, #ef4444, #f97316);
+        --water: linear-gradient(135deg, #3b82f6, #06b6d4);
+        --earth: linear-gradient(135deg, #22c55e, #84cc16);
+        --air: linear-gradient(135deg, #67e8f9, #e0f2fe);
+        --light: linear-gradient(135deg, #fbbf24, #f59e0b);
+        --dark: linear-gradient(135deg, #8b5cf6, #6d28d9);
+        --cell-size: min(60px, calc((100vw - 120px) / 8));
+        --gap: 4px;
+      }
+
+      body {
+        font-family:
+          "Inter",
+          system-ui,
+          -apple-system,
+          sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        overflow-x: hidden;
+      }
+
+      /* ─── Header ─── */
+      .header {
+        text-align: center;
+        padding: 24px 16px 8px;
+      }
+      .header h1 {
+        font-size: 1.6rem;
+        font-weight: 900;
+        background: linear-gradient(135deg, #a78bfa, #f472b6, #fbbf24);
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        letter-spacing: -0.02em;
+      }
+      .header .subtitle {
+        font-size: 0.75rem;
+        color: var(--text-dim);
+        margin-top: 4px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      /* ─── Stats Bar ─── */
+      .stats-bar {
+        display: flex;
+        gap: 12px;
+        padding: 12px 16px;
+        margin: 8px 16px 16px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        backdrop-filter: blur(12px);
+        width: min(540px, calc(100vw - 32px));
+        justify-content: space-around;
+      }
+      .stat {
+        text-align: center;
+        flex: 1;
+      }
+      .stat-value {
+        font-size: 1.6rem;
+        font-weight: 900;
+        line-height: 1;
+      }
+      .stat-label {
+        font-size: 0.65rem;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-top: 4px;
+      }
+      .stat-value.score {
+        color: #fbbf24;
+      }
+      .stat-value.moves {
+        color: #60a5fa;
+      }
+      .stat-value.combo {
+        color: #f472b6;
+      }
+      .stat-value.best {
+        color: #a78bfa;
+      }
+
+      /* ─── Board ─── */
+      .board-container {
+        position: relative;
+        padding: 12px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        backdrop-filter: blur(12px);
+      }
+      .board {
+        display: grid;
+        grid-template-columns: repeat(8, var(--cell-size));
+        grid-template-rows: repeat(8, var(--cell-size));
+        gap: var(--gap);
+      }
+
+      /* ─── Gem Cell ─── */
+      .cell {
+        width: var(--cell-size);
+        height: var(--cell-size);
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        position: relative;
+        transition:
+          transform 0.15s ease,
+          box-shadow 0.15s ease;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .cell:hover {
+        transform: scale(1.08);
+      }
+      .cell:active {
+        transform: scale(0.95);
+      }
+
+      .cell .gem-icon {
+        font-size: calc(var(--cell-size) * 0.48);
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+        pointer-events: none;
+        z-index: 1;
+      }
+
+      .cell::before {
+        content: "";
+        position: absolute;
+        inset: 3px;
+        border-radius: 11px;
+        opacity: 0.35;
+        z-index: 0;
+      }
+
+      /* Gem backgrounds */
+      .cell[data-type="fire"] {
+        background: var(--fire);
+      }
+      .cell[data-type="water"] {
+        background: var(--water);
+      }
+      .cell[data-type="earth"] {
+        background: var(--earth);
+      }
+      .cell[data-type="air"] {
+        background: var(--air);
+      }
+      .cell[data-type="light"] {
+        background: var(--light);
+      }
+      .cell[data-type="dark"] {
+        background: var(--dark);
+      }
+
+      .cell[data-type="fire"]::before {
+        background: var(--fire);
+      }
+      .cell[data-type="water"]::before {
+        background: var(--water);
+      }
+      .cell[data-type="earth"]::before {
+        background: var(--earth);
+      }
+      .cell[data-type="air"]::before {
+        background: var(--air);
+      }
+      .cell[data-type="light"]::before {
+        background: var(--light);
+      }
+      .cell[data-type="dark"]::before {
+        background: var(--dark);
+      }
+
+      /* Selection */
+      .cell.selected {
+        transform: scale(1.12);
+        box-shadow:
+          0 0 0 3px var(--accent),
+          0 0 20px var(--accent-glow);
+        z-index: 10;
+      }
+
+      /* ─── Animations ─── */
+      @keyframes gemPop {
+        0% {
+          transform: scale(1);
+          opacity: 1;
+        }
+        50% {
+          transform: scale(1.3);
+          opacity: 0.7;
+        }
+        100% {
+          transform: scale(0);
+          opacity: 0;
+        }
+      }
+      @keyframes gemFall {
+        0% {
+          transform: translateY(-60px);
+          opacity: 0;
+        }
+        60% {
+          transform: translateY(4px);
+          opacity: 1;
+        }
+        100% {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+      @keyframes gemAppear {
+        0% {
+          transform: scale(0) rotate(-20deg);
+          opacity: 0;
+        }
+        70% {
+          transform: scale(1.1) rotate(2deg);
+          opacity: 1;
+        }
+        100% {
+          transform: scale(1) rotate(0deg);
+          opacity: 1;
+        }
+      }
+      @keyframes shake {
+        0%,
+        100% {
+          transform: translateX(0);
+        }
+        20% {
+          transform: translateX(-5px);
+        }
+        40% {
+          transform: translateX(5px);
+        }
+        60% {
+          transform: translateX(-3px);
+        }
+        80% {
+          transform: translateX(3px);
+        }
+      }
+      @keyframes comboFlash {
+        0% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.4);
+          color: #f472b6;
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+      @keyframes scoreUp {
+        0% {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+        100% {
+          opacity: 0;
+          transform: translateY(-40px) scale(1.3);
+        }
+      }
+
+      .cell.popping {
+        animation: gemPop 0.3s ease-out forwards;
+      }
+      .cell.falling {
+        animation: gemFall 0.35s ease-out;
+      }
+      .cell.entering {
+        animation: gemAppear 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+      .board.shake {
+        animation: shake 0.35s ease;
+      }
+      .combo-flash {
+        animation: comboFlash 0.4s ease;
+      }
+
+      /* Floating points */
+      .float-points {
+        position: absolute;
+        font-weight: 900;
+        font-size: 1.1rem;
+        color: #fbbf24;
+        text-shadow: 0 0 10px rgba(251, 191, 36, 0.5);
+        pointer-events: none;
+        z-index: 100;
+        animation: scoreUp 0.8s ease-out forwards;
+      }
+
+      /* ─── Combo Banner ─── */
+      .combo-banner {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(0);
+        font-size: 2rem;
+        font-weight: 900;
+        color: #f472b6;
+        text-shadow: 0 0 30px rgba(244, 114, 182, 0.6);
+        pointer-events: none;
+        z-index: 50;
+        opacity: 0;
+        transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+      .combo-banner.show {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+      }
+
+      /* ─── Button ─── */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 32px;
+        border: none;
+        border-radius: 14px;
+        font-family: "Inter", sans-serif;
+        font-size: 0.95rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        letter-spacing: -0.01em;
+      }
+      .btn-primary {
+        background: linear-gradient(135deg, #a78bfa, #8b5cf6);
+        color: white;
+        box-shadow: 0 4px 20px rgba(139, 92, 246, 0.35);
+      }
+      .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 30px rgba(139, 92, 246, 0.5);
+      }
+      .btn-primary:active {
+        transform: translateY(0);
+      }
+
+      .actions {
+        display: flex;
+        gap: 12px;
+        margin: 20px 0;
+      }
+
+      /* ─── Game Over ─── */
+      .overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(13, 15, 26, 0.85);
+        backdrop-filter: blur(12px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 200;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.4s ease;
+      }
+      .overlay.show {
+        opacity: 1;
+        pointer-events: all;
+      }
+      .overlay-card {
+        background: rgba(30, 32, 50, 0.95);
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        padding: 40px 48px;
+        text-align: center;
+        transform: scale(0.9) translateY(20px);
+        transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+      .overlay.show .overlay-card {
+        transform: scale(1) translateY(0);
+      }
+      .overlay-card h2 {
+        font-size: 2rem;
+        font-weight: 900;
+        margin-bottom: 8px;
+      }
+      .overlay-card .final-score {
+        font-size: 3rem;
+        font-weight: 900;
+        color: #fbbf24;
+        margin: 12px 0;
+      }
+      .overlay-card .high-score {
+        font-size: 0.9rem;
+        color: var(--text-dim);
+        margin-bottom: 24px;
+      }
+      .overlay-card .high-score span {
+        color: #a78bfa;
+        font-weight: 700;
+      }
+
+      /* ─── Footer ─── */
+      .footer {
+        text-align: center;
+        padding: 20px 16px 32px;
+        color: var(--text-dim);
+        font-size: 0.7rem;
+        letter-spacing: 0.04em;
+      }
+      .footer a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+
+      /* ─── Disabled state ─── */
+      .board.disabled .cell {
+        cursor: not-allowed;
+        opacity: 0.7;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h1>💎 Gem Crush</h1>
+      <div class="subtitle">Match-3 Demo — Discord Activities Framework</div>
+    </div>
+
+    <div class="stats-bar" id="stats-bar">
+      <div class="stat">
+        <div class="stat-value score" id="stat-score">0</div>
+        <div class="stat-label">Score</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value moves" id="stat-moves">30</div>
+        <div class="stat-label">Moves</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value combo" id="stat-combo">—</div>
+        <div class="stat-label">Combo</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value best" id="stat-best">0</div>
+        <div class="stat-label">Best</div>
+      </div>
+    </div>
+
+    <div class="board-container">
+      <div class="board" id="board"></div>
+      <div class="combo-banner" id="combo-banner"></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" id="btn-new-game" onclick="startGame()">
+        🎮 New Game
+      </button>
+    </div>
+
+    <!-- Game Over Overlay -->
+    <div class="overlay" id="overlay">
+      <div class="overlay-card">
+        <h2>🏆 Game Over</h2>
+        <div class="final-score" id="final-score">0</div>
+        <div class="high-score">Best: <span id="final-best">0</span></div>
+        <button class="btn btn-primary" onclick="startGame()">
+          🔄 Play Again
+        </button>
+      </div>
+    </div>
+
+    <div class="footer">
+      Built with <a href="#">Discord Activities Game Framework</a> — Zero build
+      step, pure HTML + server API
+    </div>
+
+    <script>
+      /* ═══════════════════════════════════════════
+       *  Match-3 Demo — Client
+       *  All game logic lives on the server.
+       *  Client handles rendering + animations only.
+       * ═══════════════════════════════════════════ */
+
+      const GEM_ICONS = {
+        fire: "🔥",
+        water: "💧",
+        earth: "🌿",
+        air: "💨",
+        light: "⭐",
+        dark: "🔮",
+      };
+
+      const USER_ID = "demo_" + Math.random().toString(36).slice(2, 8);
+      const USER_NAME = "Player";
+
+      let board = [];
+      let selected = null; // { x, y }
+      let isAnimating = false;
+      let highScore = 0;
+
+      const $board = document.getElementById("board");
+      const $score = document.getElementById("stat-score");
+      const $moves = document.getElementById("stat-moves");
+      const $combo = document.getElementById("stat-combo");
+      const $best = document.getElementById("stat-best");
+      const $overlay = document.getElementById("overlay");
+      const $finalScore = document.getElementById("final-score");
+      const $finalBest = document.getElementById("final-best");
+      const $comboBanner = document.getElementById("combo-banner");
+
+      /* ─── API Helpers ─── */
+      async function api(path, body) {
+        const res = await fetch(path, {
+          method: body ? "POST" : "GET",
+          headers: { "Content-Type": "application/json" },
+          body: body ? JSON.stringify(body) : undefined,
+        });
+        return res.json();
+      }
+
+      /* ─── Start Game ─── */
+      async function startGame() {
+        $overlay.classList.remove("show");
+        selected = null;
+        isAnimating = false;
+
+        const data = await api("/api/game/start", {
+          userId: USER_ID,
+          username: USER_NAME,
+        });
+        board = data.game.board;
+        highScore = data.highScore || 0;
+
+        updateStats(data.game);
+        renderBoard(true);
+      }
+
+      /* ─── Render Board ─── */
+      function renderBoard(animate = false) {
+        $board.innerHTML = "";
+        $board.classList.remove("disabled");
+
+        for (let y = 0; y < 8; y++) {
+          for (let x = 0; x < 8; x++) {
+            const type = board[y][x];
+            const cell = document.createElement("div");
+            cell.className = "cell";
+            if (animate) cell.classList.add("entering");
+            cell.dataset.type = type;
+            cell.dataset.x = x;
+            cell.dataset.y = y;
+            cell.innerHTML = `<span class="gem-icon">${GEM_ICONS[type] || "?"}</span>`;
+            cell.style.animationDelay = animate ? `${(x + y) * 25}ms` : "0ms";
+            cell.addEventListener("click", () => onCellClick(x, y));
+            $board.appendChild(cell);
+          }
+        }
+      }
+
+      /* ─── Click Handler ─── */
+      function onCellClick(x, y) {
+        if (isAnimating) return;
+
+        if (!selected) {
+          // First selection
+          selected = { x, y };
+          getCell(x, y)?.classList.add("selected");
+          return;
+        }
+
+        const dx = Math.abs(selected.x - x);
+        const dy = Math.abs(selected.y - y);
+
+        if (selected.x === x && selected.y === y) {
+          // Deselect
+          getCell(x, y)?.classList.remove("selected");
+          selected = null;
+          return;
+        }
+
+        if (dx + dy === 1) {
+          // Adjacent — attempt swap
+          attemptSwap(selected.x, selected.y, x, y);
+        } else {
+          // Non-adjacent — reselect
+          getCell(selected.x, selected.y)?.classList.remove("selected");
+          selected = { x, y };
+          getCell(x, y)?.classList.add("selected");
+        }
+      }
+
+      /* ─── Swap ─── */
+      async function attemptSwap(fromX, fromY, toX, toY) {
+        isAnimating = true;
+        $board.classList.add("disabled");
+
+        // Clear selection visuals
+        getCell(fromX, fromY)?.classList.remove("selected");
+        selected = null;
+
+        const data = await api("/api/game/move", {
+          userId: USER_ID,
+          fromX,
+          fromY,
+          toX,
+          toY,
+        });
+
+        if (!data.valid) {
+          // Invalid move — shake
+          $board.classList.add("shake");
+          setTimeout(() => $board.classList.remove("shake"), 400);
+          isAnimating = false;
+          $board.classList.remove("disabled");
+          return;
+        }
+
+        // Show combo
+        if (data.combo > 1) {
+          showComboBanner(data.combo);
+        }
+
+        // Show floating points
+        if (data.points > 0) {
+          showFloatingPoints(toX, toY, data.points);
+        }
+
+        // Update board with animation
+        const oldBoard = board.map((r) => [...r]);
+        board = data.game.board;
+
+        await animateBoardTransition(oldBoard, board);
+        updateStats(data.game);
+
+        // Game over?
+        if (data.game.isGameOver) {
+          highScore = data.highScore || highScore;
+          setTimeout(() => showGameOver(data.game.score), 500);
+        }
+
+        isAnimating = false;
+        $board.classList.remove("disabled");
+      }
+
+      /* ─── Board Transition Animation ─── */
+      async function animateBoardTransition(oldBoard, newBoard) {
+        // Find changed cells
+        const cells = $board.querySelectorAll(".cell");
+        const changed = [];
+
+        for (let y = 0; y < 8; y++) {
+          for (let x = 0; x < 8; x++) {
+            if (oldBoard[y][x] !== newBoard[y][x]) {
+              changed.push({ x, y });
+            }
+          }
+        }
+
+        // Pop changed cells
+        for (const { x, y } of changed) {
+          const cell = getCell(x, y);
+          if (cell) cell.classList.add("popping");
+        }
+
+        await sleep(280);
+
+        // Re-render with new board + fall animation
+        $board.innerHTML = "";
+        for (let y = 0; y < 8; y++) {
+          for (let x = 0; x < 8; x++) {
+            const type = newBoard[y][x];
+            const cell = document.createElement("div");
+            cell.className = "cell";
+            cell.dataset.type = type;
+            cell.dataset.x = x;
+            cell.dataset.y = y;
+            cell.innerHTML = `<span class="gem-icon">${GEM_ICONS[type] || "?"}</span>`;
+
+            const wasChanged = changed.some((c) => c.x === x && c.y === y);
+            if (wasChanged) {
+              cell.classList.add("falling");
+              cell.style.animationDelay = `${x * 30}ms`;
+            }
+
+            cell.addEventListener("click", () => onCellClick(x, y));
+            $board.appendChild(cell);
+          }
+        }
+
+        await sleep(350);
+      }
+
+      /* ─── UI Helpers ─── */
+      function getCell(x, y) {
+        return $board.querySelector(`.cell[data-x="${x}"][data-y="${y}"]`);
+      }
+
+      function updateStats(game) {
+        animateNumber($score, game.score);
+        $moves.textContent = game.movesLeft;
+        $combo.textContent = game.combo > 0 ? `${game.combo}×` : "—";
+        $best.textContent = highScore;
+
+        if (game.combo > 1) {
+          $combo.classList.add("combo-flash");
+          setTimeout(() => $combo.classList.remove("combo-flash"), 400);
+        }
+
+        // Color moves red when low
+        $moves.style.color = game.movesLeft <= 5 ? "#ef4444" : "";
+      }
+
+      function animateNumber(el, target) {
+        const current = parseInt(el.textContent) || 0;
+        if (current === target) {
+          el.textContent = target;
+          return;
+        }
+        const diff = target - current;
+        const steps = Math.min(Math.abs(diff), 20);
+        const stepSize = diff / steps;
+        let i = 0;
+        const interval = setInterval(() => {
+          i++;
+          if (i >= steps) {
+            el.textContent = target;
+            clearInterval(interval);
+          } else {
+            el.textContent = Math.round(current + stepSize * i);
+          }
+        }, 25);
+      }
+
+      function showFloatingPoints(x, y, points) {
+        const container = document.querySelector(".board-container");
+        const cellSize = parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue(
+            "--cell-size",
+          ),
+        );
+        const gap = 4;
+        const padding = 12;
+
+        const el = document.createElement("div");
+        el.className = "float-points";
+        el.textContent = `+${points}`;
+        el.style.left = `${padding + x * (cellSize + gap) + cellSize / 2}px`;
+        el.style.top = `${padding + y * (cellSize + gap)}px`;
+        container.appendChild(el);
+        setTimeout(() => el.remove(), 800);
+      }
+
+      function showComboBanner(combo) {
+        const labels = [
+          "",
+          "",
+          "Double! ✨",
+          "Triple! 🔥",
+          "Mega! 💥",
+          "ULTRA! ⚡",
+        ];
+        $comboBanner.textContent =
+          labels[Math.min(combo, 5)] || `${combo}× Combo! 🌟`;
+        $comboBanner.classList.add("show");
+        setTimeout(() => $comboBanner.classList.remove("show"), 1200);
+      }
+
+      function showGameOver(score) {
+        $finalScore.textContent = score;
+        $finalBest.textContent = highScore;
+        $overlay.classList.add("show");
+      }
+
+      function sleep(ms) {
+        return new Promise((r) => setTimeout(r, ms));
+      }
+
+      /* ─── Init ─── */
+      startGame();
+    </script>
+  </body>
+</html>

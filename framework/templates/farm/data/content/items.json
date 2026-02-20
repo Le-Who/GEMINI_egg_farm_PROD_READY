@@ -1,0 +1,35 @@
+{
+  "planter_basic": {
+    "id": "planter_basic",
+    "name": "Basic Planter",
+    "type": "PLANTER",
+    "price": 100,
+    "currency": "coins",
+    "color": 5614165,
+    "width": 1,
+    "height": 1,
+    "description": "A simple planter for growing crops"
+  },
+  "table_wood": {
+    "id": "table_wood",
+    "name": "Wooden Table",
+    "type": "FURNITURE",
+    "price": 150,
+    "currency": "coins",
+    "color": 8408391,
+    "width": 2,
+    "height": 1,
+    "description": "A sturdy wooden table"
+  },
+  "flower_pot": {
+    "id": "flower_pot",
+    "name": "Flower Pot",
+    "type": "DECORATION",
+    "price": 50,
+    "currency": "coins",
+    "color": 16734003,
+    "width": 1,
+    "height": 1,
+    "description": "A decorative flower pot"
+  }
+}

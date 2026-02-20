@@ -1,0 +1,20 @@
+{
+  "name": "discord-activities-framework",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "cd core && npm run build && cd ../cli && npx tsc",
+    "build:core": "cd core && npm run build",
+    "build:cli": "cd cli && npx tsc",
+    "create-game": "node cli/dist/index.js",
+    "test": "npx vitest run",
+    "test:watch": "npx vitest"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "vitest": "^4.0.18",
+    "@types/node": "^22.0.0",
+    "@types/express": "^4.17.21",
+    "express": "^4.18.2"
+  }
+}

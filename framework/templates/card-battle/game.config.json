@@ -1,0 +1,22 @@
+{
+  "id": "{{GAME_ID}}",
+  "title": "{{GAME_TITLE}}",
+  "description": "A turn-based card battle game for Discord Activities",
+  "genre": "card-battle",
+  "version": "{{VERSION}}",
+  "locales": {{LOCALES}},
+  "persistence": "{{PERSISTENCE}}",
+  "discord": {
+    "clientId": "",
+    "scopes": ["identify", "rpc.activities.write"]
+  },
+  "rendering": {
+    "type": "dom",
+    "backgroundColor": 1776411
+  },
+  "server": {
+    "port": 8080,
+    "adminPanel": true,
+    "adminPasswordEnv": "ADMIN_PASSWORD"
+  }
+}

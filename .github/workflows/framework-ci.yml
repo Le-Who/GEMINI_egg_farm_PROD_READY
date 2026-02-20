@@ -1,0 +1,58 @@
+name: Framework CI
+
+on:
+  push:
+    paths: ["framework/**"]
+  pull_request:
+    paths: ["framework/**"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20.x, 22.x]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install core dependencies
+        working-directory: framework/core
+        run: npm ci
+
+      - name: Build core library
+        working-directory: framework/core
+        run: npm run build
+
+      - name: Install framework test dependencies
+        working-directory: framework
+        run: npm ci
+
+      - name: Run unit tests
+        working-directory: framework
+        run: npx vitest run --reporter=verbose
+
+      - name: TypeScript check
+        working-directory: framework/core
+        run: npx tsc --noEmit
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+
+      - name: Install core dependencies
+        working-directory: framework/core
+        run: npm ci
+
+      - name: TypeScript strict check
+        working-directory: framework/core
+        run: npx tsc --noEmit --strict

@@ -1,0 +1,26 @@
+[
+  {
+    "id": "sku_gems_100",
+    "name": "Pouch of Gems",
+    "name_ru": "Мешочек самоцветов",
+    "price": "$1.99",
+    "amount": 100,
+    "icon": "gem_small"
+  },
+  {
+    "id": "sku_gems_550",
+    "name": "Bucket of Gems",
+    "name_ru": "Ведро самоцветов",
+    "price": "$4.99",
+    "amount": 550,
+    "icon": "gem_bucket"
+  },
+  {
+    "id": "sku_starter",
+    "name": "Starter Pack",
+    "name_ru": "Набор новичка",
+    "price": "$2.99",
+    "amount": 200,
+    "icon": "starter"
+  }
+]

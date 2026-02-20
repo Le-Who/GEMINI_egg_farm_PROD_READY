@@ -1,0 +1,20 @@
+# Ignore everything not needed for build
+.git
+.gitignore
+.gemini/
+.docker/
+.config/
+.npm/
+.vscode/
+node_modules/
+data/db.json
+*.md
+*.log
+.env
+.env.*
+!.env.example
+.bash*
+.profile
+.sudo_as_admin_successful
+README-cloudshell.txt
+tests/

@@ -1,0 +1,197 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - generic:
+    - button "Inventory 0" [active]:
+      - img
+      - generic: Inventory
+      - generic: "0"
+  - generic [ref=e8]:
+    - generic [ref=e9]:
+      - button [ref=e10] [cursor=pointer]:
+        - img [ref=e11]
+      - generic [ref=e13]:
+        - button "All" [ref=e14] [cursor=pointer]
+        - button "Furniture" [ref=e15] [cursor=pointer]
+        - button "Nature" [ref=e16] [cursor=pointer]
+        - button "Decor" [ref=e17] [cursor=pointer]
+        - button "Consumables" [ref=e18] [cursor=pointer]
+      - button "Build Mode" [ref=e20] [cursor=pointer]:
+        - img [ref=e21]
+    - generic [ref=e25]:
+      - generic [ref=e27]:
+        - img [ref=e28]
+        - textbox "Search..." [ref=e31]
+      - generic [ref=e33]:
+        - img [ref=e34]
+        - paragraph [ref=e37]: Nothing here.
+  - generic [ref=e39]:
+    - generic [ref=e40]:
+      - generic [ref=e41]:
+        - img [ref=e42]
+        - heading "Shop" [level=2] [ref=e45]
+      - generic [ref=e46]:
+        - generic [ref=e47]: 1000 G
+        - generic [ref=e48]: 100 💎
+        - button [ref=e49] [cursor=pointer]:
+          - img [ref=e50]
+    - generic [ref=e52]:
+      - button "Items" [ref=e53] [cursor=pointer]:
+        - img [ref=e54]
+        - text: Items
+      - button "Dyes" [ref=e58] [cursor=pointer]:
+        - img [ref=e59]
+        - text: Dyes
+      - button "Gems" [ref=e65] [cursor=pointer]:
+        - img [ref=e66]
+        - text: Gems
+    - generic [ref=e70]:
+      - generic [ref=e71]:
+        - generic [ref=e74]: CONSUMABLE
+        - generic [ref=e75]:
+          - heading "Magic Dust" [level=3] [ref=e76]
+          - paragraph [ref=e77]: Instantly grow a plant!
+        - generic [ref=e78]:
+          - generic [ref=e79]: 5 💎
+          - button "Buy" [ref=e80] [cursor=pointer]
+      - generic [ref=e81]:
+        - generic [ref=e84]: PLANTER
+        - generic [ref=e85]:
+          - heading "Wooden Planter" [level=3] [ref=e86]
+          - paragraph [ref=e87]: Grow your own herbs!
+        - generic [ref=e88]:
+          - generic [ref=e89]: 50 G
+          - button "Buy" [ref=e90] [cursor=pointer]
+      - generic [ref=e91]:
+        - generic [ref=e94]: INCUBATOR
+        - generic [ref=e95]:
+          - heading "Basic Incubator" [level=3] [ref=e96]
+          - paragraph [ref=e97]: Hatch pets from eggs.
+        - generic [ref=e98]:
+          - generic [ref=e99]: 200 G
+          - button "Buy" [ref=e100] [cursor=pointer]
+      - generic [ref=e101]:
+        - generic [ref=e104]: EGG
+        - generic [ref=e105]:
+          - heading "Spotted Egg" [level=3] [ref=e106]
+          - paragraph [ref=e107]: What's inside?
+        - generic [ref=e108]:
+          - generic [ref=e109]: 100 G
+          - button "Buy" [ref=e110] [cursor=pointer]
+      - generic [ref=e111]:
+        - generic [ref=e114]: FURNITURE
+        - generic [ref=e115]:
+          - heading "Wooden Chair" [level=3] [ref=e116]
+          - paragraph [ref=e117]: Basic comfort.
+        - generic [ref=e118]:
+          - generic [ref=e119]: 150 G
+          - button "Buy" [ref=e120] [cursor=pointer]
+      - generic [ref=e121]:
+        - generic [ref=e124]: FURNITURE
+        - generic [ref=e125]:
+          - heading "Round Table" [level=3] [ref=e126]
+          - paragraph [ref=e127]: Perfect for tea.
+        - generic [ref=e128]:
+          - generic [ref=e129]: 300 G
+          - button "Buy" [ref=e130] [cursor=pointer]
+      - generic [ref=e131]:
+        - generic [ref=e134]: DECORATION
+        - generic [ref=e135]:
+          - heading "Floor Lamp" [level=3] [ref=e136]
+          - paragraph [ref=e137]: Brightens the corner.
+        - generic [ref=e138]:
+          - generic [ref=e139]: 200 G
+          - button "Buy" [ref=e140] [cursor=pointer]
+      - generic [ref=e141]:
+        - generic [ref=e144]: DECORATION
+        - generic [ref=e145]:
+          - heading "Blue Rug" [level=3] [ref=e146]
+          - paragraph [ref=e147]: Soft on the feet.
+        - generic [ref=e148]:
+          - generic [ref=e149]: 100 G
+          - button "Buy" [ref=e150] [cursor=pointer]
+      - generic [ref=e151]:
+        - generic [ref=e154]: DECORATION
+        - generic [ref=e155]:
+          - heading "White Fence" [level=3] [ref=e156]
+          - paragraph [ref=e157]: A classic garden border.
+        - generic [ref=e158]:
+          - generic [ref=e159]: 40 G
+          - button "Buy" [ref=e160] [cursor=pointer]
+      - generic [ref=e161]:
+        - generic [ref=e164]: DECORATION
+        - generic [ref=e165]:
+          - heading "Visitor Billboard" [level=3] [ref=e166]
+          - paragraph [ref=e167]: Friends can leave stickers when visiting!
+        - generic [ref=e168]:
+          - generic [ref=e169]: 150 G
+          - button "Buy" [ref=e170] [cursor=pointer]
+  - generic [ref=e172]:
+    - generic [ref=e173]:
+      - generic [ref=e174]:
+        - img [ref=e175]
+        - heading "Pet Collection" [level=2] [ref=e180]
+        - generic [ref=e181]: "0"
+      - button [ref=e182] [cursor=pointer]:
+        - img [ref=e183]
+    - generic [ref=e186]:
+      - img [ref=e187]
+      - paragraph [ref=e192]: No Pets Yet
+      - paragraph [ref=e193]: Buy an Incubator and an Egg from the shop!
+  - generic [ref=e195]:
+    - generic [ref=e196]:
+      - generic [ref=e197]:
+        - img [ref=e198]
+        - heading "Quests" [level=2] [ref=e204]
+        - generic [ref=e205]: 0/4
+      - button [ref=e206] [cursor=pointer]:
+        - img [ref=e207]
+    - generic [ref=e210]:
+      - heading "Active" [level=3] [ref=e211]
+      - generic [ref=e212]:
+        - generic [ref=e213]:
+          - generic [ref=e214]:
+            - generic [ref=e215]:
+              - heading "Green Thumb" [level=4] [ref=e216]
+              - paragraph [ref=e217]: Plant your first seed
+            - img [ref=e218]
+          - generic [ref=e222]:
+            - generic [ref=e223]: 0/1
+            - generic [ref=e224]:
+              - generic [ref=e225]: 50G
+              - generic [ref=e226]: 10XP
+        - generic [ref=e227]:
+          - generic [ref=e228]:
+            - generic [ref=e229]:
+              - heading "Reap What You Sow" [level=4] [ref=e230]
+              - paragraph [ref=e231]: Harvest your first crop
+            - img [ref=e232]
+          - generic [ref=e236]:
+            - generic [ref=e237]: 0/1
+            - generic [ref=e238]:
+              - generic [ref=e239]: 100G
+              - generic [ref=e240]: 20XP
+        - generic [ref=e241]:
+          - generic [ref=e242]:
+            - generic [ref=e243]:
+              - heading "Budding Farmer" [level=4] [ref=e244]
+              - paragraph [ref=e245]: Plant 5 seeds
+            - img [ref=e246]
+          - generic [ref=e250]:
+            - generic [ref=e251]: 0/5
+            - generic [ref=e252]:
+              - generic [ref=e253]: 200G
+              - generic [ref=e254]: 50XP
+        - generic [ref=e255]:
+          - generic [ref=e256]:
+            - generic [ref=e257]:
+              - heading "Shopping Spree" [level=4] [ref=e258]
+              - paragraph [ref=e259]: Buy your first item from the shop
+            - img [ref=e260]
+          - generic [ref=e264]:
+            - generic [ref=e265]: 0/1
+            - generic [ref=e266]:
+              - generic [ref=e267]: 30G
+              - generic [ref=e268]: 5XP
+```

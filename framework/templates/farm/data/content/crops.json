@@ -1,0 +1,22 @@
+{
+  "tomato": {
+    "id": "tomato",
+    "name": "Tomato",
+    "seedPrice": 10,
+    "sellPrice": 25,
+    "growthTime": 120,
+    "xpReward": 15,
+    "levelReq": 1,
+    "color": 16711680
+  },
+  "carrot": {
+    "id": "carrot",
+    "name": "Carrot",
+    "seedPrice": 15,
+    "sellPrice": 40,
+    "growthTime": 180,
+    "xpReward": 25,
+    "levelReq": 2,
+    "color": 16753920
+  }
+}

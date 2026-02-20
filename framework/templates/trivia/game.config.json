@@ -1,0 +1,27 @@
+{
+  "id": "{{GAME_ID}}",
+  "title": "{{GAME_TITLE}}",
+  "description": "A multiplayer trivia quiz game for Discord Activities",
+  "genre": "trivia",
+  "version": "{{VERSION}}",
+  "locales": {{LOCALES}},
+  "persistence": "{{PERSISTENCE}}",
+  "discord": {
+    "clientId": "",
+    "scopes": ["identify", "rpc.activities.write"]
+  },
+  "rendering": {
+    "type": "dom",
+    "backgroundColor": 1776411
+  },
+  "server": {
+    "port": 8080,
+    "adminPanel": true,
+    "adminPasswordEnv": "ADMIN_PASSWORD"
+  },
+  "features": {
+    "multiplayer": true,
+    "timer": true,
+    "leaderboard": true
+  }
+}

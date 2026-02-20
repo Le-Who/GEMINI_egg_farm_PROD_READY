@@ -1,0 +1,24 @@
+{
+  "slime_green": {
+    "id": "slime_green",
+    "name": "Garden Slime",
+    "name_ru": "Садовый слайм",
+    "rarity": "common",
+    "color": "0x77dd77",
+    "bonusDescription": "+5% Growth Speed",
+    "bonusDescription_ru": "+5% Скор. Роста",
+    "bonuses": [{ "type": "growth_speed", "value": 0.05 }],
+    "sprite": null
+  },
+  "cat_lucky": {
+    "id": "cat_lucky",
+    "name": "Lucky Cat",
+    "name_ru": "Кот удачи",
+    "rarity": "rare",
+    "color": "0xffaa00",
+    "bonusDescription": "+10% Coin Reward",
+    "bonusDescription_ru": "+10% Монет",
+    "bonuses": [{ "type": "coin_reward", "value": 0.1 }],
+    "sprite": null
+  }
+}
