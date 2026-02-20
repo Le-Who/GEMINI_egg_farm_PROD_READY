@@ -647,7 +647,11 @@ async function startServer(port = PORT) {
       fromId: req.discordUser.id,
       fromName: req.discordUser.username || "Visitor",
       sticker,
-      message: message ? message.substring(0, 256) : undefined,
+      // Security: Sanitize input to prevent XSS (only alphanumeric + basic punctuation)
+      message:
+        typeof message === "string"
+          ? message.replace(/[^a-zA-Z0-9\s.,!?]/g, "").substring(0, 256)
+          : undefined,
       timestamp: Date.now(),
     });
     if (targetState.billboard.length > 20) {
