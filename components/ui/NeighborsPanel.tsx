@@ -47,6 +47,7 @@ export const NeighborsPanel: React.FC<NeighborsPanelProps> = React.memo(({
             onClick={loadNeighbors}
             className="text-gray-400 hover:text-white transition-colors"
             title="Refresh"
+            aria-label="Refresh neighbors"
           >
             <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
           </button>
@@ -54,6 +55,7 @@ export const NeighborsPanel: React.FC<NeighborsPanelProps> = React.memo(({
             onClick={onToggle}
             className="text-gray-400 hover:text-white transition-colors bg-gray-800 rounded-full p-1"
             title="Close"
+            aria-label={t("common.close")}
           >
             <X size={16} />
           </button>
@@ -93,6 +95,7 @@ export const NeighborsPanel: React.FC<NeighborsPanelProps> = React.memo(({
               onClick={() => onVisit(n.id)}
               className="p-2 bg-blue-600/20 hover:bg-blue-600 text-blue-400 hover:text-white rounded-md transition-colors"
               title="Visit"
+              aria-label="Visit neighbor"
             >
               <ExternalLink size={16} />
             </button>
