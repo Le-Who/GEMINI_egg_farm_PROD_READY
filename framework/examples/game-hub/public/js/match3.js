@@ -163,20 +163,27 @@ const Match3Game = (() => {
   }
 
   function findMatches(b) {
-    const matches = new Set();
+    // Optimized: Use Uint8Array visited map instead of Set<string> for performance
+    const matched = new Uint8Array(BOARD_SIZE * BOARD_SIZE);
+    let count = 0;
+
     // Horizontal
     for (let y = 0; y < BOARD_SIZE; y++) {
       for (let x = 0; x < BOARD_SIZE - 2; x++) {
+        const type = b[y][x];
         // Skip star-type gems (they don't match)
-        if (
-          b[y][x] &&
-          !DROP_TYPES.includes(b[y][x]) &&
-          b[y][x] === b[y][x + 1] &&
-          b[y][x] === b[y][x + 2]
-        ) {
-          let end = x;
-          while (end < BOARD_SIZE && b[y][end] === b[y][x]) end++;
-          for (let i = x; i < end; i++) matches.add(`${i},${y}`);
+        if (!type || DROP_TYPES.includes(type)) continue;
+
+        if (type === b[y][x + 1] && type === b[y][x + 2]) {
+          let end = x + 3;
+          while (end < BOARD_SIZE && b[y][end] === type) end++;
+          for (let k = x; k < end; k++) {
+            const idx = y * BOARD_SIZE + k;
+            if (matched[idx] === 0) {
+              matched[idx] = 1;
+              count++;
+            }
+          }
           x = end - 1;
         }
       }
@@ -184,20 +191,32 @@ const Match3Game = (() => {
     // Vertical
     for (let x = 0; x < BOARD_SIZE; x++) {
       for (let y = 0; y < BOARD_SIZE - 2; y++) {
-        if (
-          b[y][x] &&
-          !DROP_TYPES.includes(b[y][x]) &&
-          b[y][x] === b[y + 1][x] &&
-          b[y][x] === b[y + 2][x]
-        ) {
-          let end = y;
-          while (end < BOARD_SIZE && b[end][x] === b[y][x]) end++;
-          for (let i = y; i < end; i++) matches.add(`${x},${i}`);
+        const type = b[y][x];
+        if (!type || DROP_TYPES.includes(type)) continue;
+
+        if (type === b[y + 1][x] && type === b[y + 2][x]) {
+          let end = y + 3;
+          while (end < BOARD_SIZE && b[end][x] === type) end++;
+          for (let k = y; k < end; k++) {
+            const idx = k * BOARD_SIZE + x;
+            if (matched[idx] === 0) {
+              matched[idx] = 1;
+              count++;
+            }
+          }
           y = end - 1;
         }
       }
     }
-    return matches;
+
+    const result = [];
+    if (count > 0) {
+      const len = BOARD_SIZE * BOARD_SIZE;
+      for (let i = 0; i < len; i++) {
+        if (matched[i]) result.push(i);
+      }
+    }
+    return result;
   }
 
   /** Check if board has any valid moves (prevents deadlocks) */
@@ -208,7 +227,7 @@ const Match3Game = (() => {
       for (let x = 0; x < BOARD_SIZE - 1; x++) {
         // Swap (x,y) with (x+1,y)
         [b[y][x], b[y][x + 1]] = [b[y][x + 1], b[y][x]];
-        const hasMatch = findMatches(b).size > 0;
+        const hasMatch = findMatches(b).length > 0;
         // Swap back
         [b[y][x], b[y][x + 1]] = [b[y][x + 1], b[y][x]];
         if (hasMatch) return true;
@@ -219,7 +238,7 @@ const Match3Game = (() => {
       for (let y = 0; y < BOARD_SIZE - 1; y++) {
         // Swap (x,y) with (x,y+1)
         [b[y + 1][x], b[y][x]] = [b[y][x], b[y + 1][x]];
-        const hasMatch = findMatches(b).size > 0;
+        const hasMatch = findMatches(b).length > 0;
         // Swap back
         [b[y + 1][x], b[y][x]] = [b[y][x], b[y + 1][x]];
         if (hasMatch) return true;
@@ -237,10 +256,11 @@ const Match3Game = (() => {
     let cascadeCombo = 0;
     let matches = findMatches(b);
 
-    while (matches.size > 0) {
+    while (matches.length > 0) {
       cascadeCombo++;
-      const cleared = [...matches].map((k) => {
-        const [x, y] = k.split(",").map(Number);
+      const cleared = matches.map((idx) => {
+        const x = idx % BOARD_SIZE;
+        const y = Math.floor(idx / BOARD_SIZE);
         return { x, y, type: b[y][x] };
       });
       totalPoints += cleared.length * 10 * Math.min(cascadeCombo, 5);
@@ -1263,7 +1283,7 @@ const Match3Game = (() => {
     ];
 
     const matches = findMatches(testBoard);
-    if (matches.size === 0) {
+    if (matches.length === 0) {
       // Invalid swap — shake
       $b.classList.add("shake");
       setTimeout(() => $b.classList.remove("shake"), 400);

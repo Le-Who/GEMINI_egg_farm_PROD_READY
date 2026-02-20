@@ -3,8 +3,8 @@
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
-import { MemoryAdapter } from "../src/persistence";
-import type { BasePlayerState } from "../src/types";
+import { MemoryAdapter } from "../../core/src/persistence";
+import type { BasePlayerState } from "../../core/src/types";
 
 interface TestState extends BasePlayerState {
   coins: number;
